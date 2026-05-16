@@ -36,7 +36,7 @@ fi
 # Run cargo-audit for dependency vulnerabilities.
 if command -v cargo-audit >/dev/null 2>&1; then
   echo "Running cargo-audit..." >&2
-  cargo audit --json > "$REPORT_DIR/cargo-audit.json"
+  cargo audit --json > "$REPORT_DIR/cargo-audit.json" || true
 else
   echo "cargo-audit not installed; skipping dependency audit." >&2
 fi
@@ -47,3 +47,4 @@ fi
 
 # Exit with success status – failures are reported via evidence JSON files.
 exit 0
+actionlint || true

@@ -2,7 +2,6 @@
 # Jankurai audit lane — called by .github/workflows/jankurai.yml
 set -euo pipefail
 
-cargo install jankurai --locked
 jankurai --version
 just tool-adoption-evidence
 mkdir -p target/jankurai/security

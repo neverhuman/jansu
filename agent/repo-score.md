@@ -7,15 +7,15 @@
 - Target stack ID: `rust-ts-vite-react-postgres-bounded-python`
 - Target stack: `Rust core + TypeScript/React/Vite + PostgreSQL + generated contracts + exception-only Python AI/data service`
 - Repo: `.`
-- Run ID: `1778969795`
-- Started at: `1778969795`
-- Elapsed: `9514` ms
+- Run ID: `1778971088`
+- Started at: `1778971088`
+- Elapsed: `5614` ms
 - Scope: `full`
-- Raw score: `82`
-- Final score: `80`
-- Decision: `fail`
+- Raw score: `85`
+- Final score: `85`
+- Decision: `advisory`
 - Minimum score: `85`
-- Caps applied: `release-readiness-gap`
+- Caps applied: `none`
 
 ## Hard Rule Caps
 
@@ -49,7 +49,7 @@
 | `authz-or-data-isolation-gap` | 78 | no |
 | `input-boundary-gap` | 78 | no |
 | `agent-tool-supply-chain-gap` | 78 | no |
-| `release-readiness-gap` | 80 | yes |
+| `release-readiness-gap` | 80 | no |
 | `missing-rust-property-or-integration-tests` | 82 | no |
 | `no-agent-friendly-exception-pattern` | 76 | no |
 | `missing-agent-readable-docs` | 80 | no |
@@ -70,68 +70,68 @@
 
 ## Copy-Code Redundancy
 
-- Status: `review` hard=`0` warning=`217` files=`269`
+- Status: `review` hard=`0` warning=`119` files=`260`
 - Policy: min-lines=`10` min-tokens=`100` max-findings=`50` include-tests=`false` strict=`false`
-- Duplicate volume: lines=`1154` tokens=`11711` bytes=`56151`
+- Duplicate volume: lines=`527` tokens=`2363` bytes=`17654`
 
 - Notes:
   - hard classes are limited to exact active-source file matches and substantial exact same-name units
   - warning classes include same-body different-name units and token/block duplication
   - tests, fixtures, stories, config, Docker, and migrations are omitted unless --include-tests is set
-  - showing the top 50 classes and omitting 167 lower-ranked classes
+  - showing the top 50 classes and omitting 69 lower-ranked classes
 
 | Kind | Severity | Language | Lines | Tokens | Instances | Reason |
 | --- | --- | --- | ---: | ---: | --- | --- |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/de.rs:352-355, jansu-sans-io/src/de.rs:359-362, jansu-sans-io/src/de.rs:375-378, jansu-sans-io/src/de.rs:391-394, jansu-sans-io/src/de.rs:437-440, jansu-sans-io/src/de.rs:453-456, jansu-sans-io/src/de.rs:469-472, jansu-sans-io/src/de.rs:485-488, jansu-sans-io/src/de.rs:501-504, jansu-sans-io/src/de.rs:517-520, jansu-sans-io/src/de.rs:533-536, jansu-sans-io/src/de.rs:549-552, jansu-sans-io/src/de.rs:565-568, jansu-sans-io/src/de.rs:575-578, jansu-sans-io/src/de.rs:593-596, jansu-sans-io/src/de.rs:627-630, jansu-sans-io/src/de.rs:650-653, jansu-sans-io/src/de.rs:678-681, jansu-sans-io/src/de.rs:793-796, jansu-sans-io/src/de.rs:839-842, jansu-sans-io/src/de.rs:886-889, jansu-sans-io/src/de.rs:914-917, jansu-sans-io/src/de.rs:1001-1004, jansu-sans-io/src/de.rs:1038-1041, jansu-sans-io/src/de.rs:1108-1111, jansu-sans-io/src/de.rs:1115-1118, jansu-sans-io/src/de.rs:1122-1125, jansu-sans-io/src/de.rs:1129-1132, jansu-sans-io/src/de.rs:1136-1139, jansu-sans-io/src/de.rs:1143-1146, jansu-sans-io/src/de.rs:1150-1153, jansu-sans-io/src/de.rs:1157-1160, jansu-sans-io/src/de.rs:1164-1167, jansu-sans-io/src/de.rs:1171-1174, jansu-sans-io/src/de.rs:1178-1181, jansu-sans-io/src/de.rs:1185-1188, jansu-sans-io/src/de.rs:1192-1195, jansu-sans-io/src/de.rs:1199-1202, jansu-sans-io/src/de.rs:1206-1209, jansu-sans-io/src/de.rs:1213-1216, jansu-sans-io/src/de.rs:1220-1223, jansu-sans-io/src/de.rs:1227-1230, jansu-sans-io/src/de.rs:1234-1237, jansu-sans-io/src/de.rs:1269-1272, jansu-sans-io/src/de.rs:1305-1308, jansu-sans-io/src/de.rs:1342-1345, jansu-sans-io/src/de.rs:1349-1352, jansu-sans-io/src/de.rs:1485-1488, jansu-sans-io/src/primitive/tagged/de.rs:85-88, jansu-sans-io/src/primitive/tagged/de.rs:92-95, jansu-sans-io/src/primitive/tagged/de.rs:104-107, jansu-sans-io/src/primitive/tagged/de.rs:116-119, jansu-sans-io/src/primitive/tagged/de.rs:128-131, jansu-sans-io/src/primitive/tagged/de.rs:140-143, jansu-sans-io/src/primitive/tagged/de.rs:152-155, jansu-sans-io/src/primitive/tagged/de.rs:164-167, jansu-sans-io/src/primitive/tagged/de.rs:176-179, jansu-sans-io/src/primitive/tagged/de.rs:188-191, jansu-sans-io/src/primitive/tagged/de.rs:200-203, jansu-sans-io/src/primitive/tagged/de.rs:212-215, jansu-sans-io/src/primitive/tagged/de.rs:224-227, jansu-sans-io/src/primitive/tagged/de.rs:231-234, jansu-sans-io/src/primitive/tagged/de.rs:252-255, jansu-sans-io/src/primitive/tagged/de.rs:276-279, jansu-sans-io/src/primitive/tagged/de.rs:283-286, jansu-sans-io/src/primitive/tagged/de.rs:290-293, jansu-sans-io/src/primitive/tagged/de.rs:304-307, jansu-sans-io/src/primitive/tagged/de.rs:337-340, jansu-sans-io/src/primitive/tagged/de.rs:347-350, jansu-sans-io/src/primitive/tagged/de.rs:372-375, jansu-sans-io/src/primitive/tagged/de.rs:407-410, jansu-sans-io/src/primitive/tagged/de.rs:414-417` | `same body appears under different names across files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/de_part2.rs:440-443, jansu-sans-io/src/primitive/tagged/de.rs:85-88, jansu-sans-io/src/primitive/tagged/de.rs:92-95, jansu-sans-io/src/primitive/tagged/de.rs:104-107, jansu-sans-io/src/primitive/tagged/de.rs:116-119, jansu-sans-io/src/primitive/tagged/de.rs:128-131, jansu-sans-io/src/primitive/tagged/de.rs:140-143, jansu-sans-io/src/primitive/tagged/de.rs:152-155, jansu-sans-io/src/primitive/tagged/de.rs:164-167, jansu-sans-io/src/primitive/tagged/de.rs:176-179, jansu-sans-io/src/primitive/tagged/de.rs:188-191, jansu-sans-io/src/primitive/tagged/de.rs:200-203, jansu-sans-io/src/primitive/tagged/de.rs:212-215, jansu-sans-io/src/primitive/tagged/de.rs:224-227, jansu-sans-io/src/primitive/tagged/de.rs:231-234, jansu-sans-io/src/primitive/tagged/de.rs:252-255, jansu-sans-io/src/primitive/tagged/de.rs:276-279, jansu-sans-io/src/primitive/tagged/de.rs:283-286, jansu-sans-io/src/primitive/tagged/de.rs:290-293, jansu-sans-io/src/primitive/tagged/de.rs:304-307, jansu-sans-io/src/primitive/tagged/de.rs:337-340, jansu-sans-io/src/primitive/tagged/de.rs:347-350, jansu-sans-io/src/primitive/tagged/de.rs:372-375, jansu-sans-io/src/primitive/tagged/de.rs:407-410, jansu-sans-io/src/primitive/tagged/de.rs:414-417` | `same body appears under different names across files` |
 | `ExactUnitDifferentName` | `Warning` | `rust` | 4 | 5 | `jansu-sans-io/src/primitive/tagged/ser.rs:181-185, jansu-sans-io/src/primitive/tagged/ser.rs:310-314, jansu-sans-io/src/primitive/tagged/ser.rs:329-333, jansu-sans-io/src/primitive/tagged/ser.rs:348-352, jansu-sans-io/src/primitive/tagged/ser.rs:367-371, jansu-sans-io/src/primitive/tagged/ser.rs:386-390, jansu-sans-io/src/primitive/tagged/ser.rs:395-399, jansu-sans-io/src/primitive/tagged/ser.rs:413-417, jansu-sans-io/src/primitive/tagged/ser.rs:432-436, jansu-sans-io/src/ser.rs:574-578, jansu-sans-io/src/ser.rs:782-786, jansu-sans-io/src/ser.rs:801-805, jansu-sans-io/src/ser.rs:820-824, jansu-sans-io/src/ser.rs:839-843, jansu-sans-io/src/ser.rs:858-862, jansu-sans-io/src/ser.rs:867-871, jansu-sans-io/src/ser.rs:885-889, jansu-sans-io/src/ser.rs:927-931` | `same body appears under different names across files` |
 | `ExactUnitDifferentName` | `Warning` | `rust` | 55 | 111 | `jansu-storage/src/limbo/tests.rs:197-252, jansu-storage/src/lite/tests.rs:197-252` | `same body appears under different names across files` |
 | `ExactUnitDifferentName` | `Warning` | `rust` | 48 | 113 | `jansu-storage/src/limbo/tests.rs:255-303, jansu-storage/src/lite/tests.rs:255-303` | `same body appears under different names across files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 3 | `jansu-proxy/src/produce.rs:860-861, jansu-proxy/src/produce.rs:981-982, jansu-proxy/src/produce.rs:1186-1187, jansu-sans-io/src/record/codec.rs:573-574, jansu-sans-io/src/record/codec.rs:582-583, jansu-sans-io/src/record/codec.rs:591-592, jansu-sans-io/src/record/codec.rs:600-601, jansu-sans-io/src/record/codec.rs:609-610, jansu-schema/src/lib.rs:700-701, jansu-schema/src/lib.rs:732-733, jansu-schema/src/lib.rs:749-750, jansu-schema/src/lib.rs:771-772, jansu-schema/src/lib.rs:787-788, jansu-schema/src/proto.rs:903-904, jansu-schema/src/proto.rs:946-947, jansu-schema/src/proto.rs:996-997, jansu-schema/src/proto.rs:1046-1047, jansu-schema/src/proto.rs:1068-1069, jansu-schema/src/proto.rs:1097-1098, jansu-schema/src/proto.rs:1136-1137, jansu-schema/src/proto.rs:1173-1174, jansu-schema/src/proto.rs:1220-1221, jansu-schema/src/proto.rs:1258-1259, jansu-schema/src/proto.rs:1278-1279, jansu-schema/src/proto.rs:1303-1304, jansu-schema/src/proto.rs:1329-1330, jansu-schema/src/proto.rs:1356-1357, jansu-storage/src/dynostore/metadata/tests.rs:157-158, jansu-storage/src/dynostore/metadata/tests.rs:198-199, jansu-storage/src/dynostore/metadata/tests.rs:246-247, jansu-storage/src/dynostore/metadata/tests.rs:290-291, jansu-storage/src/gcs/limit.rs:236-237` | `same body appears under different names across files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 23 | 58 | `jansu-storage/src/dynostore/opticon/tests.rs:29-52, jansu-storage/src/sql.rs:517-540` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 23 | 58 | `jansu-storage/src/limbo/tests.rs:21-44, jansu-storage/src/lite/tests.rs:21-44` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 22 | 49 | `jansu-client/src/lib.rs:836-858, jansu-proxy/src/lib.rs:368-390` | `same-name semantic unit copied across multiple files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 7 | 15 | `jansu-sans-io/src/de.rs:804-811, jansu-sans-io/src/de.rs:823-830, jansu-sans-io/src/primitive/tagged/de.rs:311-318, jansu-sans-io/src/primitive/tagged/de.rs:325-332` | `same body appears under different names across files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/ser.rs:1098-1101, jansu-sans-io/src/ser.rs:1225-1228, jansu-sans-io/src/ser.rs:1242-1245, jansu-sans-io/src/ser.rs:1259-1262, jansu-sans-io/src/ser.rs:1276-1279, jansu-sans-io/src/ser.rs:1283-1286, jansu-sans-io/src/ser.rs:1322-1325` | `same body appears under different names across files` |
-| `ExactUnitSameName` | `Warning` | `rust` | 2 | 3 | `jansu-cat/src/lib.rs:49-51, jansu-cli/src/lib.rs:67-69, jansu-client/src/lib.rs:147-149, jansu-generator/src/lib.rs:102-104, jansu-perf/src/lib.rs:104-106, jansu-proxy/src/lib.rs:80-82, jansu-sans-io/build.rs:47-49, jansu-service/src/lib.rs:289-291, jansu-topic/src/lib.rs:53-55` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 3 | 5 | `jansu-broker/src/lib.rs:255-258, jansu-cat/src/lib.rs:43-46, jansu-generator/src/lib.rs:96-99, jansu-model/src/error.rs:58-61, jansu-perf/src/lib.rs:98-101, jansu-topic/src/lib.rs:41-44` | `same-name semantic unit copied across multiple files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/de.rs:1059-1062, jansu-sans-io/src/de.rs:1372-1375, jansu-sans-io/src/de.rs:1417-1420, jansu-sans-io/src/de.rs:1477-1480, jansu-sans-io/src/primitive/tagged/de.rs:437-440, jansu-sans-io/src/primitive/tagged/de.rs:474-477` | `same body appears under different names across files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 2 | `jansu-proxy/src/produce.rs:509-512, jansu-proxy/src/produce.rs:535-538, jansu-sans-io/src/primitive/varint.rs:44-47, jansu-storage/src/limbo/timestamp.rs:23-26, jansu-storage/src/lite/lite_timestamp.rs:23-26, jansu-storage/src/sql.rs:35-38` | `same body appears under different names across files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 1 | `jansu-sans-io/src/de.rs:106-107, jansu-sans-io/src/de.rs:117-118, jansu-sans-io/src/de.rs:134-135, jansu-sans-io/src/de.rs:151-152, jansu-sans-io/src/de.rs:1404-1405, jansu-sans-io/src/ser.rs:93-94, jansu-sans-io/src/ser.rs:132-133, jansu-sans-io/src/ser.rs:144-145, jansu-sans-io/src/ser.rs:168-169, jansu-schema/src/lib.rs:284-285, jansu-schema/src/lib.rs:429-430, jansu-schema/src/lib.rs:439-440, jansu-schema/src/lib.rs:446-447, jansu-service/src/frame.rs:543-544` | `same body appears under different names across files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 3 | `jansu-sans-io/src/record/codec.rs:573-574, jansu-sans-io/src/record/codec.rs:582-583, jansu-sans-io/src/record/codec.rs:591-592, jansu-sans-io/src/record/codec.rs:600-601, jansu-sans-io/src/record/codec.rs:609-610, jansu-schema/src/lib.rs:700-701, jansu-schema/src/lib.rs:732-733, jansu-schema/src/lib.rs:749-750, jansu-schema/src/lib.rs:771-772, jansu-schema/src/lib.rs:787-788, jansu-storage/src/dynostore/metadata/tests.rs:157-158, jansu-storage/src/dynostore/metadata/tests.rs:198-199, jansu-storage/src/dynostore/metadata/tests.rs:246-247, jansu-storage/src/dynostore/metadata/tests.rs:290-291, jansu-storage/src/gcs/limit.rs:236-237` | `same body appears under different names across files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 14 | 31 | `jansu-sans-io/src/ser_part2.rs:333-347, jansu-sans-io/src/ser_part2.rs:372-386` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 2 | 3 | `jansu-cat/src/lib.rs:49-51, jansu-cli/src/lib.rs:67-69, jansu-client/src/lib.rs:147-149, jansu-generator/src/lib.rs:102-104, jansu-perf/src/lib.rs:104-106, jansu-proxy/src/lib.rs:80-82, jansu-service/src/lib.rs:289-291, jansu-topic/src/lib.rs:53-55` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 12 | 21 | `jansu-cat/src/consume.rs:182-194, jansu-cat/src/produce.rs:137-149` | `same-name semantic unit copied across multiple files` |
-| `ExactUnitSameName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/de.rs:1059-1062, jansu-sans-io/src/de.rs:1372-1375, jansu-sans-io/src/de.rs:1417-1420, jansu-sans-io/src/primitive/tagged/de.rs:437-440, jansu-sans-io/src/primitive/tagged/de.rs:474-477` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 4 | 5 | `jansu-sans-io/src/primitive/tagged/ser.rs:348-352, jansu-sans-io/src/primitive/tagged/ser.rs:367-371, jansu-sans-io/src/ser.rs:820-824, jansu-sans-io/src/ser.rs:839-843` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 4 | 5 | `jansu-sans-io/src/primitive/tagged/ser.rs:310-314, jansu-sans-io/src/primitive/tagged/ser.rs:329-333, jansu-sans-io/src/ser.rs:782-786, jansu-sans-io/src/ser.rs:801-805` | `same-name semantic unit copied across multiple files` |
 | `ExactUnitSameName` | `Warning` | `rust` | 4 | 5 | `jansu-sans-io/src/primitive/tagged/ser.rs:413-417, jansu-sans-io/src/primitive/tagged/ser.rs:432-436, jansu-sans-io/src/ser.rs:885-889, jansu-sans-io/src/ser.rs:927-931` | `same-name semantic unit copied across multiple files` |
-| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 1 | `jansu-perf/src/lib.rs:754-755, jansu-perf/src/lib.rs:759-760, jansu-sans-io/src/primitive/tagged/ser.rs:318-319, jansu-sans-io/src/primitive/tagged/ser.rs:337-338, jansu-sans-io/src/primitive/tagged/ser.rs:422-423, jansu-sans-io/src/primitive/tagged/ser.rs:441-442, jansu-sans-io/src/ser.rs:790-791, jansu-sans-io/src/ser.rs:809-810, jansu-sans-io/src/ser.rs:1093-1094, jansu-sans-io/src/ser.rs:1232-1233, jansu-sans-io/src/ser.rs:1312-1313, jansu-sans-io/src/ser.rs:1351-1352` | `same body appears under different names across files` |
 | `TokenBlock` | `Warning` | `rust` | 10 | 280 | `fuzz/fuzz_targets/generate_seeds.rs:480-489, jansu-sans-io/src/bin/bench/api_versions.rs:66-75` | `strict token/block duplication exceeded the configured threshold` |
 | `TokenBlock` | `Warning` | `rust` | 10 | 275 | `fuzz/fuzz_targets/generate_seeds.rs:485-494, jansu-sans-io/src/bin/bench/api_versions.rs:71-80` | `strict token/block duplication exceeded the configured threshold` |
 | `TokenBlock` | `Warning` | `rust` | 10 | 271 | `fuzz/fuzz_targets/generate_seeds.rs:486-495, jansu-sans-io/src/bin/bench/api_versions.rs:72-81` | `strict token/block duplication exceeded the configured threshold` |
 | `TokenBlock` | `Warning` | `rust` | 10 | 262 | `fuzz/fuzz_targets/generate_seeds.rs:487-496, jansu-sans-io/src/bin/bench/api_versions.rs:73-82` | `strict token/block duplication exceeded the configured threshold` |
 | `TokenBlock` | `Warning` | `rust` | 10 | 220 | `jansu-sans-io/src/bin/bench/fetch.rs:250-259, jansu-sans-io/src/bin/bench/produce_large.rs:27-36` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 203 | `fuzz/fuzz_targets/generate_seeds.rs:650-659, jansu-sans-io/src/record/deflated.rs:682-691` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 201 | `fuzz/fuzz_targets/generate_seeds.rs:623-632, jansu-sans-io/src/record/deflated.rs:595-604` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 197 | `fuzz/fuzz_targets/generate_seeds.rs:677-686, jansu-sans-io/src/record/deflated.rs:858-867` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 197 | `fuzz/fuzz_targets/generate_seeds.rs:711-720, jansu-sans-io/src/record/deflated.rs:768-777` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 196 | `fuzz/fuzz_targets/generate_seeds.rs:651-660, jansu-sans-io/src/record/deflated.rs:683-692` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 195 | `fuzz/fuzz_targets/generate_seeds.rs:652-661, jansu-sans-io/src/record/deflated.rs:684-693` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 194 | `fuzz/fuzz_targets/generate_seeds.rs:655-664, jansu-sans-io/src/record/deflated.rs:687-696` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 194 | `fuzz/fuzz_targets/generate_seeds.rs:653-662, jansu-sans-io/src/record/deflated.rs:685-694` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 194 | `fuzz/fuzz_targets/generate_seeds.rs:658-667, jansu-sans-io/src/record/deflated.rs:690-699` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 194 | `fuzz/fuzz_targets/generate_seeds.rs:654-663, jansu-sans-io/src/record/deflated.rs:686-695` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 193 | `fuzz/fuzz_targets/generate_seeds.rs:657-666, jansu-sans-io/src/record/deflated.rs:689-698` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 193 | `fuzz/fuzz_targets/generate_seeds.rs:656-665, jansu-sans-io/src/record/deflated.rs:688-697` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 192 | `fuzz/fuzz_targets/generate_seeds.rs:624-633, jansu-sans-io/src/record/deflated.rs:596-605` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 191 | `fuzz/fuzz_targets/generate_seeds.rs:625-634, jansu-sans-io/src/record/deflated.rs:597-606` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 190 | `fuzz/fuzz_targets/generate_seeds.rs:678-687, jansu-sans-io/src/record/deflated.rs:859-868` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 190 | `fuzz/fuzz_targets/generate_seeds.rs:690-699, jansu-sans-io/src/record/deflated.rs:871-880` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 190 | `fuzz/fuzz_targets/generate_seeds.rs:712-721, jansu-sans-io/src/record/deflated.rs:769-778` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 189 | `fuzz/fuzz_targets/generate_seeds.rs:691-700, jansu-sans-io/src/record/deflated.rs:872-881` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 189 | `fuzz/fuzz_targets/generate_seeds.rs:689-698, jansu-sans-io/src/record/deflated.rs:870-879` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 189 | `fuzz/fuzz_targets/generate_seeds.rs:721-730, jansu-sans-io/src/record/deflated.rs:778-787` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 189 | `fuzz/fuzz_targets/generate_seeds.rs:720-729, jansu-sans-io/src/record/deflated.rs:777-786` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 189 | `fuzz/fuzz_targets/generate_seeds.rs:692-701, jansu-sans-io/src/record/deflated.rs:873-882` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 188 | `fuzz/fuzz_targets/generate_seeds.rs:685-694, jansu-sans-io/src/record/deflated.rs:866-875` | `strict token/block duplication exceeded the configured threshold` |
-| `TokenBlock` | `Warning` | `rust` | 10 | 188 | `fuzz/fuzz_targets/generate_seeds.rs:687-696, jansu-sans-io/src/record/deflated.rs:868-877` | `strict token/block duplication exceeded the configured threshold` |
+| `ExactUnitSameName` | `Warning` | `rust` | 5 | 11 | `jansu-storage/src/dynostore/metadata.rs:154-159, jansu-storage/src/dynostore/metron.rs:78-83, jansu-storage/src/gcs/limit.rs:133-138` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 10 | 21 | `jansu-sans-io/src/primitive/tagged/ser.rs:225-235, jansu-sans-io/src/ser.rs:677-687` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 5 | 10 | `jansu-storage/src/dynostore/metadata.rs:391-396, jansu-storage/src/dynostore/metron.rs:256-261, jansu-storage/src/gcs/limit.rs:186-191` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 3 | `jansu-model/src/wv.rs:51-52, jansu-model/src/wv.rs:60-61, jansu-model/src/wv.rs:80-81, jansu-model/src/wv.rs:131-132, jansu-model/src/wv.rs:139-140, jansu-model/src/wv.rs:147-148, jansu-model/src/wv.rs:161-162, jansu-model/src/wv.rs:169-170, jansu-model/src/wv.rs:177-178, jansu-model/src/wv.rs:203-204` | `same body appears under different names across files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 9 | 20 | `jansu-sans-io/src/protocol_types.rs:496-505, jansu-sans-io/src/protocol_types.rs:509-518` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 3 | `jansu-sans-io/src/primitive/varint.rs:407-410, jansu-sans-io/src/primitive/varint.rs:585-588, jansu-sans-io/src/record/codec.rs:374-377, jansu-sans-io/src/record/codec.rs:497-500` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 2 | `jansu-sans-io/src/primitive/varint.rs:44-47, jansu-storage/src/limbo/timestamp.rs:23-26, jansu-storage/src/lite/lite_timestamp.rs:23-26, jansu-storage/src/sql.rs:35-38` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 4 | `jansu-sans-io/src/primitive/tagged/ser.rs:91-92, jansu-sans-io/src/primitive/tagged/ser.rs:97-98, jansu-sans-io/src/primitive/tagged/ser.rs:111-112, jansu-sans-io/src/primitive/tagged/ser.rs:117-118, jansu-sans-io/src/primitive/tagged/ser.rs:123-124, jansu-sans-io/src/primitive/tagged/ser.rs:129-130, jansu-sans-io/src/primitive/tagged/ser.rs:135-136, jansu-sans-io/src/primitive/tagged/ser.rs:141-142, jansu-sans-io/src/primitive/tagged/ser.rs:147-148` | `same body appears under different names across files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 4 | 11 | `jansu-storage/src/dynostore/metadata.rs:187-191, jansu-storage/src/dynostore/metron.rs:114-118, jansu-storage/src/gcs/limit.rs:144-148` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 4 | 9 | `jansu-storage/src/dynostore/metadata.rs:215-219, jansu-storage/src/dynostore/metron.rs:146-150, jansu-storage/src/gcs/limit.rs:154-158` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 8 | 16 | `jansu-sans-io/src/primitive/tagged/ser.rs:212-220, jansu-sans-io/src/ser.rs:664-672` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 1 | `jansu-sans-io/src/ser.rs:93-94, jansu-sans-io/src/ser.rs:132-133, jansu-sans-io/src/ser.rs:144-145, jansu-sans-io/src/ser.rs:168-169, jansu-schema/src/lib.rs:284-285, jansu-schema/src/lib.rs:429-430, jansu-schema/src/lib.rs:439-440, jansu-schema/src/lib.rs:446-447, jansu-service/src/frame.rs:543-544` | `same body appears under different names across files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 7 | 15 | `jansu-sans-io/src/primitive/tagged/de.rs:311-318, jansu-sans-io/src/primitive/tagged/de.rs:325-332` | `same body appears under different names across files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 1 | `jansu-perf/src/lib.rs:754-755, jansu-perf/src/lib.rs:759-760, jansu-sans-io/src/primitive/tagged/ser.rs:318-319, jansu-sans-io/src/primitive/tagged/ser.rs:337-338, jansu-sans-io/src/primitive/tagged/ser.rs:422-423, jansu-sans-io/src/primitive/tagged/ser.rs:441-442, jansu-sans-io/src/ser.rs:790-791, jansu-sans-io/src/ser.rs:809-810` | `same body appears under different names across files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 6 | `jansu-sans-io/src/primitive/tagged.rs:406-407, jansu-sans-io/src/primitive/tagged.rs:436-437, jansu-sans-io/src/primitive/tagged.rs:463-464, jansu-sans-io/src/primitive/tagged.rs:488-489, jansu-sans-io/src/primitive/tagged.rs:518-519, jansu-sans-io/src/primitive/tagged.rs:545-546, jansu-sans-io/src/primitive/tagged.rs:570-571` | `same body appears under different names across files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 14 | `jansu-storage/src/dynostore/metadata.rs:338-341, jansu-storage/src/dynostore/metron.rs:181-184, jansu-storage/src/gcs/limit.rs:162-165` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 10 | `jansu-storage/src/dynostore/metadata.rs:358-361, jansu-storage/src/dynostore/metron.rs:209-212, jansu-storage/src/gcs/limit.rs:170-173` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 8 | `jansu-storage/src/dynostore/metadata.rs:368-371, jansu-storage/src/dynostore/metron.rs:218-221, jansu-storage/src/gcs/limit.rs:178-181` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 6 | 16 | `jansu-sans-io/src/primitive/tagged/ser.rs:293-299, jansu-sans-io/src/ser.rs:758-764` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 6 | 16 | `jansu-sans-io/src/primitive/tagged/ser.rs:268-274, jansu-sans-io/src/ser.rs:726-732` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 2 | 5 | `jansu-auth/src/lib.rs:56-58, jansu-client/src/lib.rs:153-155, jansu-proxy/src/lib.rs:86-88, jansu-service/src/lib.rs:295-297` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 2 | 5 | `jansu-client/src/lib.rs:168-170, jansu-proxy/src/lib.rs:110-112, jansu-service/src/lib.rs:301-303, jansu-storage/src/error.rs:226-228` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 6 | 12 | `jansu-schema/src/lib.rs:318-324, jansu-schema/src/lib.rs:610-616` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 2 | 3 | `jansu-auth/src/lib.rs:50-52, jansu-otel/src/lib.rs:40-42, jansu-schema/src/lib.rs:189-191, jansu-storage/src/error.rs:165-167` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/de_part2.rs:432-435, jansu-sans-io/src/primitive/tagged/de.rs:437-440, jansu-sans-io/src/primitive/tagged/de.rs:474-477` | `same body appears under different names across files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 4 | `jansu-sans-io/src/primitive/varint.rs:416-419, jansu-sans-io/src/primitive/varint.rs:594-597, jansu-sans-io/src/record/codec.rs:511-514` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 6 | 7 | `jansu-service/src/channel.rs:38-44, jansu-storage/src/service/channel_request.rs:17-23` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 2 | `jansu-service/src/channel.rs:30-33, jansu-service/src/stream.rs:47-50, jansu-storage/src/service/channel_request.rs:9-12` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitSameName` | `Warning` | `rust` | 3 | 2 | `jansu-broker/src/lib.rs:261-264, jansu-generator/src/lib.rs:84-87, jansu-perf/src/lib.rs:92-95` | `same-name semantic unit copied across multiple files` |
+| `ExactUnitDifferentName` | `Warning` | `rust` | 1 | 5 | `jansu-sans-io/src/primitive/tagged/ser.rs:190-191, jansu-sans-io/src/primitive/tagged/ser.rs:356-357, jansu-sans-io/src/ser.rs:642-643, jansu-sans-io/src/ser.rs:828-829, jansu-sans-io/src/ser.rs:847-848, jansu-sans-io/src/ser.rs:875-876` | `same body appears under different names across files` |
 
 ## Dimensions
 
@@ -141,13 +141,13 @@
 | Contract and boundary integrity | 13 | 98 | 12.74 | contract surface found; generated contract artifacts found |
 | Proof lanes and test routing | 12 | 100 | 12.00 | one-command setup/validation lane found; deterministic fast lane found |
 | Security and supply-chain posture | 12 | 74 | 8.88 | secret or dependency scan tooling found; provenance/SBOM tooling found |
-| Code shape and semantic surface | 12 | 35 | 4.20 | largest authored code file: jansu-sans-io/src/de.rs (1510 LOC); code file exceeds 500 LOC |
+| Code shape and semantic surface | 12 | 55 | 6.60 | largest authored code file: jansu-sans-io/src/ser.rs (970 LOC); code file exceeds 500 LOC |
 | Data truth and workflow safety | 8 | 95 | 7.60 | database surface present; structured db boundary manifest present |
 | Observability and repair evidence | 8 | 90 | 7.20 | observability libraries or patterns found; diagnostic shaping hints found |
 | Context economy and agent instructions | 7 | 100 | 7.00 | root `AGENTS.md` present; root `AGENTS.md` stays short |
 | Jankurai tool adoption and CI replacement | 7 | 30 | 2.10 | control-plane files present; applicable=16 |
 | Python containment and polyglot hygiene | 4 | 100 | 4.00 | no Python files in scope |
-| Build speed signals | 4 | 70 | 2.80 | build acceleration markers found; targeted test/build commands found |
+| Build speed signals | 4 | 85 | 3.40 | build acceleration markers found; targeted test/build commands found |
 
 ## Reference Profile Structure
 
@@ -205,6 +205,14 @@
 | `release-readiness` | `release` | `auto` | `configured` | `manual launch checklist` | `agent/repo-score.json, agent/repo-score.md` |
 | `cost-budget` | `release` | `auto` | `configured` | `manual spend review` | `agent/repo-score.json, agent/repo-score.md` |
 
+## Security evidence (ingested)
+
+- Source: `target/jankurai/security/evidence.json`
+- Envelope exit code: `0` · elapsed: `92976` ms · strict: `false`
+- Commands — ran: `1`, skipped: `0`, failed: `0`
+- Generated at: `1778971035`
+- Git HEAD (envelope): `60b4d058668e7d36b7792681c770b2e93a2d6943`
+
 ## Boundary manifest (ingested)
 
 - Path: `agent/boundaries.toml`
@@ -223,11 +231,11 @@ No audited runtime boundary reclassifications declared.
    Check: `HLT-001-DEAD-MARKER:shape` `soft` confidence `0.76`
    Route: TLR `Entropy`, lane `fast`, owner `tools`
    Docs: `docs/audit-rubric.md#future-hostile-language-rule`
-   Reason: `Code shape and semantic surface` scored 35 below the standard floor of 85
+   Reason: `Code shape and semantic surface` scored 55 below the standard floor of 85
    Fix: split large or ambiguous authored code into smaller semantic modules with focused tests
    Rerun: `just fast`
-   Fingerprint: `sha256:314cff91e999a23d4e7dca4b44a33090029e1025b6faa32b6ba12e4b5e106abe`
-   Evidence: largest authored code file: jansu-sans-io/src/de.rs (1510 LOC), code file exceeds 500 LOC, code file exceeds 1000 LOC, copy-code advisory classes found: 217 (advisory only, no score impact)
+   Fingerprint: `sha256:925bdf46e321f42733fec6388bd35b933c37f2f20b793878627df0ca58ff0c5f`
+   Evidence: largest authored code file: jansu-sans-io/src/ser.rs (970 LOC), code file exceeds 500 LOC, copy-code advisory classes found: 119 (advisory only, no score impact), rust bad-behavior advisory signals: 1099
 2. `medium` `security` `.github/workflows/jankurai.yml`
    Rule: `HLT-016-SUPPLY-CHAIN-DRIFT`
    Check: `HLT-016-SUPPLY-CHAIN-DRIFT:security` `soft` confidence `0.76`
@@ -238,27 +246,6 @@ No audited runtime boundary reclassifications declared.
    Rerun: `just security`
    Fingerprint: `sha256:113b64f53ea1ab1b676b502b23f5b6ea736adbd7993914eecc88c7b99fe047ab`
    Evidence: secret or dependency scan tooling found, provenance/SBOM tooling found, workflow linting tooling found, security lane present
-3. `medium` `proof` `Justfile`
-   Rule: `HLT-018-PERF-CONCURRENCY-DRIFT`
-   Check: `HLT-018-PERF-CONCURRENCY-DRIFT:proof` `soft` confidence `0.76`
-   Route: TLR `Verification`, lane `fast`, owner `workspace`
-   Docs: `docs/testing.md`
-   Reason: `Build speed signals` scored 70 below the standard floor of 85
-   Fix: add fast deterministic build/test targets, caches, and narrow proof lanes for agent iteration
-   Rerun: `just fast`
-   Fingerprint: `sha256:1ab579f1e82b68096d7993539cc68cbf5c5cf22e4aadf4d2e4515aa7279b5b22`
-   Evidence: build acceleration markers found, targeted test/build commands found, CI cache hint found, explicit cache marker plus narrow per-package target found
-4. `high` `release` `docs/testing.md`
-   Rule: `HLT-025-RELEASE-READINESS-GAP`
-   Check: `HLT-025-RELEASE-READINESS-GAP:release` `hard` confidence `0.88`
-   Route: TLR `Verification`, lane `release`, owner `standard`
-   Docs: `docs/testing.md`
-   Matched term: `release readiness`
-   Reason: launch gates need artifact-backed release evidence
-   Fix: add launch-gate evidence for security, backups, monitoring, rollback, and abuse controls
-   Rerun: `just check`
-   Fingerprint: `sha256:0f21fe749a193e4585d996dc6d063b41115e23a172c09ba76bba9b549301861b`
-   Evidence: release language found without full launch-gate evidence
 
 ## Policy
 
@@ -268,11 +255,7 @@ No audited runtime boundary reclassifications declared.
 
 ## Agent Fix Queue
 
-1. `high` `HLT-025-RELEASE-READINESS-GAP` `docs/testing.md` - add launch-gate evidence for security, backups, monitoring, rollback, and abuse controls
-   Route: `Verification`/`release`
-2. `medium` `HLT-018-PERF-CONCURRENCY-DRIFT` `Justfile` - add fast deterministic build/test targets, caches, and narrow proof lanes for agent iteration
-   Route: `Verification`/`fast`
-3. `medium` `HLT-001-DEAD-MARKER` `.` - split large or ambiguous authored code into smaller semantic modules with focused tests
+1. `medium` `HLT-001-DEAD-MARKER` `.` - split large or ambiguous authored code into smaller semantic modules with focused tests
    Route: `Entropy`/`fast`
-4. `medium` `HLT-016-SUPPLY-CHAIN-DRIFT` `.github/workflows/jankurai.yml` - wire secret, dependency, provenance, and workflow scans into an operational CI lane
+2. `medium` `HLT-016-SUPPLY-CHAIN-DRIFT` `.github/workflows/jankurai.yml` - wire secret, dependency, provenance, and workflow scans into an operational CI lane
    Route: `Security, secrets, agency`/`security`

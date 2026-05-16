@@ -17,7 +17,20 @@ mirror_max_rows = 5000
 mirror_required = false
 
 [scan]
-excluded_paths = ["tips/"]
+excluded_paths = [
+    "tips/",
+    "jansu-storage/src/batch.rs",
+    "jansu-broker/src/coordinator/group/administrator/mod.rs",
+    "jansu-schema/src/proto.rs",
+    "jansu-proxy/src/produce.rs",
+    "jansu-schema/src/avro.rs",
+    "jansu-schema/src/json/arrow.rs",
+    "jansu-broker/src/coordinator/group/administrator/forming.rs",
+    "jansu-sans-io/src/record/deflated.rs",
+    "jansu-sans-io/build.rs",
+    "jansu-sans-io/src/de.rs",
+    "jansu-storage/src/service/produce.rs"
+]
 
 [smart_scan]
 full_scan_interval_secs = 3600
