@@ -110,7 +110,7 @@ impl Delegate {
             }
 
             TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+                Err(Error::FeatureUnsupported { backend: "lite", feature: "TxnAddPartitions v4+".into() })
             }
         }
     }

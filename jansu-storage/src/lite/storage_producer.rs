@@ -265,7 +265,11 @@ impl Delegate {
                 }
             }
 
-            (_, _, _) => todo!(),
+            (_, _, _) => Ok(ProducerIdResponse {
+                error: ErrorCode::UnknownServerError,
+                id: -1,
+                epoch: -1,
+            }),
         }
     }
 

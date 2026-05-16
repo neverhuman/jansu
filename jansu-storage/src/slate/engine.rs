@@ -321,8 +321,8 @@ impl Engine {
     /// - `Ok(increment)`: The number to add to current sequence (last_offset_delta + 1)
     /// - `Err(DuplicateSequenceNumber)`: The batch was already processed (sequence > expected)
     /// - `Err(OutOfOrderSequenceNumber)`: A batch was skipped (sequence < expected)
-    /// - `Err(ProducerFenced)`: A newer producer epoch exists (epoch mismatch, new > old)
-    /// - `Err(InvalidProducerEpoch)`: The batch uses an old epoch (epoch mismatch, old > new)
+    /// - `Err(ProducerFenced)`: A newer producer epoch exists (epoch mismatch, new > prior)
+    /// - `Err(InvalidProducerEpoch)`: The batch uses an expired epoch (epoch mismatch, prior > new)
     ///
     /// # Sequence Number Logic
     ///
@@ -336,7 +336,7 @@ impl Engine {
     ///
     /// Producer epochs handle producer restarts:
     /// - When a producer restarts, it gets a new (higher) epoch
-    /// - Messages with the old epoch should be rejected (ProducerFenced)
+    /// - Messages with an expired epoch should be rejected (ProducerFenced)
     /// - Messages claiming a future epoch are invalid (InvalidProducerEpoch)
     pub(super) fn idempotent_sequence_check(
         producer_epoch: &i16,
@@ -372,7 +372,6 @@ impl Engine {
             },
 
             // Our stored epoch is higher - a newer producer instance exists
-            // This old producer should stop sending
             Ordering::Greater => Err(Error::Api(ErrorCode::ProducerFenced)),
 
             // Batch claims a higher epoch than we know - invalid

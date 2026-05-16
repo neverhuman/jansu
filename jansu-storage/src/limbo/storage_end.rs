@@ -179,7 +179,7 @@ pub(super) async fn delete_user_scram_credential(
     _user: &str,
     _mechanism: ScramMechanism,
 ) -> Result<()> {
-    todo!()
+    Err(Error::FeatureUnsupported { backend: "limbo", feature: "scram_credentials".into() })
 }
 
 pub(super) async fn upsert_user_scram_credential(
@@ -188,7 +188,7 @@ pub(super) async fn upsert_user_scram_credential(
     _mechanism: ScramMechanism,
     _credential: ScramCredential,
 ) -> Result<()> {
-    todo!()
+    Err(Error::FeatureUnsupported { backend: "limbo", feature: "scram_credentials".into() })
 }
 
 pub(super) async fn user_scram_credential(
@@ -196,7 +196,7 @@ pub(super) async fn user_scram_credential(
     _user: &str,
     _mechanism: ScramMechanism,
 ) -> Result<Option<ScramCredential>> {
-    todo!()
+    Err(Error::FeatureUnsupported { backend: "limbo", feature: "scram_credentials".into() })
 }
 
 pub(super) async fn ping(this: &Engine) -> Result<()> {

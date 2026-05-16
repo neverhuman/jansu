@@ -168,7 +168,7 @@ impl Delegate {
         topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
         debug!(?topics);
-        todo!()
+        Err(Error::FeatureUnsupported { backend: "lite", feature: "delete_records".into() })
     }
 
     pub(super) async fn delegate_delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
@@ -303,8 +303,8 @@ impl Delegate {
                                 break;
                             }
                         }
-                        OpType::Append => todo!(),
-                        OpType::Subtract => todo!(),
+                        OpType::Append => return Err(Error::FeatureUnsupported { backend: "lite", feature: "config append op".into() }),
+                        OpType::Subtract => return Err(Error::FeatureUnsupported { backend: "lite", feature: "config subtract op".into() }),
                     }
                 }
 

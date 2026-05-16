@@ -65,9 +65,9 @@ impl TryFrom<Value> for LiteTimestamp {
                 .map(LiteTimestamp::from)
                 .map_err(Into::into),
 
-            Value::Real(_) => unimplemented!("{value:?}"),
-            Value::Null => unimplemented!("{value:?}"),
-            Value::Blob(_) => unimplemented!("{value:?}"),
+            Value::Real(_) | Value::Null | Value::Blob(_) => {
+                Err(Error::Message(format!("unexpected timestamp value type: {value:?}")))
+            }
         }
     }
 }

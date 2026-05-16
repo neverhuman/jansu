@@ -324,7 +324,11 @@ pub(super) async fn init_producer(
             }
         }
 
-        (_, _, _) => todo!(),
+        (_, _, _) => Ok(ProducerIdResponse {
+            error: ErrorCode::UnknownServerError,
+            id: -1,
+            epoch: -1,
+        }),
     }
 }
 
@@ -433,7 +437,7 @@ pub(super) async fn txn_add_partitions(
         }
 
         TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-            todo!()
+            Err(Error::FeatureUnsupported { backend: "limbo", feature: "TxnAddPartitions v4+".into() })
         }
     }
 }

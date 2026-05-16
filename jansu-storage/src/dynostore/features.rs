@@ -158,7 +158,7 @@ impl DynoStore {
         &self,
         _topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        todo!()
+        Err(Error::FeatureUnsupported { backend: "dynostore", feature: "delete_records".into() })
     }
 
     pub(super) async fn delete_topic_inner(&self, topic: &TopicId) -> Result<ErrorCode> {

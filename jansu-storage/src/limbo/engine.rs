@@ -22,14 +22,10 @@ impl Engine {
 
     pub(super) fn attributes_for_error(&self, sql: &str, error: &turso::Error) -> Vec<KeyValue> {
         debug!(sql, ?error);
-
-        let _attributes = [
+        vec![
             KeyValue::new("sql", sql.to_owned()),
             KeyValue::new("cluster_id", self.cluster.clone()),
-        ];
-
-        debug!(?error);
-        todo!();
+        ]
     }
 
     pub(super) async fn prepare_execute<P>(

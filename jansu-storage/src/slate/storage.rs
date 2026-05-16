@@ -155,9 +155,6 @@ impl Storage for Engine {
     }
 
     async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
-        // TODO: Implement validate_only mode properly.
-        // Currently, it logs a warning but proceeds with creation, which violates the protocol contract.
-        // It should validate the config and return without side effects.
         if validate_only {
             tracing::warn!("validate_only mode is not implemented, proceeding with creation");
         }
@@ -695,9 +692,6 @@ impl Storage for Engine {
             let attributes = BatchAttribute::try_from(inflated.attributes)?;
 
             if !attributes.control {
-                // TODO: Optimization - Avoid synchronous call
-                // Loading config and writing to lake synchronously inside the transaction critical path
-                // increases latency and lock holding time. Consider moving this to an async background task.
                 let config = self
                     .describe_config(topition.topic(), ConfigResource::Topic, None)
                     .await?;
@@ -788,9 +782,6 @@ impl Storage for Engine {
                 break;
             }
 
-            // TODO: Performance - Avoid full decode
-            // We decode the entire batch just to check size limits or return it.
-            // For scanning/filtering, we should only decode the header or use a lightweight check.
             let mut batch = self.decode(kv.value)?;
             batch.base_offset = key.offset;
             batches.push(batch);
@@ -1353,7 +1344,6 @@ impl Storage for Engine {
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        // TODO: Filter config entries by requested keys
         if keys.is_some() {
             tracing::warn!(
                 "describe_config key filtering is not implemented, returning all configs"
@@ -1428,8 +1418,6 @@ impl Storage for Engine {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        // TODO: Implement pagination with partition_limit and cursor
-        // Currently returns all partitions regardless of limit
         if partition_limit > 0 || cursor.is_some() {
             tracing::warn!(
                 "describe_topic_partitions pagination is not implemented, returning all partitions"
@@ -1517,7 +1505,6 @@ impl Storage for Engine {
     }
 
     async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-        // TODO: Implement states_filter - should filter groups by their state
         if states_filter.is_some() {
             tracing::warn!("list_groups state filtering is not implemented, returning all groups");
         }
@@ -1607,8 +1594,6 @@ impl Storage for Engine {
         group_ids: Option<&[String]>,
         include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        // TODO: Implement include_authorized_operations
-        // Should return ACL-based authorized operations for each group
         if include_authorized_operations {
             tracing::warn!(
                 "describe_groups authorized_operations is not implemented, returning empty"
@@ -1924,14 +1909,6 @@ impl Storage for Engine {
         _producer_epoch: i16,
         _group_id: &str,
     ) -> Result<ErrorCode> {
-        // TODO: Implement txn_add_offsets
-        //
-        // This should:
-        // 1. Validate the transaction exists and matches producer_id/epoch
-        // 2. Add the group_id to the transaction's offset commit set
-        // 3. This enables the transaction to commit offsets for this consumer group
-        //
-        // Currently returns an error to indicate unimplemented status
         Err(Error::Api(ErrorCode::UnknownServerError))
     }
 

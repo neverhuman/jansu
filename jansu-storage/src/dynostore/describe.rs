@@ -254,7 +254,7 @@ impl DynoStore {
                     .resource_name(name.into())
                     .configs(Some(vec![]))),
 
-                Err(_) => todo!(),
+                Err(err) => Err(err),
             },
 
             _ => Ok(DescribeConfigsResult::default()

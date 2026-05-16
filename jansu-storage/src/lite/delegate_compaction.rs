@@ -180,17 +180,17 @@ impl Delegate {
             .as_deref()
             .inspect(|vacuum_into| debug!(vacuum_into = vacuum_into.to_str()))
         {
-            let mut temporary = PathBuf::from(vacuum_into);
-            if temporary.add_extension("temporary") {
-                debug!(temporary = temporary.to_str());
+            let mut staging = PathBuf::from(vacuum_into);
+            if staging.add_extension("staging") {
+                debug!(staging = staging.to_str());
 
-                if let Some(vacuum_temporary) = temporary.to_str() {
+                if let Some(vacuum_staging) = staging.to_str() {
                     let pc = self.connection().await?;
                     let rows = pc
-                        .execute("lite/vacuum_into.sql", [vacuum_temporary])
+                        .execute("lite/vacuum_into.sql", [vacuum_staging])
                         .await? as u64;
 
-                    rename(temporary, vacuum_into).await?;
+                    rename(staging, vacuum_into).await?;
                     debug!(vacuum_into = vacuum_into.to_str(), rows);
                 }
             }

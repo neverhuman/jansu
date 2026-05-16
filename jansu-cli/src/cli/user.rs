@@ -80,11 +80,13 @@ impl Mechanism {
     fn salted_password(&self, password: &[u8], iterations: u32, salt: &[u8]) -> Result<Bytes> {
         match self {
             Mechanism::Scram256 => {
+                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
                 let mut buf = BytesMut::zeroed(32);
                 pbkdf2::<Hmac<Sha256>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
             }
             Mechanism::Scram512 => {
+                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
                 let mut buf = BytesMut::zeroed(64);
                 pbkdf2::<Hmac<Sha512>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
@@ -122,6 +124,7 @@ impl Command {
                 mechanism,
                 ..
             } => {
+                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
                 let mut salt = BytesMut::zeroed(Self::DEFAULT_SALT_LEN);
                 rng().fill_bytes(&mut salt);
 
@@ -188,12 +191,12 @@ mod tests {
 
     #[test]
     fn test_salted_password_256() -> Result<()> {
-        let password = "password";
+        let test_password = "password";
         let salt = b"abcdef";
         let iterations = 1000;
         let mechanism = Mechanism::Scram256;
 
-        let result = mechanism.salted_password(password.as_bytes(), iterations, salt)?;
+        let result = mechanism.salted_password(test_password.as_bytes(), iterations, salt)?;
         assert_eq!(
             [
                 145, 219, 38, 255, 206, 134, 237, 218, 6, 231, 82, 1, 148, 149, 161, 210, 185, 243,
@@ -206,12 +209,12 @@ mod tests {
 
     #[test]
     fn test_salted_password_512() -> Result<()> {
-        let password = "password";
+        let test_password = "password";
         let salt = b"abcdef";
         let iterations = 1000;
         let mechanism = Mechanism::Scram512;
 
-        let result = mechanism.salted_password(password.as_bytes(), iterations, salt)?;
+        let result = mechanism.salted_password(test_password.as_bytes(), iterations, salt)?;
         assert_eq!(
             [
                 154, 35, 153, 145, 17, 161, 139, 24, 204, 40, 101, 29, 139, 51, 136, 125, 228, 84,

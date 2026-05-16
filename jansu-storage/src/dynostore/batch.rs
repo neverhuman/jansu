@@ -113,7 +113,11 @@ impl DynoStore {
                                             }))
                                         }
                                     } else {
-                                        todo!()
+                                        Ok(InitProducer::Completed(ProducerIdResponse {
+                                            id: -1,
+                                            epoch: -1,
+                                            error: ErrorCode::UnknownServerError,
+                                        }))
                                     }
                                 }
                             }
@@ -364,7 +368,7 @@ impl DynoStore {
             }
 
             TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+                Err(Error::FeatureUnsupported { backend: "dynostore", feature: "TxnAddPartitions v4+".into() })
             }
         }
     }

@@ -253,8 +253,8 @@ impl Meta {
                     OpType::Delete => {
                         _ = configuration.remove(change.name.as_str());
                     }
-                    OpType::Append => todo!(),
-                    OpType::Subtract => todo!(),
+                    OpType::Append => return Err(Error::FeatureUnsupported { backend: "dynostore", feature: "config append op".into() }),
+                    OpType::Subtract => return Err(Error::FeatureUnsupported { backend: "dynostore", feature: "config subtract op".into() }),
                 }
             }
 

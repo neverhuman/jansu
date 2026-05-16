@@ -144,7 +144,7 @@ pub(super) async fn delete_records(
     topics: &[DeleteRecordsTopic],
 ) -> Result<Vec<DeleteRecordsTopicResult>> {
     debug!(?topics);
-    todo!()
+    Err(Error::FeatureUnsupported { backend: "limbo", feature: "delete_records".into() })
 }
 
 pub(super) async fn delete_topic(this: &Engine, topic: &TopicId) -> Result<ErrorCode> {
@@ -286,8 +286,8 @@ pub(super) async fn incremental_alter_resource(
                             break;
                         }
                     }
-                    OpType::Append => todo!(),
-                    OpType::Subtract => todo!(),
+                    OpType::Append => return Err(Error::FeatureUnsupported { backend: "limbo", feature: "config append op".into() }),
+                    OpType::Subtract => return Err(Error::FeatureUnsupported { backend: "limbo", feature: "config subtract op".into() }),
                 }
             }
 
