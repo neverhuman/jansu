@@ -17,7 +17,6 @@ use std::{
     env,
     fmt::Debug,
     marker::PhantomData,
-    ops::Deref,
     path::PathBuf,
     result,
     str::FromStr,
@@ -37,7 +36,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::NaiveDateTime;
 use deadpool::managed;
 use jansu_sans_io::{
     BatchAttribute, ConfigResource, ConfigSource, ConfigType, ControlBatch, EndTransactionMarker,
@@ -59,7 +57,7 @@ use jansu_sans_io::{
     list_groups_response::ListedGroup,
     metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
     record::{Header, Record, deflated, inflated},
-    to_system_time, to_timestamp,
+    to_timestamp,
     txn_offset_commit_response::{TxnOffsetCommitResponsePartition, TxnOffsetCommitResponseTopic},
 };
 use jansu_schema::{
@@ -67,7 +65,7 @@ use jansu_schema::{
     lake::{House, LakeHouse as _},
 };
 use libsql::{
-    Connection, Database, Row, Rows, Statement, Transaction, TransactionBehavior, Value,
+    Connection, Database, Row, Rows, Statement, Transaction, TransactionBehavior,
     ffi::SQLITE_CONSTRAINT_UNIQUE, params::IntoParams,
 };
 use opentelemetry::{
@@ -207,16 +205,6 @@ fn is_unique_constraint(error: &libsql::Error) -> bool {
         error,
         libsql::Error::SqliteFailure(SQLITE_CONSTRAINT_UNIQUE, _)
     )
-}
-
-fn value_to_system_time(value: Value) -> Result<Option<SystemTime>> {
-    match value {
-        Value::Null => Ok(None),
-        other => LiteTimestamp::try_from(other)
-            .map(SystemTime::from)
-            .map(Some)
-            .map_err(Into::into),
-    }
 }
 
 /// LibSQL/SQLite storage engine
@@ -5154,68 +5142,9 @@ impl Storage for Delegate {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct LiteTimestamp(SystemTime);
+mod timestamp;
 
-impl Deref for LiteTimestamp {
-    type Target = SystemTime;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<SystemTime> for LiteTimestamp {
-    fn from(value: SystemTime) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&SystemTime> for LiteTimestamp {
-    fn from(value: &SystemTime) -> Self {
-        Self(*value)
-    }
-}
-
-impl From<LiteTimestamp> for SystemTime {
-    fn from(value: LiteTimestamp) -> Self {
-        value.0
-    }
-}
-
-impl From<LiteTimestamp> for Value {
-    fn from(value: LiteTimestamp) -> Self {
-        Value::Integer(to_timestamp(&value.0).unwrap_or_default())
-    }
-}
-
-impl TryFrom<Value> for LiteTimestamp {
-    type Error = Error;
-
-    fn try_from(value: Value) -> result::Result<Self, Self::Error> {
-        match value {
-            Value::Integer(timestamp) => to_system_time(timestamp)
-                .map_err(Into::into)
-                .map(LiteTimestamp::from),
-
-            Value::Text(text) => match text.parse::<i64>() {
-                Ok(timestamp) => to_system_time(timestamp)
-                    .map_err(Into::into)
-                    .map(LiteTimestamp::from),
-                Err(_) => NaiveDateTime::parse_from_str(&text, "%Y-%m-%d %H:%M:%S%.f")
-                    .map(|date_time| date_time.and_utc())
-                    .inspect(|dt| debug!(?dt))
-                    .map(SystemTime::from)
-                    .map(LiteTimestamp::from)
-                    .map_err(Into::into),
-            },
-
-            Value::Real(_) => unimplemented!("{value:?}"),
-            Value::Null => unimplemented!("{value:?}"),
-            Value::Blob(_) => unimplemented!("{value:?}"),
-        }
-    }
-}
+use timestamp::{LiteTimestamp, value_to_system_time};
 
 #[cfg(test)]
 mod tests {
