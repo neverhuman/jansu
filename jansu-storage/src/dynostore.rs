@@ -781,6 +781,8 @@ impl Storage for DynoStore {
                     .to_owned()
             })?;
 
+            let base_timestamp = deflated.base_timestamp;
+
             let offset = watermark
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
@@ -791,7 +793,10 @@ impl Storage for DynoStore {
                         |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
                     );
 
-                    watermark.timestamps = None;
+                    _ = watermark
+                        .timestamps
+                        .get_or_insert_default()
+                        .insert(base_timestamp, offset);
 
                     debug!(?watermark);
 
@@ -919,6 +924,8 @@ impl Storage for DynoStore {
                     .to_owned()
             })?;
 
+            let base_timestamp = deflated.base_timestamp;
+
             let offset = watermark
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
@@ -929,7 +936,10 @@ impl Storage for DynoStore {
                         |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
                     );
 
-                    watermark.timestamps = None;
+                    _ = watermark
+                        .timestamps
+                        .get_or_insert_default()
+                        .insert(base_timestamp, offset);
 
                     debug!(?watermark);
 
@@ -1242,6 +1252,69 @@ impl Storage for DynoStore {
         let mut responses = vec![];
 
         for (topition, offset_request) in offsets {
+            // For timestamp queries, use the watermark's timestamps index which
+            // stores embedded Kafka batch timestamps (base_timestamp) rather than
+            // object-store last_modified wall-clock times.
+            if let ListOffset::Timestamp(target_ts) = offset_request {
+                let watermark = self.watermarks.lock().map(|mut locked| {
+                    locked
+                        .entry(topition.to_owned())
+                        .or_insert_with(|| {
+                            OptiCon::<Watermark>::new(self.cluster.as_str(), topition)
+                        })
+                        .to_owned()
+                })?;
+
+                let response = watermark
+                    .with(&self.object_store, |watermark| {
+                        debug!(?watermark);
+
+                        let target_millis = target_ts
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0);
+
+                        let result = watermark.timestamps.as_ref().and_then(|ts| {
+                            ts.range(target_millis..)
+                                .next()
+                                .map(|(ts, off)| (*off, *ts))
+                        });
+
+                        Ok(match result {
+                            Some((offset, ts)) => ListOffsetResponse {
+                                error_code: ErrorCode::None,
+                                offset: Some(offset),
+                                timestamp: SystemTime::UNIX_EPOCH
+                                    .checked_add(Duration::from_millis(ts as u64))
+                                    .map(Some)
+                                    .unwrap_or(None),
+                            },
+                            // Timestamp is after all records: return high_watermark with last timestamp.
+                            None => match watermark.timestamps.as_ref().and_then(|ts| {
+                                ts.last_key_value().map(|(ts, off)| (*ts, *off))
+                            }) {
+                                Some((ts, off)) => ListOffsetResponse {
+                                    error_code: ErrorCode::None,
+                                    offset: Some(off + 1),
+                                    timestamp: SystemTime::UNIX_EPOCH
+                                        .checked_add(Duration::from_millis(ts as u64))
+                                        .map(Some)
+                                        .unwrap_or(None),
+                                },
+                                None => ListOffsetResponse {
+                                    error_code: ErrorCode::None,
+                                    offset: Some(0),
+                                    timestamp: None,
+                                },
+                            },
+                        })
+                    })
+                    .await?;
+
+                responses.push((topition.to_owned(), response));
+                continue;
+            }
+
             let location = Path::from(format!(
                 "clusters/{}/topics/{}/partitions/{:0>10}/records",
                 self.cluster, topition.topic, topition.partition,
@@ -1300,14 +1373,6 @@ impl Storage for DynoStore {
                             _ = candidate.replace(meta);
                         }
 
-                        ListOffset::Timestamp(system_time)
-                            if SystemTime::from(meta.last_modified) > *system_time
-                                && candidate.as_ref().is_none_or(|found| {
-                                    found.last_modified > meta.last_modified
-                                }) =>
-                        {
-                            _ = candidate.replace(meta);
-                        }
                         _ => continue,
                     }
                 }
@@ -1994,17 +2059,11 @@ impl Storage for DynoStore {
 
                 debug!(group_id, ?deleted_committed_offsets);
 
+                // Kafka spec: deleting a non-existent group is not an error.
                 results.push(
                     DeletableGroupResult::default()
                         .group_id(group_id.into())
-                        .error_code(
-                            if had_group_state || !deleted_committed_offsets.is_empty() {
-                                ErrorCode::None
-                            } else {
-                                ErrorCode::GroupIdNotFound
-                            }
-                            .into(),
-                        ),
+                        .error_code(ErrorCode::None.into()),
                 );
             }
         }

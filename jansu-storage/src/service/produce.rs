@@ -434,7 +434,7 @@ where
         ctx: Context<G>,
         req: ProduceRequest,
     ) -> Result<Self::Response, Self::Error> {
-        if !matches!(req.acks, -1 | 0 | 1) {
+        if !matches!(req.acks, -1..=1) {
             return Ok(self.invalid_acks_response(req));
         }
 

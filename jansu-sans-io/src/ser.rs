@@ -564,9 +564,8 @@ impl Serializer for &mut Encoder {
             } else {
                 Ok(())
             }
-        } else if self.serialize_schema_default_for_none()? {
-            Ok(())
         } else {
+            let _ = self.serialize_schema_default_for_none()?;
             Ok(())
         }
     }

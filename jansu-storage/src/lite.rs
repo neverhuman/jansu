@@ -212,10 +212,7 @@ fn is_unique_constraint(error: &libsql::Error) -> bool {
 fn value_to_system_time(value: Value) -> Result<Option<SystemTime>> {
     match value {
         Value::Null => Ok(None),
-        other => LiteTimestamp::try_from(other)
-            .map(SystemTime::from)
-            .map(Some)
-            .map_err(Into::into),
+        other => Ok(Some(SystemTime::from(LiteTimestamp::try_from(other)?))),
     }
 }
 
@@ -3337,7 +3334,7 @@ impl Storage for Delegate {
 
         if let Some(row) = rows.next().await? {
             let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or_default() as i32;
-            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default() as i64;
+            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default();
             Ok(Some((next_epoch, end_offset)))
         } else {
             Ok(None)
