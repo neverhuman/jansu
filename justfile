@@ -653,4 +653,11 @@ rust-witness:
 	jankurai rust witness build .
 rust-diagnose:
 	jankurai rust diagnose .
-check: fast score security rust-map rust-witness rust-diagnose
+jankurai-check: fast score security rust-map rust-witness rust-diagnose
+
+# >>> ws-c: db destructive-delete proof >>>
+db-doctor:
+    mkdir -p target/jankurai/db
+    jankurai doctor --fail-on critical
+    cp docs/db/destructive-delete-proof.md target/jankurai/db/destructive-delete-proof.md
+# <<< ws-c: db destructive-delete proof <<<
