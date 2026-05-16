@@ -1950,12 +1950,12 @@ impl Storage for Engine {
             let leader_epoch = row.get::<Option<i32>>(3)?;
             let commit_timestamp = match row.get_value(4).map_err(Error::from)? {
                 Value::Null => None,
-                other => Some(LiteTimestamp::try_from(other)?.0.into()),
+                other => Some(LiteTimestamp::try_from(other)?.0),
             };
             let metadata = row.get::<Option<String>>(5)?;
             let expires_at = match row.get_value(6).map_err(Error::from)? {
                 Value::Null => None,
-                other => Some(LiteTimestamp::try_from(other)?.0.into()),
+                other => Some(LiteTimestamp::try_from(other)?.0),
             };
 
             let record = OffsetFetchRecord::from_parts(
@@ -2117,12 +2117,12 @@ impl Storage for Engine {
                     let leader_epoch = row.get::<Option<i32>>(1)?;
                     let commit_timestamp = match row.get_value(2).map_err(Error::from)? {
                         Value::Null => None,
-                        value => Some(LiteTimestamp::try_from(value)?.0.into()),
+                        value => Some(LiteTimestamp::try_from(value)?.0),
                     };
                     let metadata = row.get::<Option<String>>(3)?;
                     let expires_at = match row.get_value(4).map_err(Error::from)? {
                         Value::Null => None,
-                        value => Some(LiteTimestamp::try_from(value)?.0.into()),
+                        value => Some(LiteTimestamp::try_from(value)?.0),
                     };
 
                     let record = OffsetFetchRecord::from_parts(

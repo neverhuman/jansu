@@ -17,7 +17,7 @@ use bytes::Bytes;
 use jansu_sans_io::{
     ApiKey as _, Body, ErrorCode, Frame, Header, IsolationLevel, ListOffset, ListOffsetsRequest,
     list_offsets_request::{ListOffsetsPartition, ListOffsetsTopic},
-    list_offsets_response::{ListOffsetsResponse, ListOffsetsTopicResponse},
+    list_offsets_response::ListOffsetsResponse,
     record::{Record, inflated},
 };
 use jansu_storage::{ListOffsetsService, StorageContainer, Topition};
@@ -142,7 +142,7 @@ async fn response_frame_round_trips_for_mixed_partition_errors() -> Result<(), E
     let body = Body::ListOffsetsResponse(
         ListOffsetsResponse::default()
             .throttle_time_ms(Some(0))
-            .topics(Some(vec![ListOffsetsTopicResponse::from(topic.clone())])),
+            .topics(Some(vec![topic.clone()])),
     );
     let encoded = Frame::response(
         Header::Response { correlation_id: 0 },
@@ -231,7 +231,7 @@ async fn response_frame_round_trips_for_exact_mixed_partition_errors() -> Result
     let body = Body::ListOffsetsResponse(
         ListOffsetsResponse::default()
             .throttle_time_ms(Some(0))
-            .topics(Some(vec![ListOffsetsTopicResponse::from(topic.clone())])),
+            .topics(Some(vec![topic.clone()])),
     );
 
     let encoded = Frame::response(
@@ -319,7 +319,7 @@ async fn response_frame_round_trips_for_produced_leader_epoch() -> Result<(), Er
     let body = Body::ListOffsetsResponse(
         ListOffsetsResponse::default()
             .throttle_time_ms(Some(0))
-            .topics(Some(vec![ListOffsetsTopicResponse::from(topic.clone())])),
+            .topics(Some(vec![topic.clone()])),
     );
 
     let encoded = Frame::response(
@@ -361,7 +361,7 @@ async fn response_frame_round_trips_for_produced_leader_epoch() -> Result<(), Er
     let body = Body::ListOffsetsResponse(
         ListOffsetsResponse::default()
             .throttle_time_ms(Some(0))
-            .topics(Some(vec![ListOffsetsTopicResponse::from(topic.clone())])),
+            .topics(Some(vec![topic.clone()])),
     );
 
     let encoded = Frame::response(

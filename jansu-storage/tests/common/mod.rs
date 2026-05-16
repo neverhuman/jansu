@@ -162,6 +162,7 @@ pub(crate) async fn ensure_postgres_offset_schema(storage_url: &Url) -> Result<(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub(crate) async fn create_topic<S>(
     storage: &S,
     topic: &str,

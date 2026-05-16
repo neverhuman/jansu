@@ -2008,7 +2008,7 @@ impl Storage for Delegate {
 
         if let Some(row) = rows.next().await? {
             let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or_default() as i32;
-            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default() as i64;
+            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default();
             Ok(Some((next_epoch, end_offset)))
         } else {
             Ok(None)
