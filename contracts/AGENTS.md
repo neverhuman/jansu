@@ -1,3 +1,7 @@
+<!-- jankurai:owner: contracts -->
+<!-- jankurai:proof-lane: contracts-audit -->
+<!-- jankurai:expiry: 2026-07-01 -->
+
 # Contract Artifacts Ownership
 
 This file declares ownership of the generated contract artifacts that live

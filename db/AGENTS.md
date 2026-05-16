@@ -1,3 +1,7 @@
+<!-- jankurai:owner: data -->
+<!-- jankurai:proof-lane: db-doctor -->
+<!-- jankurai:expiry: 2026-07-01 -->
+
 # Database Surface Ownership
 
 This file declares ownership of the database surface that lives under `db/`.

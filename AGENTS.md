@@ -19,6 +19,12 @@ When a prompt says "progress on MASTER_PLAN and audit", do exactly this:
 11. Update the attempt log, canonical phase log, `AUDIT.md`, and `phase-logs/index.json`.
 12. Leave `tips/phases/*.md` at least as detailed as before; only append or clarify.
 
+## Agent-Readable Docs
+
+For architecture, boundaries, generated zones, proof lanes, and audit rules see
+`docs/agent-native-standard.md`. Read it before editing any file outside your
+declared ownership prefix.
+
 ## Canonical Files
 
 - `MASTER_PLAN.md` is the single agent-facing execution map.

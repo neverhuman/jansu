@@ -1,3 +1,7 @@
+<!-- jankurai:owner: ops -->
+<!-- jankurai:proof-lane: security -->
+<!-- jankurai:expiry: 2026-07-01 -->
+
 # Ops Surface Ownership
 
 This file declares the operational surface of the Jansu repository for jankurai
