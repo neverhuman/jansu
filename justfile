@@ -638,3 +638,10 @@ telemetry-vrm-consume vrm="SK06 YPM":
 
 postgres-local:
     LC_ALL="en_US.UTF-8" /opt/homebrew/opt/postgresql@18/bin/postgres -D /opt/homebrew/var/postgresql@18
+
+# >>> ws-c: db destructive-delete proof >>>
+db-doctor:
+    mkdir -p target/jankurai/db
+    jankurai doctor --fail-on critical
+    cp docs/db/destructive-delete-proof.md target/jankurai/db/destructive-delete-proof.md
+# <<< ws-c: db destructive-delete proof <<<
