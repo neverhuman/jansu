@@ -235,7 +235,7 @@ impl Delegate {
                     configs
                         .configs
                         .as_deref()
-                        .unwrap_or_default()
+                        .unwrap_or(&[])
                         .iter()
                         .find_map(|config| {
                             if config.name == "jansu.virtual" {
@@ -247,7 +247,7 @@ impl Delegate {
                                 None
                             }
                         })
-                        .unwrap_or_default()
+                        .unwrap_or(false)
                 })?
         {
             Ok((base, Some(key)))

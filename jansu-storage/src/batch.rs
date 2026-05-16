@@ -387,16 +387,12 @@ where
             let queued_bytes = self
                 .requests
                 .lock()
-                .map(|requests| {
-                    requests
-                        .get(&topition_producer_id)
-                        .map(|queue| {
-                            queue
-                                .iter()
-                                .map(|batch_request| batch_request.batch.record_data.len())
-                                .sum::<usize>()
-                        })
-                        .unwrap_or_default()
+                .map(|requests| match requests.get(&topition_producer_id) {
+                    Some(queue) => queue
+                        .iter()
+                        .map(|batch_request| batch_request.batch.record_data.len())
+                        .sum::<usize>(),
+                    None => 0,
                 })
                 .inspect(|queued_bytes| debug!(queued_bytes))?;
 

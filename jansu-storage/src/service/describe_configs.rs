@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jansu_sans_io::{ApiKey, ConfigResource, DescribeConfigsRequest, DescribeConfigsResponse};
+use std::collections::BTreeSet;
+
+use jansu_sans_io::{
+    ApiKey, ConfigResource, DescribeConfigsRequest, DescribeConfigsResponse, ErrorCode,
+};
 use rama::{Context, Service};
 use tracing::{error, instrument};
 
+use super::topic_config_defaults;
 use crate::{Error, Result, Storage};
 
 /// A [`Service`] using [`Storage`] as [`Context`] taking [`DescribeConfigsRequest`] returning [`DescribeConfigsResponse`].
@@ -54,10 +59,10 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let results = response.results.unwrap_or_default();
+/// let results = response.results.unwrap_or(Vec::new());
 /// assert_eq!(1, results.len());
 /// assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
-/// assert!(results[0].configs.as_deref().unwrap_or_default().is_empty());
+/// assert!(results[0].configs.as_deref().unwrap_or(&[]).is_empty());
 /// # Ok(())
 /// # }
 /// ```
@@ -81,19 +86,67 @@ where
         ctx: Context<G>,
         req: DescribeConfigsRequest,
     ) -> Result<Self::Response, Self::Error> {
+        let include_synonyms = req.include_synonyms.unwrap_or(false);
         let mut results = vec![];
 
-        for resource in req.resources.unwrap_or_default() {
-            results.push(
-                ctx.state()
-                    .describe_config(
-                        resource.resource_name.as_str(),
-                        ConfigResource::from(resource.resource_type),
-                        resource.configuration_keys.as_deref(),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?,
-            );
+        for resource in req.resources.unwrap_or(Vec::new()) {
+            let resource_type = ConfigResource::from(resource.resource_type);
+            let mut result = ctx
+                .state()
+                .describe_config(
+                    resource.resource_name.as_str(),
+                    resource_type,
+                    resource.configuration_keys.as_deref(),
+                )
+                .await
+                .inspect_err(|err| error!(?err))?;
+
+            // For topic resources, overlay storage results on top of
+            // Kafka-standard defaults so every backend returns a complete
+            // config set. Only do this for successful responses (topic exists).
+            if resource_type == ConfigResource::Topic
+                && matches!(ErrorCode::try_from(result.error_code), Ok(ErrorCode::None))
+            {
+                if let Some(configs) = result.configs.as_mut() {
+                    // Build a fresh default map.
+                    let mut merged = topic_config_defaults::build_default_configs();
+
+                    // Overlay explicitly-stored configs from the storage
+                    // backend, keeping the storage value and marking
+                    // is_default = None.
+                    for config in configs.drain(..) {
+                        _ = merged.insert(config.name.clone(), config);
+                    }
+
+                    // Apply key filtering if the request asked for
+                    // specific keys.
+                    if let Some(keys) = resource
+                        .configuration_keys
+                        .as_ref()
+                        .filter(|keys| !keys.is_empty())
+                    {
+                        let requested: BTreeSet<_> =
+                            keys.iter().map(|key| key.as_str()).collect();
+                        merged.retain(|name, _| requested.contains(name.as_str()));
+                    }
+
+                    // Apply synonym expansion.
+                    if include_synonyms {
+                        for config in merged.values_mut() {
+                            if let Some(synonyms) = topic_config_defaults::synonyms_for(
+                                config.name.as_str(),
+                                config.value.as_deref(),
+                            ) {
+                                *config = config.clone().synonyms(Some(synonyms));
+                            }
+                        }
+                    }
+
+                    *configs = merged.into_values().collect();
+                }
+            }
+
+            results.push(result);
         }
 
         Ok(DescribeConfigsResponse::default().results(Some(results)))

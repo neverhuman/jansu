@@ -38,7 +38,7 @@ impl Engine {
         debug!(?low, ?high);
 
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = high.unwrap_or_default();
+        let append_start_offset = high.unwrap_or(0_i64);
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -62,7 +62,7 @@ impl Engine {
 
         for (delta, record) in inflated.records.iter().enumerate() {
             let delta = i64::try_from(delta)?;
-            let offset = high.unwrap_or_default() + delta;
+            let offset = high.unwrap_or(0_i64) + delta;
             let key = record.key.as_deref();
             let value = record.value.as_deref();
 
@@ -117,7 +117,7 @@ impl Engine {
         if let Some(transaction_id) = transaction_id
             && attributes.transaction
         {
-            let offset_start = high.unwrap_or_default();
+            let offset_start = high.unwrap_or(0_i64);
             let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
 
             _ = self
@@ -147,7 +147,7 @@ impl Engine {
                     self.cluster.as_str(),
                     topic,
                     partition,
-                    low.unwrap_or_default(),
+                    low.unwrap_or(0_i64),
                     high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ),
             )
@@ -165,7 +165,7 @@ impl Engine {
             lake.store(
                 topition.topic(),
                 topition.partition(),
-                high.unwrap_or_default(),
+                high.unwrap_or(0_i64),
                 &inflated,
                 config,
             )
@@ -174,7 +174,7 @@ impl Engine {
             .inspect_err(|err| debug!(?err))?;
         }
 
-        Ok(high.unwrap_or_default())
+        Ok(high.unwrap_or(0_i64))
     }
 
     pub(super) async fn end_in_tx<'conn>(

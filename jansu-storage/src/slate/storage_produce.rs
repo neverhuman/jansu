@@ -130,7 +130,7 @@ impl Engine {
                 })
             })?;
 
-        let offset = watermark.high.unwrap_or_default();
+        let offset = watermark.high.unwrap_or(0_i64);
         let offset_end = offset + deflated.last_offset_delta as i64;
         let batch_leader_epoch = deflated.partition_leader_epoch;
 

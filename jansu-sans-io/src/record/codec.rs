@@ -33,14 +33,12 @@ pub struct Octets(pub Option<Bytes>);
 
 impl ByteSize for Octets {
     fn size_in_bytes(&self) -> Result<usize> {
-        self.0.as_ref().map_or_else(
-            || VarInt(-1).size_in_bytes(),
-            |bytes| {
-                VarInt::try_from(bytes.len())
-                    .and_then(|v| v.size_in_bytes())
-                    .map(|vlen| vlen + bytes.len())
-            },
-        )
+        match self.0.as_ref() {
+            None => VarInt(-1).size_in_bytes(),
+            Some(bytes) => VarInt::try_from(bytes.len())
+                .and_then(|v| v.size_in_bytes())
+                .map(|vlen| vlen + bytes.len()),
+        }
     }
 }
 
@@ -124,7 +122,7 @@ impl Octets {
             {
                 let mut length = seq
                     .next_element::<VarInt>()?
-                    .ok_or_else(|| de::Error::custom("length"))?
+                    .ok_or(de::Error::custom("length"))?
                     .0;
 
                 debug!(?length);
@@ -139,7 +137,7 @@ impl Octets {
                     while length >= 1 {
                         let char = seq
                             .next_element::<u8>()?
-                            .ok_or_else(|| de::Error::custom("byte"))?;
+                            .ok_or(de::Error::custom("byte"))?;
 
                         r.put_u8(char);
                         length -= 1;
@@ -346,27 +344,25 @@ where
             where
                 A: SeqAccess<'de>,
             {
-                seq.next_element::<VarInt>()?
-                    .ok_or_else(|| <A::Error as de::Error>::custom("length"))
-                    .map(|v| v.0)
-                    .inspect(|length| debug!("length: {length}"))
-                    .and_then(|length| {
-                        (0..length).try_fold(
-                            Vec::with_capacity(length.try_into().map_err(|e| {
-                                <A::Error as de::Error>::custom(format!(
-                                    "length: {length}, caused: {e:?}"
-                                ))
-                            })?),
-                            |mut acc, _| {
-                                seq.next_element::<T>()?
-                                    .ok_or_else(|| <A::Error as de::Error>::custom("item"))
-                                    .map(|t| {
-                                        acc.push(t);
-                                        acc
-                                    })
-                            },
-                        )
-                    })
+                let length = match seq.next_element::<VarInt>()? {
+                    Some(v) => v.0,
+                    None => return Err(<A::Error as de::Error>::custom("length")),
+                };
+                debug!("length: {length}");
+                let capacity = length.try_into().map_err(|e| {
+                    <A::Error as de::Error>::custom(format!(
+                        "length: {length}, caused: {e:?}"
+                    ))
+                })?;
+                (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
+                    match seq.next_element::<T>()? {
+                        Some(t) => {
+                            acc.push(t);
+                            Ok(acc)
+                        }
+                        None => Err(<A::Error as de::Error>::custom("item")),
+                    }
+                })
             }
         }
 
@@ -452,26 +448,25 @@ impl<T> Sequence<T> {
             where
                 A: SeqAccess<'de>,
             {
-                seq.next_element::<i32>()?
-                    .ok_or_else(|| <A::Error as de::Error>::custom("length"))
-                    .inspect(|length| debug!("length: {length}"))
-                    .and_then(|length| {
-                        (0..length).try_fold(
-                            Vec::with_capacity(length.try_into().map_err(|e| {
-                                <A::Error as de::Error>::custom(format!(
-                                    "length: {length}, caused: {e:?}"
-                                ))
-                            })?),
-                            |mut acc, _| {
-                                seq.next_element::<T>()?
-                                    .ok_or_else(|| <A::Error as de::Error>::custom("item"))
-                                    .map(|t| {
-                                        acc.push(t);
-                                        acc
-                                    })
-                            },
-                        )
-                    })
+                let length = match seq.next_element::<i32>()? {
+                    Some(v) => v,
+                    None => return Err(<A::Error as de::Error>::custom("length")),
+                };
+                debug!("length: {length}");
+                let capacity = length.try_into().map_err(|e| {
+                    <A::Error as de::Error>::custom(format!(
+                        "length: {length}, caused: {e:?}"
+                    ))
+                })?;
+                (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
+                    match seq.next_element::<T>()? {
+                        Some(t) => {
+                            acc.push(t);
+                            Ok(acc)
+                        }
+                        None => Err(<A::Error as de::Error>::custom("item")),
+                    }
+                })
             }
         }
 

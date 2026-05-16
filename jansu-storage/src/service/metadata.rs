@@ -52,7 +52,7 @@ use crate::{Error, Result, Storage, TopicId};
 ///     )
 ///     .await?;
 ///
-/// let brokers = response.brokers.as_deref().unwrap_or_default();
+/// let brokers = response.brokers.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, brokers.len());
 /// assert_eq!(HOST, brokers[0].host);
 /// assert_eq!(PORT, brokers[0].port);

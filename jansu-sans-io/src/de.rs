@@ -159,7 +159,7 @@ impl<'de> Decoder<'de> {
             meta: RootMessageMeta::messages()
                 .responses()
                 .get(&api_key)
-                .map_or_else(Meta::default, |meta| {
+                .map_or(Meta::default(), |meta| {
                     let mut parse = VecDeque::with_capacity(PARSE_DEPTH);
                     parse.push_front(meta.fields.into());
 
@@ -938,7 +938,7 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
                 .meta
                 .structures
                 .as_deref()
-                .unwrap_or_default()
+                .unwrap_or(&[])
                 .iter()
                 .find(|(found, _)| name == *found)
             {

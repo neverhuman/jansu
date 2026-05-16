@@ -36,17 +36,14 @@ fi
 # Run cargo-audit for dependency vulnerabilities.
 if command -v cargo-audit >/dev/null 2>&1; then
   echo "Running cargo-audit..." >&2
-  cargo audit --json > "$REPORT_DIR/cargo-audit.json" || true
+  cargo audit --json > "$REPORT_DIR/cargo-audit.json"
 else
   echo "cargo-audit not installed; skipping dependency audit." >&2
 fi
 
-# Placeholder for SBOM generation (optional).
-# Users may integrate tools like Syft, cargo-about, or other provenance generators.
-# Example (commented):
-# if command -v syft >/dev/null 2>&1; then
-#   syft . -o json > "$REPORT_DIR/sbom.json"
-# fi
+if command -v syft >/dev/null 2>&1; then
+  syft . -o json > "$REPORT_DIR/sbom.json"
+fi
 
 # Exit with success status – failures are reported via evidence JSON files.
 exit 0

@@ -417,9 +417,10 @@ impl<'a> FieldGenerator<'a> {
         engine: &Engine,
         runtime_type: &RuntimeType,
     ) -> Result<Vec<ReflectValueBox>> {
-        let upper = self.configuration.repeated_len().unwrap_or_else(|| {
-            rand::rng().random_range(self.configuration.repeated_range().unwrap_or(0..=1))
-        });
+        let upper = match self.configuration.repeated_len() {
+            Some(len) => len,
+            None => rand::rng().random_range(self.configuration.repeated_range().unwrap_or(0..=1)),
+        };
 
         (0..upper)
             .inspect(|i| debug!(i))
@@ -456,7 +457,7 @@ impl FieldGeneratorConfiguration {
     ) -> FieldGeneratorConfiguration {
         debug!(field = field.name(), generator = generator.full_name(),);
 
-        field
+        let found = field
             .options
             .special_fields
             .unknown_fields()
@@ -476,8 +477,11 @@ impl FieldGeneratorConfiguration {
                 } else {
                     None
                 }
-            })
-            .unwrap_or_default()
+            });
+        match found {
+            Some(config) => config,
+            None => Self::default(),
+        }
     }
 
     fn skip(&self) -> bool {
@@ -485,7 +489,7 @@ impl FieldGeneratorConfiguration {
             .cloned()
             .and_then(|value| value.as_bool())
             .inspect(|skip| debug!(?skip))
-            .unwrap_or_default()
+            .unwrap_or(false)
     }
 
     fn script(&self) -> Option<&str> {

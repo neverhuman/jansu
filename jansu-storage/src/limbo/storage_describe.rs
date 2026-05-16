@@ -24,9 +24,9 @@ pub(super) async fn describe_topic_partitions(
     let c = this.connection().await.inspect_err(|err| error!(?err))?;
 
     let mut responses =
-        Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
 
-    for topic in topics.unwrap_or_default() {
+    for topic in topics.unwrap_or(&[]) {
         responses.push(match topic {
             TopicId::Name(name) => {
                 match this

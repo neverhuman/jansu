@@ -36,3 +36,258 @@
 ## Residual Risks
 
 - Admin API semantics remain uncertified until phase work supplies proof.
+
+---
+
+## Session 2
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Make topic config writes strict for known topic keys and prove unknown configs are rejected.
+
+### Files Touched
+
+- `jansu-storage/src/dynostore/mod.rs`
+- `jansu-storage/src/dynostore/features.rs`
+- `jansu-storage/src/service/incremental_alter_configs.rs`
+- `jansu-storage/tests/create_topics.rs`
+- `jansu-storage/tests/incremental_alter_configs.rs`
+- `phase-logs/09-topic-config-admin.md.log`
+- `phase-logs/attempts/09-topic-config-admin/20260516-120625-codex.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- `jansu-storage/tests/create_topics.rs::reject_unknown_topic_config`
+- `jansu-storage/tests/incremental_alter_configs.rs::reject_unknown_topic_config`
+
+### Verification Commands
+
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-config cargo test -p jansu-storage --test create_topics --no-default-features --features dynostore -- --nocapture`
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-config cargo test -p jansu-storage --test incremental_alter_configs --no-default-features --features dynostore -- --nocapture`
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-config cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore -- --nocapture`
+
+### Outcomes
+
+- DynoStore now rejects unknown topic config names with `InvalidRequest` instead of persisting them.
+- Topic config admin tests now use a real supported key, `cleanup.policy`.
+
+### Residual Risks
+
+- Config defaults, synonyms, and additional supported topic config keys are still open Phase 09 work.
+
+---
+
+## Session 3
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Surface default topic config values in `DescribeConfigs` for supported keys.
+
+### Files Touched
+
+- `jansu-storage/src/dynostore/describe.rs`
+- `jansu-broker/tests/describe_configs.rs`
+- `jansu-storage/tests/describe_configs.rs`
+- `phase-logs/09-topic-config-admin.md.log`
+- `phase-logs/attempts/09-topic-config-admin/20260516-123916-codex.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-describe cargo test -p jansu-storage --test describe_configs --no-default-features --features dynostore -- --nocapture`
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-describe cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore -- --nocapture`
+
+### Outcomes
+
+- DynoStore `DescribeConfigs` now emits default topic configs for `cleanup.policy` and `retention.ms` when no explicit values are stored.
+- Broker-facing describe-config coverage now matches the new default response shape.
+
+### Residual Risks
+
+- Config synonyms, additional supported config names, and AdminClient validation coverage remain open Phase 09 work.
+
+---
+
+## Session 4
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Close the `DescribeConfigs` config-key filtering slice for DynoStore topics.
+
+### Files Touched
+
+- `jansu-broker/tests/describe_configs.rs`
+- `phase-logs/09-topic-config-admin.md.log`
+- `phase-logs/attempts/09-topic-config-admin/20260516-125740-codex.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-filter cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore -- --nocapture`
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-storage cargo test -p jansu-storage --test describe_configs --no-default-features --features dynostore -- --nocapture`
+- `git diff --check -- /Users/bentaylor/code/jansu/jansu-storage/src/dynostore/describe.rs /Users/bentaylor/code/jansu/jansu-broker/tests/describe_configs.rs`
+
+### Outcomes
+
+- DynoStore `DescribeConfigs` now respects requested `configuration_keys` for topics.
+- Broker describe-config coverage now checks both the full default response and the key-filtered subset response.
+
+### Residual Risks
+
+- Config synonyms and broader AdminClient matrix coverage remain open in Phase 09.
+
+---
+
+## Session 5
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Surface a Kafka-style config synonym for `cleanup.policy` when `include_synonyms=true`.
+
+### Files Touched
+
+- `jansu-storage/src/service/describe_configs.rs`
+- `jansu-broker/tests/describe_configs.rs`
+- `phase-logs/09-topic-config-admin.md.log`
+- `phase-logs/attempts/09-topic-config-admin/20260516-130700-codex.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-synonyms2 cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore -- --nocapture`
+
+### Outcomes
+
+- Broker describe-config responses now surface the `log.cleanup.policy` synonym when `include_synonyms=true`.
+- The broker contract continues to pass for default config responses and key-filtered responses.
+
+### Residual Risks
+
+- Synonym coverage for `retention.ms` and other config keys remains open Phase 09 work.
+
+---
+
+## Session 6
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Extend topic config synonym coverage to `retention.ms` for `include_synonyms=true`.
+
+### Files Touched
+
+- `jansu-storage/src/service/describe_configs.rs`
+- `jansu-broker/tests/describe_configs.rs`
+- `phase-logs/09-topic-config-admin.md.log`
+- `phase-logs/attempts/09-topic-config-admin/20260516-131333-codex.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-synonyms3 cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore -- --nocapture`
+- `CARGO_TARGET_DIR=/tmp/jansu-phase09-synonyms3 cargo test -p jansu-storage --test describe_configs --no-default-features --features dynostore -- --nocapture`
+
+### Outcomes
+
+- Broker describe-config responses now surface the `log.retention.ms` synonym when `include_synonyms=true`.
+- Existing default and filtered describe-config coverage remains green.
+
+### Residual Risks
+
+- Other topic config aliases beyond `cleanup.policy` and `retention.ms` remain open Phase 09 work.
+
+---
+
+## Session: Centralized Config Defaults & Cross-Backend Parity
+
+### Date
+
+- 2026-05-16
+
+### Intent
+
+- Achieve 100% Kafka parity for `DescribeConfigs` by centralizing all 22 topic
+  config defaults in a shared service-layer module.
+- Fix cross-backend divergence where PG and limbo returned empty configs.
+- Expand `IncrementalAlterConfigs` allowlist to accept all standard keys.
+- Fix `ErrorCode::None` returned for non-existent topics.
+
+### Files Touched
+
+- `jansu-storage/src/service/topic_config_defaults.rs` [NEW]
+- `jansu-storage/src/service.rs`
+- `jansu-storage/src/service/describe_configs.rs`
+- `jansu-storage/src/dynostore/mod.rs`
+- `jansu-storage/src/dynostore/describe.rs`
+- `jansu-storage/src/slate/storage_topic_metadata.rs`
+- `jansu-broker/tests/describe_configs.rs`
+- `jansu-storage/tests/describe_configs.rs`
+- `FEATURE_GAPS.md`
+- `docs/VE0X_NATIVE_FEATURE_REQUEST.md`
+- `tips/phases/09-topic-config-admin.md`
+
+### Tests Added
+
+- `describe_configs::in_memory::single_topic` — validates 22 defaults, filtering, synonyms
+- `describe_configs::in_memory::alter_single_topic` — alter/delete lifecycle
+- `describe_configs::lite::{single_topic,alter_single_topic}`
+- `describe_configs::slatedb::{single_topic,alter_single_topic}`
+- `topic_config_defaults::tests::{defaults_contain_cleanup_policy_and_retention_ms, synonyms_for_known_configs, defaults_are_ordered_by_name}`
+
+### Verification Commands
+
+- `cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore` ✅
+- `cargo test -p jansu-broker --test describe_configs --no-default-features --features slatedb` ✅
+- `cargo test -p jansu-broker --test describe_configs --no-default-features --features libsql` ✅
+- `cargo test -p jansu-storage --test describe_configs --no-default-features --features dynostore` ✅
+
+### Outcomes
+
+- All 4 backends return identical 22-config default sets via service-layer merging.
+- Synonym expansion covers all 22 configs with broker-level alias names.
+- Key filtering works identically across all backends.
+- `IncrementalAlterConfigs` accepts all 22 standard Kafka topic config keys.
+- Non-existent topics return `UnknownTopicOrPartition` instead of `ErrorCode::None`.
+
+### Residual Risks
+
+- PG backend not tested (requires POSTGRES_URL).
+- Config enforcement deferred to Phase 13 and owning phases.
+- Kafka returns ~50 configs; 22 high-priority implemented.
+

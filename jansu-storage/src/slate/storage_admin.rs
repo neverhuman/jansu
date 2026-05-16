@@ -14,7 +14,7 @@
 
 //! Group, cluster, maintain, SCRAM, and ping Storage impl helpers
 
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
 
 use jansu_schema::lake::LakeHouse as _;
 use jansu_sans_io::{
@@ -28,6 +28,8 @@ use crate::{Error, GroupDetail, NamedGroupDetail, Result, ScramCredential};
 
 use super::engine::Engine;
 use super::types::{
+    Topics, BatchKey, BatchKeyPrefix,
+
     GroupDetailVersion, GroupKey, GroupKeyPrefix, OffsetCommitKeyPrefix, OffsetCommitValue,
 };
 
@@ -169,8 +171,12 @@ impl Engine {
     /// implementation.
     pub(super) async fn impl_maintain(&self, now: SystemTime) -> Result<()> {
         if let Some(ref lake) = self.lake {
-            return lake.maintain().await.map_err(Into::into);
+            lake.maintain().await.map_err(Error::from)?;
         }
+
+        let _ = self.policy_delete(now).await?;
+        let _ = self.policy_compact().await?;
+
 
         let tx = self
             .db
@@ -215,6 +221,148 @@ impl Engine {
         debug!(expired);
 
         Ok(())
+    }
+
+    
+    pub(super) async fn policy_delete(&self, now: SystemTime) -> Result<u64> {
+        let mut deleted = 0;
+        
+        let tx = self
+            .db
+            .begin(slatedb::IsolationLevel::SerializableSnapshot)
+            .await
+            .inspect_err(|err| debug!(?err))?;
+
+        let topics: Topics = self.load_metadata(&tx, Self::TOPICS).await?;
+
+        for metadata in topics.values() {
+            let mut retention_ms = Some(Duration::from_secs(7 * 24 * 60 * 60)); // Default 7 days
+            if let Some(configs) = &metadata.topic.configs {
+                for config in configs {
+                    if config.name == "retention.ms" {
+                        if let Some(val) = &config.value {
+                            if let Ok(ms) = val.parse::<i64>() {
+                                if ms < 0 {
+                                    retention_ms = None;
+                                } else {
+                                    retention_ms = Some(Duration::from_millis(ms as u64));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let Some(retention) = retention_ms else { continue };
+
+            for partition in 0..metadata.topic.num_partitions {
+                let prefix = postcard::to_stdvec(&BatchKeyPrefix::new(metadata.id, partition))?;
+                let mut scan = self.db.scan(prefix.clone()..).await?;
+
+                while let Some(kv) = scan.next().await? {
+                    if !kv.key.starts_with(&prefix) {
+                        break;
+                    }
+
+                    let Ok(batch) = self.decode(kv.value.clone()) else { continue };
+                    let now_ms = now.duration_since(SystemTime::UNIX_EPOCH).unwrap_or(Duration::ZERO).as_millis() as i64;
+                    let batch_ms = batch.base_timestamp;
+                    
+                    if now_ms.saturating_sub(batch_ms) > retention.as_millis() as i64 {
+                        tx.delete(&kv.key)?;
+                        deleted += 1;
+                    }
+                }
+            }
+        }
+
+        tx.commit().await.map_err(Error::from)?;
+        Ok(deleted)
+    }
+
+    pub(super) async fn policy_compact(&self) -> Result<u64> {
+        let mut compacted = 0;
+
+        let tx = self
+            .db
+            .begin(slatedb::IsolationLevel::SerializableSnapshot)
+            .await
+            .inspect_err(|err| debug!(?err))?;
+
+        let topics: Topics = self.load_metadata(&tx, Self::TOPICS).await?;
+        
+        for metadata in topics.values() {
+            let mut is_compact = false;
+            if let Some(configs) = &metadata.topic.configs {
+                for config in configs {
+                    if config.name == "cleanup.policy" {
+                        if let Some(val) = &config.value {
+                            if val.contains("compact") {
+                                is_compact = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if !is_compact { continue; }
+
+            for partition in 0..metadata.topic.num_partitions {
+                let prefix = postcard::to_stdvec(&BatchKeyPrefix::new(metadata.id, partition))?;
+                let mut scan = self.db.scan(prefix.clone()..).await?;
+                
+                let mut latest_keys: std::collections::HashMap<Vec<u8>, i64> = std::collections::HashMap::new();
+                let mut all_batches = Vec::new();
+
+                while let Some(kv) = scan.next().await? {
+                    if !kv.key.starts_with(&prefix) {
+                        break;
+                    }
+
+                    let Ok(key) = postcard::from_bytes::<BatchKey>(&kv.key) else { continue };
+                    let Ok(batch) = self.decode(kv.value.clone()) else { continue };
+                    
+                    all_batches.push((kv.key.clone(), key.offset, batch.clone()));
+                    
+                    if let Ok(inflated_batch) = jansu_sans_io::record::inflated::Batch::try_from(&batch) {
+                        for record in inflated_batch.records {
+                            if let Some(r_key) = record.key {
+                                let current = latest_keys.entry(r_key.to_vec()).or_insert(-1);
+                                if key.offset + record.offset_delta as i64 > *current {
+                                    *current = key.offset + record.offset_delta as i64;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (kv_key, base_offset, batch) in all_batches {
+                    let mut keep = false;
+                    if let Ok(inflated_batch) = jansu_sans_io::record::inflated::Batch::try_from(&batch) {
+                        for record in &inflated_batch.records {
+                            if let Some(r_key) = &record.key {
+                                if let Some(latest_offset) = latest_keys.get(&r_key.to_vec()) {
+                                    if base_offset + record.offset_delta as i64 >= *latest_offset {
+                                        keep = true;
+                                    }
+                                }
+                            } else {
+                                keep = true;
+                            }
+                        }
+                    } else {
+                        keep = true;
+                    }
+
+                    if !keep {
+                        tx.delete(&kv_key)?;
+                        compacted += 1;
+                    }
+                }
+            }
+        }
+
+        tx.commit().await.map_err(Error::from)?;
+        Ok(compacted)
     }
 
     pub(super) async fn impl_cluster_id(&self) -> Result<String> {

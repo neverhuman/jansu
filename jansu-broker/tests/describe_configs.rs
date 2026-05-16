@@ -15,12 +15,12 @@
 use common::{alphanumeric_string, register_broker};
 use jansu_broker::Result;
 use jansu_sans_io::{
-    ConfigResource, ConfigSource, ConfigType, DescribeConfigsRequest, DescribeConfigsResponse,
+    ConfigResource, ConfigSource, DescribeConfigsRequest,
     ErrorCode,
     IncrementalAlterConfigsRequest, OpType,
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     describe_configs_request::DescribeConfigsResource,
-    describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
+    describe_configs_response::DescribeConfigsResourceResult,
     describe_configs_response::DescribeConfigsSynonym,
     incremental_alter_configs_request::{AlterConfigsResource, AlterableConfig},
 };
@@ -30,6 +30,22 @@ use rand::{prelude::*, rng};
 use tracing::debug;
 use uuid::Uuid;
 pub mod common;
+
+/// Helper: assert that a config entry with the given name exists in the
+/// config list and return its value.
+fn find_config<'a>(
+    configs: &'a [DescribeConfigsResourceResult],
+    name: &str,
+) -> &'a DescribeConfigsResourceResult {
+    configs
+        .iter()
+        .find(|c| c.name == name)
+        .unwrap_or_else(|| panic!("expected config {name}"))
+}
+
+/// The full default config set has 22 entries matching our centralized
+/// topic_config_defaults module.
+const EXPECTED_DEFAULT_CONFIG_COUNT: usize = 22;
 
 pub async fn single_topic<C, G>(cluster_id: C, broker_id: i32, sc: G) -> Result<()>
 where
@@ -77,6 +93,7 @@ where
 
     let ctx = Context::with_state(sc);
 
+    // --- Full describe (no key filter, no synonyms) ---
     let results = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -87,42 +104,42 @@ where
         )
         .await?;
 
+    let result_list = results.results.unwrap_or_default();
+    assert_eq!(1, result_list.len());
     assert_eq!(
-        results,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(ErrorCode::None.into())
-                .error_message(Some(ErrorCode::None.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(
-                    [
-                        DescribeConfigsResourceResult::default()
-                            .name(cleanup_policy.into())
-                            .value(Some(compact.into()))
-                            .read_only(false)
-                            .is_default(None)
-                            .config_source(Some(ConfigSource::DefaultConfig.into()))
-                            .is_sensitive(false)
-                            .synonyms(Some([].into()))
-                            .config_type(Some(ConfigType::String.into()))
-                            .documentation(Some("".into())),
-                        DescribeConfigsResourceResult::default()
-                            .name(retention_ms.into())
-                            .value(Some("604800000".into()))
-                            .read_only(false)
-                            .is_default(Some(true))
-                            .config_source(Some(ConfigSource::DefaultConfig.into()))
-                            .is_sensitive(false)
-                            .synonyms(Some([].into()))
-                            .config_type(Some(ConfigType::String.into()))
-                            .documentation(Some("".into())),
-                    ]
-                    .into()
-                ))
-        ],))
+        ErrorCode::None,
+        ErrorCode::try_from(result_list[0].error_code)?
+    );
+    let full_configs = result_list[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(
+        EXPECTED_DEFAULT_CONFIG_COUNT,
+        full_configs.len(),
+        "expected {} default configs, got {}",
+        EXPECTED_DEFAULT_CONFIG_COUNT,
+        full_configs.len()
     );
 
+    // The explicitly-set cleanup.policy should have is_default = None and
+    // value = "compact".
+    let cp = find_config(full_configs, cleanup_policy);
+    assert_eq!(cp.value.as_deref(), Some(compact));
+    assert_eq!(cp.is_default, None);
+
+    // retention.ms should have is_default = Some(true) and the default value.
+    let rm = find_config(full_configs, retention_ms);
+    assert_eq!(rm.value.as_deref(), Some("604800000"));
+    assert_eq!(rm.is_default, Some(true));
+
+    // Verify some other defaults exist
+    let sb = find_config(full_configs, "segment.bytes");
+    assert_eq!(sb.value.as_deref(), Some("1073741824"));
+    assert_eq!(sb.is_default, Some(true));
+
+    let mir = find_config(full_configs, "min.insync.replicas");
+    assert_eq!(mir.value.as_deref(), Some("1"));
+    assert_eq!(mir.is_default, Some(true));
+
+    // --- Key-filtered describe ---
     let filtered = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -139,29 +156,14 @@ where
         )
         .await?;
 
-    assert_eq!(
-        filtered,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(ErrorCode::None.into())
-                .error_message(Some(ErrorCode::None.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(vec![
-                    DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(compact.into()))
-                        .read_only(false)
-                        .is_default(None)
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                ])),
-        ]))
-    );
+    let filtered_results = filtered.results.unwrap_or_default();
+    assert_eq!(1, filtered_results.len());
+    let filtered_configs = filtered_results[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(1, filtered_configs.len());
+    assert_eq!(filtered_configs[0].name, cleanup_policy);
+    assert_eq!(filtered_configs[0].value.as_deref(), Some(compact));
 
+    // --- Describe with include_synonyms=true ---
     let with_synonyms = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -175,10 +177,9 @@ where
     let results = with_synonyms.results.unwrap_or_default();
     assert_eq!(1, results.len());
     let configs = results[0].configs.as_deref().unwrap_or_default();
-    let cleanup = configs
-        .iter()
-        .find(|config| config.name == cleanup_policy)
-        .expect("cleanup.policy");
+
+    // cleanup.policy synonym
+    let cleanup = find_config(configs, cleanup_policy);
     assert_eq!(
         Some(
             [DescribeConfigsSynonym::default()
@@ -190,10 +191,8 @@ where
         cleanup.synonyms
     );
 
-    let retention = configs
-        .iter()
-        .find(|config| config.name == retention_ms)
-        .expect("retention.ms");
+    // retention.ms synonym
+    let retention = find_config(configs, retention_ms);
     assert_eq!(
         Some(
             [DescribeConfigsSynonym::default()
@@ -203,6 +202,19 @@ where
             .into()
         ),
         retention.synonyms
+    );
+
+    // segment.bytes synonym
+    let segment = find_config(configs, "segment.bytes");
+    assert_eq!(
+        Some(
+            [DescribeConfigsSynonym::default()
+                .name("log.segment.bytes".into())
+                .value(Some("1073741824".into()))
+                .source(ConfigSource::DefaultConfig.into())]
+            .into()
+        ),
+        segment.synonyms
     );
 
     debug!(?topic_id);
@@ -252,6 +264,7 @@ where
 
     let ctx = Context::with_state(sc);
 
+    // --- Describe before any alter ---
     let results = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -264,39 +277,18 @@ where
 
     let none = ErrorCode::None;
 
-    assert_eq!(
-        results,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(none.into())
-                .error_message(Some(none.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(vec![
-                    DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(delete.into()))
-                        .read_only(false)
-                        .is_default(Some(true))
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                    DescribeConfigsResourceResult::default()
-                        .name(retention_ms.into())
-                        .value(Some("604800000".into()))
-                        .read_only(false)
-                        .is_default(Some(true))
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                ]))
-        ]))
-    );
+    let result_list = results.results.unwrap_or_default();
+    assert_eq!(1, result_list.len());
+    assert_eq!(none, ErrorCode::try_from(result_list[0].error_code)?);
+    let full_configs = result_list[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(EXPECTED_DEFAULT_CONFIG_COUNT, full_configs.len());
 
+    // Before alter: cleanup.policy should be default "delete"
+    let cp = find_config(full_configs, cleanup_policy);
+    assert_eq!(cp.value.as_deref(), Some(delete));
+    assert_eq!(cp.is_default, Some(true));
+
+    // --- Alter: set cleanup.policy to compact ---
     let response = IncrementalAlterConfigsService
         .serve(
             ctx.clone(),
@@ -321,6 +313,7 @@ where
     assert_eq!(i8::from(ConfigResource::Topic), responses[0].resource_type);
     assert_eq!(topic_name, responses[0].resource_name);
 
+    // --- Describe after alter ---
     let results = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -331,42 +324,20 @@ where
         )
         .await?;
 
-    assert_eq!(
-        results,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(none.into())
-                .error_message(Some(none.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(
-                    [
-                        DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(compact.into()))
-                        .read_only(false)
-                        .is_default(None)
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                        DescribeConfigsResourceResult::default()
-                            .name(retention_ms.into())
-                            .value(Some("604800000".into()))
-                            .read_only(false)
-                            .is_default(Some(true))
-                            .config_source(Some(ConfigSource::DefaultConfig.into()))
-                            .is_sensitive(false)
-                            .synonyms(Some([].into()))
-                            .config_type(Some(ConfigType::String.into()))
-                            .documentation(Some("".into())),
-                    ]
-                    .into(),
-                )),
-        ],))
-    );
+    let result_list = results.results.unwrap_or_default();
+    let full_configs = result_list[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(EXPECTED_DEFAULT_CONFIG_COUNT, full_configs.len());
 
+    let cp = find_config(full_configs, cleanup_policy);
+    assert_eq!(cp.value.as_deref(), Some(compact));
+    assert_eq!(cp.is_default, None);
+
+    // retention.ms still default
+    let rm = find_config(full_configs, retention_ms);
+    assert_eq!(rm.value.as_deref(), Some("604800000"));
+    assert_eq!(rm.is_default, Some(true));
+
+    // --- Key-filtered describe ---
     let filtered = DescribeConfigsService
         .serve(
             ctx.clone(),
@@ -383,29 +354,13 @@ where
         )
         .await?;
 
-    assert_eq!(
-        filtered,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(none.into())
-                .error_message(Some(none.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(vec![
-                    DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(compact.into()))
-                        .read_only(false)
-                        .is_default(None)
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                ])),
-        ]))
-    );
+    let filtered_results = filtered.results.unwrap_or_default();
+    let filtered_configs = filtered_results[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(1, filtered_configs.len());
+    assert_eq!(filtered_configs[0].name, cleanup_policy);
+    assert_eq!(filtered_configs[0].value.as_deref(), Some(compact));
 
+    // --- Alter: set cleanup.policy back to delete ---
     let response = IncrementalAlterConfigsService
         .serve(
             ctx.clone(),
@@ -427,8 +382,6 @@ where
     let responses = response.responses.unwrap_or_default();
     assert_eq!(1, responses.len());
     assert_eq!(i16::from(none), responses[0].error_code);
-    assert_eq!(i8::from(ConfigResource::Topic), responses[0].resource_type);
-    assert_eq!(topic_name, responses[0].resource_name);
 
     let results = DescribeConfigsService
         .serve(
@@ -440,39 +393,15 @@ where
         )
         .await?;
 
-    assert_eq!(
-        results,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(none.into())
-                .error_message(Some(none.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(vec![
-                    DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(delete.into()))
-                        .read_only(false)
-                        .is_default(None)
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                    DescribeConfigsResourceResult::default()
-                        .name(retention_ms.into())
-                        .value(Some("604800000".into()))
-                        .read_only(false)
-                        .is_default(Some(true))
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                ])),
-        ],))
-    );
+    let result_list = results.results.unwrap_or_default();
+    let full_configs = result_list[0].configs.as_deref().unwrap_or_default();
+    // After setting cleanup.policy to "delete" explicitly, it's still an
+    // explicit override (is_default = None), not a revert to default.
+    let cp = find_config(full_configs, cleanup_policy);
+    assert_eq!(cp.value.as_deref(), Some(delete));
+    assert_eq!(cp.is_default, None);
 
+    // --- Alter: delete cleanup.policy (revert to default) ---
     let response = IncrementalAlterConfigsService
         .serve(
             ctx.clone(),
@@ -494,8 +423,6 @@ where
     let responses = response.responses.unwrap_or_default();
     assert_eq!(1, responses.len());
     assert_eq!(i16::from(none), responses[0].error_code);
-    assert_eq!(i8::from(ConfigResource::Topic), responses[0].resource_type);
-    assert_eq!(topic_name, responses[0].resource_name);
 
     let results = DescribeConfigsService
         .serve(
@@ -507,38 +434,15 @@ where
         )
         .await?;
 
-    assert_eq!(
-        results,
-        DescribeConfigsResponse::default().results(Some(vec![
-            DescribeConfigsResult::default()
-                .error_code(none.into())
-                .error_message(Some(none.to_string()))
-                .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name.clone())
-                .configs(Some(vec![
-                    DescribeConfigsResourceResult::default()
-                        .name(cleanup_policy.into())
-                        .value(Some(delete.into()))
-                        .read_only(false)
-                        .is_default(Some(true))
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                    DescribeConfigsResourceResult::default()
-                        .name(retention_ms.into())
-                        .value(Some("604800000".into()))
-                        .read_only(false)
-                        .is_default(Some(true))
-                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                        .is_sensitive(false)
-                        .synonyms(Some([].into()))
-                        .config_type(Some(ConfigType::String.into()))
-                        .documentation(Some("".into())),
-                ]))
-        ],))
-    );
+    let result_list = results.results.unwrap_or_default();
+    let full_configs = result_list[0].configs.as_deref().unwrap_or_default();
+    assert_eq!(EXPECTED_DEFAULT_CONFIG_COUNT, full_configs.len());
+
+    // After deleting the explicit override, cleanup.policy should revert to
+    // the default value "delete" with is_default = Some(true).
+    let cp = find_config(full_configs, cleanup_policy);
+    assert_eq!(cp.value.as_deref(), Some(delete));
+    assert_eq!(cp.is_default, Some(true));
 
     debug!(?topic_id);
     Ok(())

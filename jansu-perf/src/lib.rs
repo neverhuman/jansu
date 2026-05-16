@@ -449,13 +449,13 @@ impl Producer {
         assert!(
             response
                 .responses
-                .unwrap_or_default()
                 .into_iter()
+                .flatten()
                 .all(|topic| {
                     topic
                         .partition_responses
-                        .unwrap_or_default()
-                        .iter()
+                        .into_iter()
+                        .flatten()
                         .all(|partition| partition.error_code == i16::from(ErrorCode::None))
                 })
         );
@@ -578,16 +578,14 @@ impl Info {
         self.current.observation.bytes_sent
             - self
                 .previous
-                .map(|previous| previous.observation.bytes_sent)
-                .unwrap_or_default()
+                .map_or(0, |previous| previous.observation.bytes_sent)
     }
 
     fn records_sent(&self) -> u64 {
         self.current.observation.record_count
             - self
                 .previous
-                .map(|previous| previous.observation.record_count)
-                .unwrap_or_default()
+                .map_or(0, |previous| previous.observation.record_count)
     }
 
     fn records_sent_per_second(&self) -> f64 {

@@ -70,10 +70,10 @@ use crate::{Error, Result, Storage};
 ///
 /// assert_eq!(
 ///     ErrorCode::None,
-///     ErrorCode::try_from(response.topics.unwrap_or_default()[0].error_code)?
+///     ErrorCode::try_from(response.topics.unwrap_or(Vec::new())[0].error_code)?
 /// );
 ///
-/// let config_name = "x.y.z";
+/// let config_name = "cleanup.policy";
 /// let config_value = "pqr";
 ///
 /// let describe_configs = {
@@ -97,7 +97,7 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// assert!(response.results.unwrap_or_default()[0].configs.is_none());
+/// assert!(response.results.unwrap_or(Vec::new())[0].configs.is_none());
 ///
 /// let alter_configs = {
 ///     let storage = storage.clone();
@@ -171,7 +171,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for resource in req.resources.unwrap_or_default() {
+        for resource in req.resources.unwrap_or(Vec::new()) {
             responses.push(ctx.state().incremental_alter_resource(resource).await?);
         }
 

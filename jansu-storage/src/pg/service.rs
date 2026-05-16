@@ -413,12 +413,12 @@ impl Postgres {
                                     &[&self.cluster, &resource.resource_name, &config.name],
                                 )
                                 .await
-                                .unwrap_or_default();
-                                
+                                .unwrap_or(Vec::new());
+
                             let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
-                            
+
                             if let Some(new_val) = &config.value {
-                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or(Vec::new());
                                 if !list.contains(&new_val.as_str()) {
                                     list.push(new_val.as_str());
                                 }
@@ -453,12 +453,12 @@ impl Postgres {
                                     &[&self.cluster, &resource.resource_name, &config.name],
                                 )
                                 .await
-                                .unwrap_or_default();
-                                
+                                .unwrap_or(Vec::new());
+
                             let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
 
                             if let Some(del_val) = &config.value {
-                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or_default();
+                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or(Vec::new());
                                 
                                 if list.is_empty() {
                                     if self

@@ -152,7 +152,7 @@ impl VarInt {
                 while !done {
                     let byte = seq
                         .next_element::<u8>()?
-                        .ok_or_else(|| de::Error::custom("u8"))?;
+                        .ok_or(de::Error::custom("u8"))?;
 
                     if byte & CONTINUATION == CONTINUATION {
                         let intermediate = u32::from(byte & MASK);
@@ -347,7 +347,7 @@ impl LongVarInt {
                 while !done {
                     let byte = seq
                         .next_element::<u8>()?
-                        .ok_or_else(|| de::Error::custom("u8"))?;
+                        .ok_or(de::Error::custom("u8"))?;
 
                     if byte & CONTINUATION == CONTINUATION {
                         let intermediate = u64::from(byte & MASK);
@@ -499,24 +499,22 @@ impl UnsignedVarInt {
                 while !done {
                     let byte = seq
                         .next_element::<u8>()?
-                        .ok_or_else(|| de::Error::custom("byte"))?;
+                        .ok_or(de::Error::custom("byte"))?;
 
                     debug!("byte: {byte}");
-
-                    let overflow = || de::Error::custom("overflow");
 
                     if byte & CONTINUATION == CONTINUATION {
                         accumulator = u32::from(byte & MASK)
                             .checked_shl(shift as u32)
                             .and_then(|intermediate| accumulator.checked_add(intermediate))
-                            .ok_or_else(overflow)?;
+                            .ok_or(de::Error::custom("overflow"))?;
 
-                        shift = shift.checked_add(7).ok_or_else(overflow)?;
+                        shift = shift.checked_add(7).ok_or(de::Error::custom("overflow"))?;
                     } else {
                         accumulator = u32::from(byte)
                             .checked_shl(shift as u32)
                             .and_then(|intermediate| accumulator.checked_add(intermediate))
-                            .ok_or_else(overflow)?;
+                            .ok_or(de::Error::custom("overflow"))?;
 
                         done = true;
                     }

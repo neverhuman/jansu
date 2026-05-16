@@ -153,46 +153,18 @@ impl Engine {
         &self,
         name: &str,
         resource: ConfigResource,
-        keys: Option<&[String]>,
+        _keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
         match resource {
             ConfigResource::Topic => match self.topic_metadata(&TopicId::Name(name.into())).await {
                 Ok(Some(topic_metadata)) => {
                     let error_code = ErrorCode::None;
 
-                    let mut configs = std::collections::BTreeMap::from([
-                        (
-                            "cleanup.policy".to_string(),
-                            DescribeConfigsResourceResult::default()
-                                .name("cleanup.policy".into())
-                                .value(Some("delete".into()))
-                                .read_only(false)
-                                .is_default(Some(true))
-                                .config_source(Some(ConfigSource::DefaultConfig.into()))
-                                .is_sensitive(false)
-                                .synonyms(Some([].into()))
-                                .config_type(Some(ConfigType::String.into()))
-                                .documentation(Some("".into())),
-                        ),
-                        (
-                            "retention.ms".to_string(),
-                            DescribeConfigsResourceResult::default()
-                                .name("retention.ms".into())
-                                .value(Some("604800000".into()))
-                                .read_only(false)
-                                .is_default(Some(true))
-                                .config_source(Some(ConfigSource::DefaultConfig.into()))
-                                .is_sensitive(false)
-                                .synonyms(Some([].into()))
-                                .config_type(Some(ConfigType::String.into()))
-                                .documentation(Some("".into())),
-                        ),
-                    ]);
+                    let mut configs: Vec<DescribeConfigsResourceResult> = Vec::new();
 
                     if let Some(topic_configs) = topic_metadata.topic.configs.as_ref() {
                         for config in topic_configs {
-                            _ = configs.insert(
-                                config.name.clone(),
+                            configs.push(
                                 DescribeConfigsResourceResult::default()
                                     .name(config.name.clone())
                                     .value(config.value.clone())
@@ -207,18 +179,12 @@ impl Engine {
                         }
                     }
 
-                    if let Some(keys) = keys.filter(|keys| !keys.is_empty()) {
-                        let requested: std::collections::BTreeSet<_> =
-                            keys.iter().map(|key| key.as_str()).collect();
-                        configs.retain(|name, _| requested.contains(name.as_str()));
-                    }
-
                     Ok(DescribeConfigsResult::default()
                         .error_code(error_code.into())
                         .error_message(Some(error_code.to_string()))
                         .resource_type(i8::from(resource))
                         .resource_name(name.into())
-                        .configs(Some(configs.into_values().collect())))
+                        .configs(Some(configs)))
                 }
 
                 Ok(None) => {
@@ -263,9 +229,9 @@ impl Engine {
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
         let _ = (partition_limit, cursor);
         let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.unwrap_or(&[]) {
             match self.topic_metadata(topic).await {
                 Ok(Some(topic_metadata)) => {
                     responses.push(

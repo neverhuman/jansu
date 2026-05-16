@@ -131,7 +131,7 @@ impl Engine {
                             })
                         })?;
 
-                let offset = watermark.high.unwrap_or_default();
+                let offset = watermark.high.unwrap_or(0_i64);
 
                 // Track the control batch offset (this is the new offset_end for overlap detection)
                 current_offset_end = current_offset_end.max(offset);

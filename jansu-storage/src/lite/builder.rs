@@ -170,7 +170,7 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             .iter()
             .map(|(name, sql)| fix_parameters(sql).map(|sql| (*name, sql)))
             .collect::<Result<BTreeMap<_, _>>>()
-            .unwrap_or_default(),
+            .unwrap_or(BTreeMap::new()),
     )
 });
 
@@ -271,7 +271,7 @@ impl Builder<String, i32, Url, Url> {
                     None
                 }
             })
-            .unwrap_or_default();
+            .unwrap_or(CompactionMode::default());
 
         let db = libsql::Builder::new_local(path).build().await?;
 
@@ -297,7 +297,7 @@ impl Builder<String, i32, Url, Url> {
                     None
                 }
             })
-            .unwrap_or_default()
+            .unwrap_or(CommunicationMode::default())
         {
             CommunicationMode::Mpsc => {
                 let (sender, receiver) = bounded_channel(1);

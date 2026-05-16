@@ -502,7 +502,7 @@ impl Registry {
             if self.cache_expiry_after.is_some_and(|cache_expiry_after| {
                 SystemTime::now()
                     .duration_since(cached.loaded_at)
-                    .unwrap_or_default()
+                    .unwrap_or(Duration::ZERO)
                     > cache_expiry_after
             }) {
                 return Ok(Some(cached.schema));

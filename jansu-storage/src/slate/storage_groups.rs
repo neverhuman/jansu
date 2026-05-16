@@ -46,7 +46,7 @@ impl Engine {
             .load_metadata(&tx, &key)
             .await
             .map(Some)
-            .or_else(|_| Ok::<_, Error>(None))
+            .or::<Error>(Ok(None))
             .map_err(UpdateError::Error)?;
 
         if let Some(current) = current_group {

@@ -431,10 +431,10 @@ impl From<&[BatchRequest]> for Owner {
         for request in requests {
             debug!(?request);
 
-            for topic in request.request.topic_data.as_deref().unwrap_or_default() {
+            for topic in request.request.topic_data.as_deref().into_iter().flatten() {
                 debug!(?topic);
 
-                for partition in topic.partition_data.as_deref().unwrap_or_default() {
+                for partition in topic.partition_data.as_deref().into_iter().flatten() {
                     debug!(?partition);
 
                     _ = topition
@@ -456,10 +456,10 @@ impl Owner {
     fn split(&self, produce_response: ProduceResponse) -> BTreeMap<Uuid, ProduceResponse> {
         let mut responses = BTreeMap::<Uuid, BatchTopicProduceResponse>::new();
 
-        for topic in produce_response.responses.unwrap_or_default() {
+        for topic in produce_response.responses.into_iter().flatten() {
             debug!(?topic);
 
-            for partition in topic.partition_responses.unwrap_or_default() {
+            for partition in topic.partition_responses.into_iter().flatten() {
                 let topition = Topition {
                     topic: topic.name.clone(),
                     partition: partition.index,
@@ -467,7 +467,7 @@ impl Owner {
 
                 debug!(?topition);
 
-                for owner in self.topition.get(&topition).cloned().unwrap_or_default() {
+                for owner in self.topition.get(&topition).into_iter().flatten().copied() {
                     debug!(?owner);
 
                     _ = responses
@@ -553,10 +553,10 @@ fn produce_request(requests: Vec<BatchRequest>) -> ProduceRequest {
     for request in requests {
         debug!(?request);
 
-        for topic in request.request.topic_data.unwrap_or_default() {
+        for topic in request.request.topic_data.into_iter().flatten() {
             debug!(?topic);
 
-            for partition in topic.partition_data.unwrap_or_default() {
+            for partition in topic.partition_data.into_iter().flatten() {
                 debug!(?partition);
 
                 if let Some(mut records) = partition.records {
@@ -615,7 +615,10 @@ impl IntoIterator for PartitionBatch {
                 PartitionProduceData::default()
                     .index(index)
                     .records(Some(Frame {
-                        batches: combine(batches).unwrap_or_default(),
+                        batches: match combine(batches) {
+                        Ok(b) => b,
+                        Err(_) => Vec::new(),
+                    },
                     }))
             })
             .collect::<Vec<_>>()

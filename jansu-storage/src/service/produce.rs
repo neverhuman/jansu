@@ -74,7 +74,7 @@ use crate::{Error, Result, Storage, StorageFeature, TopicId, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or_default();
+/// let topics = response.topics.unwrap_or(Vec::new());
 /// assert_eq!(1, topics.len());
 /// assert_eq!(ErrorCode::None, ErrorCode::try_from(topics[0].error_code)?);
 ///
@@ -116,9 +116,9 @@ use crate::{Error, Result, Storage, StorageFeature, TopicId, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.responses.as_deref().unwrap_or_default();
+/// let topics = response.responses.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, topics.len());
-/// let partitions = topics[0].partition_responses.as_deref().unwrap_or_default();
+/// let partitions = topics[0].partition_responses.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, partitions.len());
 /// assert_eq!(
 ///     ErrorCode::None,
@@ -161,12 +161,13 @@ impl ProduceService {
     }
 
     fn topic_error(&self, topic: TopicProduceData, error_code: ErrorCode) -> TopicProduceResponse {
-        let partitions = topic.partition_data.map_or_else(Vec::new, |partitions| {
-            partitions
+        let partitions = match topic.partition_data {
+            None => Vec::new(),
+            Some(partitions) => partitions
                 .into_iter()
                 .map(|partition| self.error(partition.index, error_code))
-                .collect()
-        });
+                .collect(),
+        };
 
         TopicProduceResponse::default()
             .name(topic.name)
@@ -174,12 +175,13 @@ impl ProduceService {
     }
 
     fn invalid_acks_response(&self, req: ProduceRequest) -> ProduceResponse {
-        let responses = req.topic_data.map_or_else(Vec::new, |topics| {
-            topics
+        let responses = match req.topic_data {
+            None => Vec::new(),
+            Some(topics) => topics
                 .into_iter()
                 .map(|topic| self.topic_error(topic, ErrorCode::InvalidRequiredAcks))
-                .collect()
-        });
+                .collect(),
+        };
 
         ProduceResponse::default()
             .responses(Some(responses))

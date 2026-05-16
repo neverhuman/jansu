@@ -110,7 +110,7 @@ impl Engine {
                                     },
                                 )?;
 
-                            let offset = watermark.high.unwrap_or_default();
+                            let offset = watermark.high.unwrap_or(0_i64);
 
                             watermark.high = watermark
                                 .high

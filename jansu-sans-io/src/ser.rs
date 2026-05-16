@@ -152,7 +152,7 @@ impl Encoder {
             meta: RootMessageMeta::messages()
                 .responses()
                 .get(&api_key)
-                .map_or_else(Meta::default, |meta| {
+                .map_or(Meta::default(), |meta| {
                     let mut parse = VecDeque::with_capacity(PARSE_DEPTH);
                     parse.push_front(meta.fields.into());
 
@@ -194,7 +194,7 @@ impl Encoder {
     #[allow(dead_code)]
     fn field_name(&self) -> String {
         self.containers.iter().fold(
-            self.field.map_or_else(String::new, str::to_owned),
+            self.field.map_or(String::new(), str::to_owned),
             |acc, container| {
                 if acc.is_empty() {
                     container.name()
@@ -351,7 +351,7 @@ impl Encoder {
 }
 
 fn parse_kafka_int_default(spec: &str) -> std::result::Result<i128, std::num::ParseIntError> {
-    if let Some(hex) = spec.strip_prefix("0x").or_else(|| spec.strip_prefix("0X")) {
+    if let Some(hex) = spec.strip_prefix("0x").or(spec.strip_prefix("0X")) {
         i128::from_str_radix(hex, 16)
     } else {
         spec.parse::<i128>()

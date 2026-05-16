@@ -140,10 +140,10 @@ originate from a registry the broker did not author.
 - Maximum accepted size: Bounded by the registry transport.
 - Fuzz coverage: Covered by round-trip tests in `jansu-schema/src/proto.rs`.
 
-### Lake descriptor parsing (`jansu-schema/src/lake/delta.rs`)
+### Lake descriptor parsing (`jansu-schema/src/lake/delta/mod.rs`)
 
-- Sink: `serde_json::from_slice::<Value>` at
-  `jansu-schema/src/lake/delta.rs:2369` and the surrounding Delta Lake
+- Sink: `deltalake::DeltaTableBuilder` at
+  `jansu-schema/src/lake/delta/mod.rs` and the surrounding Delta Lake
   metadata-load paths.
 - Validator: Delta Lake's transaction-log entries are JSON; the parser
   rejects malformed entries with a typed error.
@@ -152,22 +152,6 @@ originate from a registry the broker did not author.
   per-object cap (typically S3's 5 TiB object limit, but in practice
   Delta log entries are kilobytes).
 - Fuzz coverage: None dedicated; covered by the lake integration tests.
-
-### DataFusion projection query (`jansu-schema/src/lake/delta.rs`)
-
-- Sink: `ctx.sql(&select_expr)` at `jansu-schema/src/lake/delta.rs:446` —
-  constructs a DataFusion SQL SELECT projection over a named table `t`.
-- Validator: `validate_generated_col_name` (same file) applies a denylist of
-  DML/DDL keywords (`DROP`, `DELETE`, `INSERT`, `UPDATE`, `CREATE`, `TRUNCATE`,
-  `EXEC`) against every generated column alias before the query is built. The
-  simple column list (`select_cols`) is derived directly from the Arrow schema
-  field names, which are validated by Delta Lake's transaction-log parser at
-  ingestion time.
-- Denylist: `["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]`
-  applied to every generated column alias.
-- Negative tests: `jansu-schema/src/lake/delta.rs::input_boundary_tests::{reject_drop_keyword_in_col_name, reject_delete_keyword_in_col_name, reject_insert_keyword_in_col_name, reject_create_keyword_in_col_name, accept_safe_column_name}`
-- Maximum accepted size: Bounded by the schema column count (< 4096 columns).
-- Fuzz coverage: Covered by schema round-trip tests.
 
 ## Storage SQL Sinks (`jansu-storage/src/sql/`)
 

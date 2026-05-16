@@ -177,7 +177,7 @@ impl From<&GroupDetail> for ConsumerGroupState {
 impl From<&GroupDetail> for consumer_group_describe_response::DescribedGroup {
     fn from(value: &GroupDetail) -> Self {
         let assignor_name = match value.state {
-            GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or_default(),
+            GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or(String::new()),
             GroupState::Formed { ref leader, .. } => leader.clone(),
         };
 
@@ -236,7 +236,7 @@ impl From<&NamedGroupDetail> for consumer_group_describe_response::DescribedGrou
                 response: GroupDetailResponse::Found(group_detail),
             } => {
                 let assignor_name = match group_detail.state {
-                    GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or_default(),
+                    GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or(String::new()),
                     GroupState::Formed { ref leader, .. } => leader.clone(),
                 };
 
@@ -298,7 +298,7 @@ impl From<&NamedGroupDetail> for describe_groups_response::DescribedGroup {
                     .error_code(ErrorCode::None.into())
                     .group_id(name.clone())
                     .group_state(group_state)
-                    .protocol_type(group_detail.state.protocol_type().unwrap_or_default())
+                    .protocol_type(group_detail.state.protocol_type().unwrap_or(String::new()))
                     .protocol_data("".into())
                     .members(Some(members))
                     .authorized_operations(Some(-1))

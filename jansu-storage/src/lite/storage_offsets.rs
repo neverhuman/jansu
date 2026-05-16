@@ -37,12 +37,12 @@ impl Delegate {
         let log_start = row
             .get::<Option<i64>>(0)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let high_watermark = row
             .get::<Option<i64>>(1)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let last_stable = row
             .get::<Option<i64>>(1)
@@ -308,8 +308,8 @@ impl Delegate {
             .await?;
 
         if let Some(row) = rows.next().await? {
-            let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or_default() as i32;
-            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default() as i64;
+            let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or(0) as i32;
+            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or(0) as i64;
             Ok(Some((next_epoch, end_offset)))
         } else {
             Ok(None)

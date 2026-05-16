@@ -46,7 +46,7 @@ impl Delegate {
         debug!(?low, ?high);
 
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = high.unwrap_or_default();
+        let append_start_offset = high.unwrap_or(0_i64);
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -111,7 +111,7 @@ impl Delegate {
                                     .and_then(|config| config.value.as_deref())
                                     .and_then(|value| bool::from_str(value).ok())
                             })
-                            .unwrap_or_default()
+                            .unwrap_or(false)
                     })
                     .inspect(|jansu_lake_sink| debug!(jansu_lake_sink))?)
         {
@@ -119,7 +119,7 @@ impl Delegate {
                 debug!(delta, elapsed = elapsed_millis(start));
 
                 let delta = i64::try_from(delta)?;
-                let offset = high.unwrap_or_default() + delta;
+                let offset = high.unwrap_or(0_i64) + delta;
                 let key = record.key.as_deref();
                 let value = record.value.as_deref();
 
@@ -178,7 +178,7 @@ impl Delegate {
             if let Some(transaction_id) = transaction_id
                 && attributes.transaction
             {
-                let offset_start = high.unwrap_or_default();
+                let offset_start = high.unwrap_or(0_i64);
                 let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
 
                 _ = connection
@@ -210,7 +210,7 @@ impl Delegate {
                     self.cluster.as_str(),
                     topic,
                     partition,
-                    low.unwrap_or_default(),
+                    low.unwrap_or(0_i64),
                     high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ),
             )
@@ -229,7 +229,7 @@ impl Delegate {
             lake.store(
                 topition.topic(),
                 topition.partition(),
-                high.unwrap_or_default(),
+                high.unwrap_or(0_i64),
                 &inflated,
                 config,
             )
@@ -239,7 +239,7 @@ impl Delegate {
 
         debug!(after_all_done = elapsed_millis(start));
 
-        Ok(high.unwrap_or_default()).inspect(|_| {
+        Ok(high.unwrap_or(0_i64)).inspect(|_| {
             PRODUCE_IN_TX_DURATION.record(
                 elapsed_millis(start),
                 &[KeyValue::new("cluster_id", self.cluster.clone())],

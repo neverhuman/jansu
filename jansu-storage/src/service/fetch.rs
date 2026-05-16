@@ -80,7 +80,7 @@ use crate::{Error, Result, Storage, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or_default();
+/// let topics = response.topics.unwrap_or(vec![]);
 /// assert_eq!(1, topics.len());
 /// assert_eq!(ErrorCode::None, ErrorCode::try_from(topics[0].error_code)?);
 ///
@@ -108,9 +108,9 @@ use crate::{Error, Result, Storage, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.responses.as_deref().unwrap_or_default();
+/// let topics = response.responses.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, topics.len());
-/// let partitions = topics[0].partitions.as_deref().unwrap_or_default();
+/// let partitions = topics[0].partitions.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, partitions.len());
 /// assert_eq!(
 ///     ErrorCode::None,

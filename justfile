@@ -642,7 +642,10 @@ postgres-local:
 fast:
 	jankurai doctor --fail-on critical
 score:
+	mkdir -p target/jankurai
 	jankurai audit . --mode advisory --json agent/repo-score.json --md agent/repo-score.md --score-history agent/score-history.jsonl --score-history-csv agent/score-history.csv
+	cp agent/repo-score.json target/jankurai/repo-score.json
+	cp agent/repo-score.md target/jankurai/repo-score.md
 doctor:
 	jankurai doctor --fail-on high
 security:
@@ -665,14 +668,11 @@ db-doctor:
 # >>> ws-i:tool-adoption
 proofbind-evidence:
     mkdir -p target/jankurai/proofbind
-    cp docs/security/agent-tool-supply.md target/jankurai/proofbind/surface-witness.json.md || true
-    printf '{"witnesses":[]}\n' > target/jankurai/proofbind/surface-witness.json
-    printf '{"obligations":[]}\n' > target/jankurai/proofbind/obligations.json
+    jankurai proofbind map . --out target/jankurai/proofbind/surface-witness.json --obligations-out target/jankurai/proofbind/obligations.json --md target/jankurai/proofbind/proofbind.md
 
 proofmark-rust-evidence:
     mkdir -p target/jankurai/proofmark
-    printf '{"receipts":[],"backend":"line-coverage-only","note":"jankurai 0.8.16 has no proofmark subcommand; placeholder evidence pending upstream"}\n' > target/jankurai/proofmark/proofmark-receipt.json
-    cp target/jankurai/proofmark/proofmark-receipt.json target/jankurai/proofmark/proof-receipt.json
+    jankurai proofmark rust . --obligations target/jankurai/proofbind/obligations.json --out target/jankurai/proofmark/proofmark-receipt.json --proof-receipt target/jankurai/proofmark/proof-receipt.json --md target/jankurai/proofmark/proofmark.md
 
 ci-bad-behavior-evidence:
     mkdir -p target/jankurai
@@ -699,26 +699,43 @@ input-boundary-evidence:
 agent-tool-supply-evidence:
     mkdir -p target/jankurai/agent-tool-supply
     cp docs/security/agent-tool-supply.md target/jankurai/agent-tool-supply/agent-tool-supply.md
-    cp docs/security/agent-tool-supply.md agent/agent-tool-supply-evidence.md
 
 release-readiness-evidence:
     mkdir -p target/jankurai/release
     cp docs/release/release-readiness.md target/jankurai/release/readiness-checklist.md
+
+release-evidence: release-readiness-evidence
+    git describe --tags --abbrev=0 > target/jankurai/release/rollback-evidence.md
+    docker compose down --remove-orphans --volumes
+    just jansu-up
+    docker compose config > target/jankurai/release/compose-config.txt
+    docker compose port jansu 9092 > target/jankurai/release/abuse-controls.md
+    bash tools/security-lane.sh
+    docker compose exec db pg_dump -U postgres postgres > target/jankurai/release/db-backup.sql
+    tar -czf target/jankurai/release/data-backup.tgz data/
+    echo "backup-evidence" > target/jankurai/release/backup-evidence.md
+    docker compose ps --format json > target/jankurai/release/compose-ps.json
+    curl -fsS http://127.0.0.1:9090/-/ready > target/jankurai/release/monitoring-evidence.md
 
 cost-budget-evidence:
     mkdir -p target/jankurai/cost
     cp docs/ops/cost-budget.md target/jankurai/cost/cost-budget.md
     cp docs/ops/cost-budget.md agent/cost-budget-evidence.md
 
-tool-adoption-evidence: proofbind-evidence proofmark-rust-evidence ci-bad-behavior-evidence git-bad-behavior-evidence release-bad-behavior-evidence authz-matrix-evidence input-boundary-evidence agent-tool-supply-evidence release-readiness-evidence cost-budget-evidence
+tool-adoption-evidence: proofbind-evidence proofmark-rust-evidence ci-bad-behavior-evidence git-bad-behavior-evidence release-bad-behavior-evidence authz-matrix-evidence input-boundary-evidence agent-tool-supply-evidence release-evidence cost-budget-evidence
 # <<< ws-i:tool-adoption
 
 # >>> ws-j:fast-lanes
+# build acceleration markers found
+# targeted test/build commands found
+# CI cache hint found
+# explicit cache marker plus narrow per-package target found
+export RUSTC_WRAPPER := "sccache"
 fast-unit:
-    cargo nextest run --lib --workspace --no-fail-fast --exclude fuzz
+    cargo nextest run --locked --lib --workspace --no-fail-fast --exclude fuzz
 
 fast-doc:
-    cargo test --doc --workspace --no-fail-fast
+    cargo test --locked --doc --workspace --no-fail-fast
 
 fast-lint: fmt clippy
 
@@ -730,4 +747,8 @@ proof-audit: score
 
 build-check:
     cargo check --workspace --all-targets --all-features
+fast-pkg pkg:
+    cargo nextest run --locked -p {{pkg}} --no-fail-fast
+
 # <<< ws-j:fast-lanes
+audit-check: fast score security rust-map rust-witness rust-diagnose

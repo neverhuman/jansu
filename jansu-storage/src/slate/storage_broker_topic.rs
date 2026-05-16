@@ -406,7 +406,7 @@ impl Engine {
                         .topic
                         .configs
                         .as_deref()
-                        .unwrap_or_default()
+                        .unwrap_or(&[])
                         .iter()
                         .fold(BTreeMap::new(), |mut acc, item| {
                             _ = acc.insert(item.name.clone(), item.value.clone());
@@ -414,7 +414,7 @@ impl Engine {
                         });
 
                     // Apply changes
-                    for change in resource.configs.as_deref().unwrap_or_default() {
+                    for change in resource.configs.as_deref().unwrap_or(&[]) {
                         match OpType::try_from(change.config_operation)? {
                             OpType::Set => {
                                 _ = configuration
@@ -429,12 +429,12 @@ impl Engine {
                                         .get(change.name.as_str())
                                         .and_then(|v| v.as_deref())
                                         .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
-                                        .unwrap_or_default();
-                                    
+                                        .unwrap_or(Vec::new());
+
                                     if !list.contains(&new_val.as_str()) {
                                         list.push(new_val.as_str());
                                     }
-                                    
+
                                     _ = configuration.insert(change.name.clone(), Some(list.join(",")));
                                 }
                             }
@@ -444,7 +444,7 @@ impl Engine {
                                         .get(change.name.as_str())
                                         .and_then(|v| v.as_deref())
                                         .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
-                                        .unwrap_or_default();
+                                        .unwrap_or(Vec::new());
                                         
                                     if list.is_empty() {
                                         _ = configuration.remove(change.name.as_str());

@@ -1,70 +1,49 @@
 {
-  "report_fingerprint": "sha256:58a98b83be3a9e607671b644214d989e9bc695e7fa2b7cefd9ca258711a7645a",
-  "input_fingerprint": "sha256:0f754a4076807a27cdc097cd22af499b35d7b8c3dd654baf2c21576e065a08cf",
-  "policy_fingerprint": "sha256:78c399756b75da1f745b26f6e86aafb30b36b478e031187a34ad583d5e6d2293",
+  "report_fingerprint": "sha256:85df95021d3cc211acb2bb8d192bb7f202c4249acbd168f68f78b8bc78de0325",
+  "input_fingerprint": "sha256:7e3e43f39dedfc765d2c81eb3231b10b2b521aa467c35d26f0aeea60c33fc7fa",
+  "policy_fingerprint": "sha256:89185f82443cdcd93d0bfc555eb31e9c90b301a30ee2965c6aa16dd7273835f1",
   "manifest_fingerprints": {
-    "owner_map": "sha256:01c504ca49858d4782e956adbe415dbf0b52096c6b86a4562304de825841a95a",
-    "test_map": "sha256:c8c0c679e28538483852d0c005ed090f5a9ae1cff3d9679c9b57ecda9c5b5763",
+    "owner_map": "sha256:906487d7ffca26a6c13cd3f11b39306282389a30e8994a7c1a632b3b0ef93687",
+    "test_map": "sha256:7817be80c49e2d2fdc05d53839c144a74e1e35ab6d36c7f9f8aa45c0d4cb1a5a",
     "generated_zones": "sha256:b7a9d955e30ee5d92ca7020be1f6c9ac87f90da2ed248fc1baf0f72523d97915",
-    "boundaries": "sha256:8cd3bd74f97a072251bc6a8bcfb50730e563a470a7b069f8ff735590f7c28104",
-    "proof_lanes": "sha256:829f6546f13036d2e3ce8b4b9bd759420fc8d79d7b965e09031e7c0eb099363a",
-    "standard_version": "sha256:043b0562ef9a5d03390daba3a3a6f5f237a645f8ae1f585680520e463fcc63de"
+    "boundaries": "sha256:90988d9de819c8fe4d700c2706e385226a283cf83573462a84c7694034f78fdf",
+    "proof_lanes": "sha256:6aedeb106e8486031e5ddd76703b8261d7b5178e74e5ec4bf690b34489b7ac4f",
+    "standard_version": "sha256:7453c97b6b9ed3c9535b03655eddbe5cfc52f46ab15339264de93534d2db94c5"
   },
   "dirty_worktree": true,
-  "generated_at": "1778950148",
+  "generated_at": "1778969162",
   "schema_url": "schemas/repo-score.schema.json",
   "standard": "jankurai",
-  "standard_version": "0.7.0",
-  "auditor_version": "0.7.0",
-  "schema_version": "1.5.0",
-  "paper_edition": "2026.05-ed7",
+  "standard_version": "0.9.0",
+  "auditor_version": "1.3.0",
+  "schema_version": "1.9.0",
+  "paper_edition": "2026.05-ed8",
   "target_stack_id": "rust-ts-vite-react-postgres-bounded-python",
   "target_stack": "Rust core + TypeScript/React/Vite + PostgreSQL + generated contracts + exception-only Python AI/data service",
   "claimed_conformance_level": "HL3",
   "observed_conformance_level": "HL2",
   "conformance_decision": "block",
   "conformance_blockers": [
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-003-OWNERLESS-PATH on agent/owner-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-004-UNMAPPED-PROOF on agent/test-map.json",
-    "HLT-025-RELEASE-READINESS-GAP on docs/testing.md",
-    "HLT-001-DEAD-MARKER on jansu-model/src/lib.rs"
+    "HLT-025-RELEASE-READINESS-GAP on docs/testing.md"
   ],
   "repo": ".",
-  "run_id": "1778950148",
-  "started_at": "1778950148",
-  "elapsed_ms": 8154,
+  "run_id": "1778969162",
+  "started_at": "1778969162",
+  "elapsed_ms": 12577,
   "scope": {
     "mode": "full",
     "paths": []
   },
-  "score": 70,
-  "raw_score": 75,
+  "score": 80,
+  "raw_score": 82,
   "decision": {
     "status": "advisory",
     "minimum_score": 85,
     "passed": true,
-    "hard_findings": 22,
-    "soft_findings": 6,
+    "hard_findings": 1,
+    "soft_findings": 3,
     "ratchet": {
-      "baseline_score": 70,
+      "baseline_score": 80,
       "allowed_drop": 0,
       "passed": false,
       "score_delta": 0,
@@ -77,7 +56,7 @@
     }
   },
   "git": {
-    "head": "18789d4",
+    "head": "fc8b000",
     "base": null,
     "changed_files": 0,
     "mode": "full",
@@ -102,7 +81,6 @@
     "target_stack": "rust-ts-vite-react-postgres-bounded-python"
   },
   "caps_applied": [
-    "fallback-soup-in-product-code",
     "release-readiness-gap"
   ],
   "hard_rules": [
@@ -295,20 +273,34 @@
     {
       "name": "Ownership and navigation surface",
       "weight": 13,
-      "score": 83,
-      "weighted_points": 10.79,
+      "score": 100,
+      "weighted_points": 13.0,
       "evidence": [
         "root `AGENTS.md` present",
         "owner map present",
         "test/proof routing map present",
         "local `AGENTS.md` file(s)",
+        "reference-profile cell `api` is canonical",
+        "reference-profile cell `api` has local AGENTS.md guidance",
+        "reference-profile cell `domain` is canonical",
+        "reference-profile cell `domain` has local AGENTS.md guidance",
+        "reference-profile cell `application` is canonical",
+        "reference-profile cell `application` has local AGENTS.md guidance",
+        "reference-profile cell `adapters` is canonical",
+        "reference-profile cell `adapters` has local AGENTS.md guidance",
+        "reference-profile cell `workers` is canonical",
+        "reference-profile cell `workers` has local AGENTS.md guidance",
         "reference-profile cell `contracts` is canonical",
         "reference-profile cell `contracts` has local AGENTS.md guidance",
         "reference-profile cell `db` is canonical",
         "reference-profile cell `db` has local AGENTS.md guidance",
+        "reference-profile cell `python-ai` is canonical",
+        "reference-profile cell `python-ai` has local AGENTS.md guidance",
         "reference-profile cell `ops` is canonical",
         "reference-profile cell `ops` has local AGENTS.md guidance",
         "root `README.md` routes to workspace layout",
+        "owner map covers audited paths",
+        "test map covers audited paths",
         "authored code file exceeds 500 LOC",
         "authored code file exceeds 1000 LOC"
       ],
@@ -317,11 +309,12 @@
     {
       "name": "Contract and boundary integrity",
       "weight": 13,
-      "score": 88,
-      "weighted_points": 11.44,
+      "score": 98,
+      "weighted_points": 12.74,
       "evidence": [
         "contract surface found",
         "generated contract artifacts found",
+        "polyglot boundary layout present",
         "boundary manifest present",
         "Rust typed boundary helpers found",
         "all contract sources have generated zone entries"
@@ -343,22 +336,27 @@
         "web e2e lane present or no web surface",
         "rendered UX QA lane present or no web surface",
         "DOM geometry UX QA runtime found",
-        "Rust property/integration tests present or no Rust surface"
+        "Rust property/integration tests present or no Rust surface",
+        "proofbind artifact found: surfaces=388 missing=388 high_or_critical_missing=151 verdict=review"
       ],
-      "notes": []
+      "notes": [
+        "proofbind reports 388 unresolved obligation(s)",
+        "proofbind reports 151 missing high/critical semantic proof obligation(s)"
+      ]
     },
     {
       "name": "Security and supply-chain posture",
       "weight": 12,
-      "score": 66,
-      "weighted_points": 7.92,
+      "score": 74,
+      "weighted_points": 8.88,
       "evidence": [
         "secret or dependency scan tooling found",
         "provenance/SBOM tooling found",
+        "workflow linting tooling found",
         "security lane present",
         "canonical security lane wrapper present",
         "agent-readiness audit gate found in CI",
-        "rust bad-behavior advisory signals: 1462",
+        "rust bad-behavior advisory signals: 1432",
         "sql bad-behavior advisory signals: 8",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
@@ -369,15 +367,14 @@
     {
       "name": "Code shape and semantic surface",
       "weight": 12,
-      "score": 17,
-      "weighted_points": 2.04,
+      "score": 35,
+      "weighted_points": 4.2,
       "evidence": [
-        "largest authored code file: jansu-schema/src/lake/delta.rs (2558 LOC)",
+        "largest authored code file: jansu-model/src/lib.rs (1820 LOC)",
         "code file exceeds 500 LOC",
         "code file exceeds 1000 LOC",
-        "copy-code advisory classes found: 233 (advisory only, no score impact)",
-        "fallback soup marker found",
-        "rust bad-behavior advisory signals: 1462",
+        "copy-code advisory classes found: 226 (advisory only, no score impact)",
+        "rust bad-behavior advisory signals: 1432",
         "sql bad-behavior advisory signals: 8",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
@@ -435,17 +432,16 @@
     {
       "name": "Jankurai tool adoption and CI replacement",
       "weight": 7,
-      "score": 29,
-      "weighted_points": 2.03,
+      "score": 34,
+      "weighted_points": 2.38,
       "evidence": [
         "control-plane files present",
         "applicable=16",
-        "configured=15",
-        "ci_evidence=0",
-        "artifact_verified=0"
+        "configured=16",
+        "ci_evidence=1",
+        "artifact_verified=1"
       ],
       "notes": [
-        "some applicable tools are not configured",
         "some applicable tools lack CI evidence",
         "missing CI evidence for `audit-ci`",
         "missing CI evidence for `proof-routing`",
@@ -490,9 +486,9 @@
       "artifact_backed_proof": [
         ".github/workflows/ci.yml",
         ".gitignore",
-        "AGENTS.md",
         "agent/ux-qa.toml",
-        "compose.yaml"
+        "compose.yaml",
+        "example.env"
       ],
       "design_tokens": [],
       "geometry_runtime": [
@@ -515,10 +511,10 @@
   "tool_adoption": {
     "control_plane_present": true,
     "applicable_count": 16,
-    "configured_count": 15,
-    "ci_evidence_count": 0,
-    "artifact_verified_count": 0,
-    "replaced_count": 0,
+    "configured_count": 16,
+    "ci_evidence_count": 1,
+    "artifact_verified_count": 1,
+    "replaced_count": 1,
     "items": [
       {
         "id": "audit-ci",
@@ -622,16 +618,16 @@
         "category": "audit",
         "mode": "auto",
         "applicable": true,
-        "status": "missing",
+        "status": "configured",
         "replaced_tools": [
           "ad hoc copy-code review",
           "manual duplication triage"
         ],
         "evidence": [
-          "mode=auto"
+          "mode=auto",
+          "tool-adoption config entry present"
         ],
         "missing": [
-          "agent/tool-adoption.toml entry",
           "CI command evidence"
         ],
         "local_command": "cargo run -p jankurai -- copy-code . --json target/jankurai/copy-code.json --md target/jankurai/copy-code.md",
@@ -646,7 +642,7 @@
         "category": "security",
         "mode": "auto",
         "applicable": true,
-        "status": "configured",
+        "status": "artifact_verified",
         "replaced_tools": [
           "gitleaks",
           "dependency review",
@@ -654,11 +650,11 @@
         ],
         "evidence": [
           "mode=auto",
-          "tool-adoption config entry present"
+          "tool-adoption config entry present",
+          "CI command found in workflow",
+          "artifact uploads found: target/jankurai/security/evidence.json"
         ],
-        "missing": [
-          "CI command evidence"
-        ],
+        "missing": [],
         "local_command": "jankurai security run . --out target/jankurai/security/evidence.json",
         "ci_command": "jankurai security run . --out target/jankurai/security/evidence.json",
         "artifact_paths": [
@@ -1000,17 +996,22 @@
         "release-readiness",
         "cost-budget"
       ],
-      "artifact_verified_count": 0,
-      "artifact_verified_tools": [],
-      "ci_evidence_count": 0,
-      "ci_evidence_tools": [],
+      "artifact_verified_count": 1,
+      "artifact_verified_tools": [
+        "security"
+      ],
+      "ci_evidence_count": 1,
+      "ci_evidence_tools": [
+        "security"
+      ],
       "config_present": true,
-      "configured_count": 15,
+      "configured_count": 16,
       "configured_tools": [
         "audit-ci",
         "proof-routing",
         "proofbind",
         "proofmark-rust",
+        "copy-code",
         "security",
         "ci-bad-behavior",
         "git-bad-behavior",
@@ -1031,7 +1032,6 @@
       "proofbind",
       "proofmark-rust",
       "copy-code",
-      "security",
       "ci-bad-behavior",
       "git-bad-behavior",
       "release-bad-behavior",
@@ -1048,21 +1048,21 @@
   "boundaries": {
     "artifact": {
       "path": "agent/boundaries.toml",
-      "content_fingerprint": "sha256:8cd3bd74f97a072251bc6a8bcfb50730e563a470a7b069f8ff735590f7c28104",
+      "content_fingerprint": "sha256:90988d9de819c8fe4d700c2706e385226a283cf83573462a84c7694034f78fdf",
       "stack_id": "rust-postgres-kafka-native",
       "stack_version": "0.5.0",
       "adapter_path_count": 2,
       "event_contract_path_count": 1,
       "generated_type_path_count": 1,
-      "client_marker_count": 7,
-      "streaming_exception_count": 1
+      "client_marker_count": 8,
+      "streaming_exception_count": 2
     },
     "reclassifications": []
   },
   "copy_code": {
     "schema_version": "1.1.0",
     "generated_by": "jankurai copy-code",
-    "generated_at": "2026-05-16T16:49:00.956747+00:00",
+    "generated_at": "2026-05-16T22:05:50.343122+00:00",
     "repo": ".",
     "auditor_version": "1.4.1",
     "status": "review",
@@ -1100,20 +1100,20 @@
       ]
     },
     "summary": {
-      "files_scanned": 923,
-      "files_considered": 238,
-      "active_files": 238,
+      "files_scanned": 974,
+      "files_considered": 263,
+      "active_files": 263,
       "exact_file_classes": 0,
       "hard_classes": 0,
-      "warning_classes": 233,
+      "warning_classes": 226,
       "hard_instances": 0,
-      "warning_instances": 769,
-      "duplicate_lines": 1164,
-      "duplicate_tokens": 11546,
-      "duplicate_bytes": 56079,
-      "total_redundant_lines": 1807,
-      "total_redundant_tokens": 12684,
-      "total_redundant_bytes": 68643
+      "warning_instances": 711,
+      "duplicate_lines": 1161,
+      "duplicate_tokens": 11733,
+      "duplicate_bytes": 56340,
+      "total_redundant_lines": 1730,
+      "total_redundant_tokens": 12708,
+      "total_redundant_bytes": 66688
     },
     "classes": [
       {
@@ -1572,71 +1572,71 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 255,
-            "end_line": 258,
+            "start_line": 252,
+            "end_line": 255,
             "unit_name": "deserialize_string"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 284,
-            "end_line": 287,
+            "start_line": 276,
+            "end_line": 279,
             "unit_name": "deserialize_bytes"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 291,
-            "end_line": 294,
+            "start_line": 283,
+            "end_line": 286,
             "unit_name": "deserialize_byte_buf"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 298,
-            "end_line": 301,
+            "start_line": 290,
+            "end_line": 293,
             "unit_name": "deserialize_option"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 312,
-            "end_line": 315,
+            "start_line": 304,
+            "end_line": 307,
             "unit_name": "deserialize_unit"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 345,
-            "end_line": 348,
+            "start_line": 337,
+            "end_line": 340,
             "unit_name": "deserialize_seq"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 355,
-            "end_line": 358,
+            "start_line": 347,
+            "end_line": 350,
             "unit_name": "deserialize_tuple"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 380,
-            "end_line": 383,
+            "start_line": 372,
+            "end_line": 375,
             "unit_name": "deserialize_map"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 415,
-            "end_line": 418,
+            "start_line": 407,
+            "end_line": 410,
             "unit_name": "deserialize_identifier"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 422,
-            "end_line": 425,
+            "start_line": 414,
+            "end_line": 417,
             "unit_name": "deserialize_ignored_any"
           }
         ]
@@ -1859,49 +1859,6 @@
         ]
       },
       {
-        "id": "copy-code-unit-rust-b8c259e58453ecc1",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "init_tracing",
-        "duplicate_lines": 22,
-        "duplicate_tokens": 49,
-        "duplicate_bytes": 901,
-        "instance_count": 3,
-        "total_redundant_lines": 44,
-        "total_redundant_tokens": 98,
-        "total_redundant_bytes": 1802,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "cd63afd121af8b4e",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-schema/src/avro.rs",
-            "language": "rust",
-            "start_line": 702,
-            "end_line": 724,
-            "unit_name": "init_tracing"
-          },
-          {
-            "path": "jansu-schema/src/lake/delta.rs",
-            "language": "rust",
-            "start_line": 854,
-            "end_line": 876,
-            "unit_name": "init_tracing"
-          },
-          {
-            "path": "jansu-schema/src/proto/arrow.rs",
-            "language": "rust",
-            "start_line": 1335,
-            "end_line": 1357,
-            "unit_name": "init_tracing"
-          }
-        ]
-      },
-      {
         "id": "copy-code-body-rust-f4921751ca6b5f3b",
         "kind": "exact_unit_different_name",
         "severity": "warning",
@@ -1923,57 +1880,57 @@
           {
             "path": "jansu-proxy/src/produce.rs",
             "language": "rust",
-            "start_line": 857,
-            "end_line": 858,
+            "start_line": 860,
+            "end_line": 861,
             "unit_name": "single_request_in_batch"
           },
           {
             "path": "jansu-proxy/src/produce.rs",
             "language": "rust",
-            "start_line": 978,
-            "end_line": 979,
+            "start_line": 981,
+            "end_line": 982,
             "unit_name": "two_requests_in_batch"
           },
           {
             "path": "jansu-proxy/src/produce.rs",
             "language": "rust",
-            "start_line": 1183,
-            "end_line": 1184,
+            "start_line": 1186,
+            "end_line": 1187,
             "unit_name": "two_requests_into_single_topition"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 578,
-            "end_line": 579,
+            "start_line": 573,
+            "end_line": 574,
             "unit_name": "octets_none"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 587,
-            "end_line": 588,
+            "start_line": 582,
+            "end_line": 583,
             "unit_name": "octets_some"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 596,
-            "end_line": 597,
+            "start_line": 591,
+            "end_line": 592,
             "unit_name": "empty_var_int_seq"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 605,
-            "end_line": 606,
+            "start_line": 600,
+            "end_line": 601,
             "unit_name": "single_var_int_seq"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 614,
-            "end_line": 615,
+            "start_line": 609,
+            "end_line": 610,
             "unit_name": "multiple_var_int_seq"
           },
           {
@@ -2014,99 +1971,99 @@
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 899,
-            "end_line": 900,
+            "start_line": 903,
+            "end_line": 904,
             "unit_name": "key_only_invalid_record"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 942,
-            "end_line": 943,
+            "start_line": 946,
+            "end_line": 947,
             "unit_name": "value_only_invalid_record"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 992,
-            "end_line": 993,
+            "start_line": 996,
+            "end_line": 997,
             "unit_name": "key_and_value"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1042,
-            "end_line": 1043,
+            "start_line": 1046,
+            "end_line": 1047,
             "unit_name": "no_schema"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1064,
-            "end_line": 1065,
+            "start_line": 1068,
+            "end_line": 1069,
             "unit_name": "empty_schema"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1093,
-            "end_line": 1094,
+            "start_line": 1097,
+            "end_line": 1098,
             "unit_name": "key_schema_only"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1132,
-            "end_line": 1133,
+            "start_line": 1136,
+            "end_line": 1137,
             "unit_name": "bad_key"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1169,
-            "end_line": 1170,
+            "start_line": 1173,
+            "end_line": 1174,
             "unit_name": "value_schema_only"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1216,
-            "end_line": 1217,
+            "start_line": 1220,
+            "end_line": 1221,
             "unit_name": "bad_value"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1254,
-            "end_line": 1255,
+            "start_line": 1258,
+            "end_line": 1259,
             "unit_name": "timestamp_well_known_type"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1274,
-            "end_line": 1275,
+            "start_line": 1278,
+            "end_line": 1279,
             "unit_name": "customer_002_user_id"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1299,
-            "end_line": 1300,
+            "start_line": 1303,
+            "end_line": 1304,
             "unit_name": "customer_002_email_address"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1325,
-            "end_line": 1326,
+            "start_line": 1329,
+            "end_line": 1330,
             "unit_name": "customer_002_industry"
           },
           {
             "path": "jansu-schema/src/proto.rs",
             "language": "rust",
-            "start_line": 1352,
-            "end_line": 1353,
+            "start_line": 1356,
+            "end_line": 1357,
             "unit_name": "customer_003_industry"
           },
           {
@@ -2143,209 +2100,6 @@
             "start_line": 236,
             "end_line": 237,
             "unit_name": "test"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-61f4ae9f8609bd06",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 1,
-        "duplicate_tokens": 2,
-        "duplicate_bytes": 21,
-        "instance_count": 26,
-        "total_redundant_lines": 25,
-        "total_redundant_tokens": 50,
-        "total_redundant_bytes": 525,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "802db87358293bbb",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 777,
-            "end_line": 778,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 913,
-            "end_line": 914,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1539,
-            "end_line": 1540,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1555,
-            "end_line": 1556,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1578,
-            "end_line": 1579,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1590,
-            "end_line": 1591,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1623,
-            "end_line": 1624,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1658,
-            "end_line": 1659,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1917,
-            "end_line": 1918,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1927,
-            "end_line": 1928,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1946,
-            "end_line": 1947,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1968,
-            "end_line": 1969,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1981,
-            "end_line": 1982,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1991,
-            "end_line": 1992,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2004,
-            "end_line": 2005,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2033,
-            "end_line": 2034,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2050,
-            "end_line": 2051,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2081,
-            "end_line": 2082,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2097,
-            "end_line": 2098,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2123,
-            "end_line": 2124,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2135,
-            "end_line": 2136,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2180,
-            "end_line": 2181,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2192,
-            "end_line": 2193,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2222,
-            "end_line": 2223,
-            "unit_name": "try_from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2232,
-            "end_line": 2233,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 2241,
-            "end_line": 2242,
-            "unit_name": "from"
           }
         ]
       },
@@ -2493,107 +2247,16 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 319,
-            "end_line": 326,
+            "start_line": 311,
+            "end_line": 318,
             "unit_name": "deserialize_unit_struct"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 333,
-            "end_line": 340,
+            "start_line": 325,
+            "end_line": 332,
             "unit_name": "deserialize_newtype_struct"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-8bf0c0dbd23bc7ec",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 2,
-        "duplicate_tokens": 5,
-        "duplicate_bytes": 68,
-        "instance_count": 10,
-        "total_redundant_lines": 18,
-        "total_redundant_tokens": 45,
-        "total_redundant_bytes": 612,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "57cce58d378ba5f3",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1598,
-            "end_line": 1600,
-            "unit_name": "create_topic"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1616,
-            "end_line": 1618,
-            "unit_name": "delete_topic"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1620,
-            "end_line": 1622,
-            "unit_name": "brokers"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1645,
-            "end_line": 1647,
-            "unit_name": "offset_stage"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1699,
-            "end_line": 1701,
-            "unit_name": "metadata"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1737,
-            "end_line": 1739,
-            "unit_name": "list_groups"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1818,
-            "end_line": 1820,
-            "unit_name": "cluster_id"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1822,
-            "end_line": 1824,
-            "unit_name": "node"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1826,
-            "end_line": 1828,
-            "unit_name": "advertised_listener"
-          },
-          {
-            "path": "jansu-storage/src/service.rs",
-            "language": "rust",
-            "start_line": 1830,
-            "end_line": 1832,
-            "unit_name": "ping"
           }
         ]
       },
@@ -2664,160 +2327,6 @@
             "start_line": 1322,
             "end_line": 1325,
             "unit_name": "serialize_field"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-a8cc7acd4ec90937",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 1,
-        "duplicate_tokens": 1,
-        "duplicate_bytes": 14,
-        "instance_count": 19,
-        "total_redundant_lines": 18,
-        "total_redundant_tokens": 18,
-        "total_redundant_bytes": 252,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "3f2ff1fef9a4b2ae",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/de.rs",
-            "language": "rust",
-            "start_line": 106,
-            "end_line": 107,
-            "unit_name": "default"
-          },
-          {
-            "path": "jansu-sans-io/src/de.rs",
-            "language": "rust",
-            "start_line": 117,
-            "end_line": 118,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-sans-io/src/de.rs",
-            "language": "rust",
-            "start_line": 134,
-            "end_line": 135,
-            "unit_name": "request"
-          },
-          {
-            "path": "jansu-sans-io/src/de.rs",
-            "language": "rust",
-            "start_line": 151,
-            "end_line": 152,
-            "unit_name": "response"
-          },
-          {
-            "path": "jansu-sans-io/src/de.rs",
-            "language": "rust",
-            "start_line": 1404,
-            "end_line": 1405,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1741,
-            "end_line": 1742,
-            "unit_name": "compression"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1752,
-            "end_line": 1753,
-            "unit_name": "transaction"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1763,
-            "end_line": 1764,
-            "unit_name": "delete_horizon"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1838,
-            "end_line": 1839,
-            "unit_name": "commit"
-          },
-          {
-            "path": "jansu-sans-io/src/lib.rs",
-            "language": "rust",
-            "start_line": 1845,
-            "end_line": 1846,
-            "unit_name": "abort"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 93,
-            "end_line": 94,
-            "unit_name": "default"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 132,
-            "end_line": 133,
-            "unit_name": "request"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 144,
-            "end_line": 145,
-            "unit_name": "response"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 168,
-            "end_line": 169,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 284,
-            "end_line": 285,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 429,
-            "end_line": 430,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 439,
-            "end_line": 440,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 446,
-            "end_line": 447,
-            "unit_name": "with_cache_expiry_after"
-          },
-          {
-            "path": "jansu-service/src/frame.rs",
-            "language": "rust",
-            "start_line": 543,
-            "end_line": 544,
-            "unit_name": "new"
           }
         ]
       },
@@ -3020,15 +2529,15 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 445,
-            "end_line": 448,
+            "start_line": 437,
+            "end_line": 440,
             "unit_name": "next_element_seed"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 482,
-            "end_line": 485,
+            "start_line": 474,
+            "end_line": 477,
             "unit_name": "next_element_seed"
           }
         ]
@@ -3093,6 +2602,125 @@
             "start_line": 35,
             "end_line": 38,
             "unit_name": "deref"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-body-rust-a8cc7acd4ec90937",
+        "kind": "exact_unit_different_name",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 1,
+        "duplicate_tokens": 1,
+        "duplicate_bytes": 14,
+        "instance_count": 14,
+        "total_redundant_lines": 13,
+        "total_redundant_tokens": 13,
+        "total_redundant_bytes": 182,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "ec229fefb710b4d9",
+        "reason": "same body appears under different names across files",
+        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/de.rs",
+            "language": "rust",
+            "start_line": 106,
+            "end_line": 107,
+            "unit_name": "default"
+          },
+          {
+            "path": "jansu-sans-io/src/de.rs",
+            "language": "rust",
+            "start_line": 117,
+            "end_line": 118,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-sans-io/src/de.rs",
+            "language": "rust",
+            "start_line": 134,
+            "end_line": 135,
+            "unit_name": "request"
+          },
+          {
+            "path": "jansu-sans-io/src/de.rs",
+            "language": "rust",
+            "start_line": 151,
+            "end_line": 152,
+            "unit_name": "response"
+          },
+          {
+            "path": "jansu-sans-io/src/de.rs",
+            "language": "rust",
+            "start_line": 1404,
+            "end_line": 1405,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-sans-io/src/ser.rs",
+            "language": "rust",
+            "start_line": 93,
+            "end_line": 94,
+            "unit_name": "default"
+          },
+          {
+            "path": "jansu-sans-io/src/ser.rs",
+            "language": "rust",
+            "start_line": 132,
+            "end_line": 133,
+            "unit_name": "request"
+          },
+          {
+            "path": "jansu-sans-io/src/ser.rs",
+            "language": "rust",
+            "start_line": 144,
+            "end_line": 145,
+            "unit_name": "response"
+          },
+          {
+            "path": "jansu-sans-io/src/ser.rs",
+            "language": "rust",
+            "start_line": 168,
+            "end_line": 169,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 284,
+            "end_line": 285,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 429,
+            "end_line": 430,
+            "unit_name": "from"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 439,
+            "end_line": 440,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 446,
+            "end_line": 447,
+            "unit_name": "with_cache_expiry_after"
+          },
+          {
+            "path": "jansu-service/src/frame.rs",
+            "language": "rust",
+            "start_line": 543,
+            "end_line": 544,
+            "unit_name": "new"
           }
         ]
       },
@@ -3176,15 +2804,15 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 445,
-            "end_line": 448,
+            "start_line": 437,
+            "end_line": 440,
             "unit_name": "next_element_seed"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 482,
-            "end_line": 485,
+            "start_line": 474,
+            "end_line": 477,
             "unit_name": "next_element_seed"
           }
         ]
@@ -3361,15 +2989,15 @@
           {
             "path": "jansu-perf/src/lib.rs",
             "language": "rust",
-            "start_line": 756,
-            "end_line": 757,
+            "start_line": 754,
+            "end_line": 755,
             "unit_name": "force_flush"
           },
           {
             "path": "jansu-perf/src/lib.rs",
             "language": "rust",
-            "start_line": 761,
-            "end_line": 762,
+            "start_line": 759,
+            "end_line": 760,
             "unit_name": "shutdown_with_timeout"
           },
           {
@@ -3459,7 +3087,7 @@
         "total_redundant_bytes": 1110,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "fffe7d409c72a0a5",
+        "fingerprint": "adaa6c5f8e5b9d5f",
         "reason": "strict token/block duplication exceeded the configured threshold",
         "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
         "instances": [
@@ -3470,10 +3098,10 @@
             "end_line": 489
           },
           {
-            "path": "jansu-sans-io/src/bin/bench.rs",
+            "path": "jansu-sans-io/src/bin/bench/api_versions.rs",
             "language": "rust",
-            "start_line": 176,
-            "end_line": 185
+            "start_line": 66,
+            "end_line": 75
           }
         ]
       },
@@ -3492,7 +3120,7 @@
         "total_redundant_bytes": 1090,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "fffe7d409c72a0a5",
+        "fingerprint": "adaa6c5f8e5b9d5f",
         "reason": "strict token/block duplication exceeded the configured threshold",
         "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
         "instances": [
@@ -3503,10 +3131,10 @@
             "end_line": 494
           },
           {
-            "path": "jansu-sans-io/src/bin/bench.rs",
+            "path": "jansu-sans-io/src/bin/bench/api_versions.rs",
             "language": "rust",
-            "start_line": 181,
-            "end_line": 190
+            "start_line": 71,
+            "end_line": 80
           }
         ]
       },
@@ -3525,7 +3153,7 @@
         "total_redundant_bytes": 1074,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "fffe7d409c72a0a5",
+        "fingerprint": "adaa6c5f8e5b9d5f",
         "reason": "strict token/block duplication exceeded the configured threshold",
         "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
         "instances": [
@@ -3536,10 +3164,10 @@
             "end_line": 495
           },
           {
-            "path": "jansu-sans-io/src/bin/bench.rs",
+            "path": "jansu-sans-io/src/bin/bench/api_versions.rs",
             "language": "rust",
-            "start_line": 182,
-            "end_line": 191
+            "start_line": 72,
+            "end_line": 81
           }
         ]
       },
@@ -3558,7 +3186,7 @@
         "total_redundant_bytes": 1038,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "fffe7d409c72a0a5",
+        "fingerprint": "adaa6c5f8e5b9d5f",
         "reason": "strict token/block duplication exceeded the configured threshold",
         "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
         "instances": [
@@ -3569,10 +3197,43 @@
             "end_line": 496
           },
           {
-            "path": "jansu-sans-io/src/bin/bench.rs",
+            "path": "jansu-sans-io/src/bin/bench/api_versions.rs",
             "language": "rust",
-            "start_line": 183,
-            "end_line": 192
+            "start_line": 73,
+            "end_line": 82
+          }
+        ]
+      },
+      {
+        "id": "copy-code-block-rust-f77173a7469b4734",
+        "kind": "token_block",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 10,
+        "duplicate_tokens": 220,
+        "duplicate_bytes": 870,
+        "instance_count": 2,
+        "total_redundant_lines": 10,
+        "total_redundant_tokens": 220,
+        "total_redundant_bytes": 870,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "3b454920f3772d26",
+        "reason": "strict token/block duplication exceeded the configured threshold",
+        "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/bin/bench/fetch.rs",
+            "language": "rust",
+            "start_line": 250,
+            "end_line": 259
+          },
+          {
+            "path": "jansu-sans-io/src/bin/bench/produce_large.rs",
+            "language": "rust",
+            "start_line": 27,
+            "end_line": 36
           }
         ]
       },
@@ -4301,18 +3962,84 @@
             "end_line": 882
           }
         ]
+      },
+      {
+        "id": "copy-code-block-rust-19edcee1a5d586cd",
+        "kind": "token_block",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 10,
+        "duplicate_tokens": 188,
+        "duplicate_bytes": 742,
+        "instance_count": 2,
+        "total_redundant_lines": 10,
+        "total_redundant_tokens": 188,
+        "total_redundant_bytes": 742,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "58fc738b627b3335",
+        "reason": "strict token/block duplication exceeded the configured threshold",
+        "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
+        "instances": [
+          {
+            "path": "fuzz/fuzz_targets/generate_seeds.rs",
+            "language": "rust",
+            "start_line": 685,
+            "end_line": 694
+          },
+          {
+            "path": "jansu-sans-io/src/record/deflated.rs",
+            "language": "rust",
+            "start_line": 866,
+            "end_line": 875
+          }
+        ]
+      },
+      {
+        "id": "copy-code-block-rust-4a8d41f9f4d5f434",
+        "kind": "token_block",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 10,
+        "duplicate_tokens": 188,
+        "duplicate_bytes": 742,
+        "instance_count": 2,
+        "total_redundant_lines": 10,
+        "total_redundant_tokens": 188,
+        "total_redundant_bytes": 742,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "58fc738b627b3335",
+        "reason": "strict token/block duplication exceeded the configured threshold",
+        "recommended_action": "review whether the block is intentional; otherwise consolidate the shared logic behind one owner",
+        "instances": [
+          {
+            "path": "fuzz/fuzz_targets/generate_seeds.rs",
+            "language": "rust",
+            "start_line": 687,
+            "end_line": 696
+          },
+          {
+            "path": "jansu-sans-io/src/record/deflated.rs",
+            "language": "rust",
+            "start_line": 868,
+            "end_line": 877
+          }
+        ]
       }
     ],
     "notes": [
       "hard classes are limited to exact active-source file matches and substantial exact same-name units",
       "warning classes include same-body different-name units and token/block duplication",
       "tests, fixtures, stories, config, Docker, and migrations are omitted unless --include-tests is set",
-      "showing the top 50 classes and omitting 183 lower-ranked classes"
+      "showing the top 50 classes and omitting 176 lower-ranked classes"
     ]
   },
   "profile_structure": {
-    "applicable_count": 3,
-    "canonical_count": 3,
+    "applicable_count": 9,
+    "canonical_count": 9,
     "noncanonical_count": 0,
     "guidance_missing_count": 0,
     "cells": [
@@ -4335,83 +4062,93 @@
       },
       {
         "id": "api",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "apps/api/",
-        "detected_paths": [],
+        "detected_paths": [
+          "apps/api"
+        ],
         "aliases": [
           "api/",
           "server/",
           "backend/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "apps/api",
         "proof_lane": "edge handler / contract tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `apps/api/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "domain",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "crates/domain/",
-        "detected_paths": [],
+        "detected_paths": [
+          "crates/domain"
+        ],
         "aliases": [
           "domain/",
           "core/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "crates/domain",
         "proof_lane": "unit / property tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `crates/domain/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "application",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "crates/application/",
-        "detected_paths": [],
+        "detected_paths": [
+          "crates/application"
+        ],
         "aliases": [
           "application/",
           "usecases/",
           "use-cases/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "crates/application",
         "proof_lane": "use-case / authz tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `crates/application/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "adapters",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "crates/adapters/",
-        "detected_paths": [],
+        "detected_paths": [
+          "crates/adapters"
+        ],
         "aliases": [
           "adapters/",
           "infra/",
           "integrations/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "crates/adapters",
         "proof_lane": "adapter integration tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `crates/adapters/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "workers",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "crates/workers/",
-        "detected_paths": [],
+        "detected_paths": [
+          "crates/workers"
+        ],
         "aliases": [
           "workers/",
           "jobs/",
           "scheduler/",
           "queue/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "crates/workers",
         "proof_lane": "workflow / replay tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `crates/workers/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "contracts",
@@ -4452,10 +4189,13 @@
       },
       {
         "id": "python-ai",
-        "applicable": false,
-        "status": "not_applicable",
+        "applicable": true,
+        "status": "canonical",
         "canonical_path": "python/ai-service/",
-        "detected_paths": [],
+        "detected_paths": [
+          "python",
+          "python/ai-service"
+        ],
         "aliases": [
           "python/",
           "ai-service/",
@@ -4463,10 +4203,10 @@
           "embeddings/",
           "model/"
         ],
-        "guidance_status": "not_required",
+        "guidance_status": "present",
         "owner": "python/ai-service",
         "proof_lane": "eval / contract tests",
-        "agent_fix": "no action"
+        "agent_fix": "keep `python/ai-service/AGENTS.md` aligned with owns / forbidden / proof lane guidance"
       },
       {
         "id": "ops",
@@ -4493,9 +4233,54 @@
       }
     ],
     "evidence": {
-      "applicable_count": 3,
-      "canonical_count": 3,
+      "applicable_count": 9,
+      "canonical_count": 9,
       "detected_cells": [
+        {
+          "canonical_path": "apps/api/",
+          "detected_paths": [
+            "apps/api"
+          ],
+          "guidance_status": "present",
+          "id": "api",
+          "status": "canonical"
+        },
+        {
+          "canonical_path": "crates/domain/",
+          "detected_paths": [
+            "crates/domain"
+          ],
+          "guidance_status": "present",
+          "id": "domain",
+          "status": "canonical"
+        },
+        {
+          "canonical_path": "crates/application/",
+          "detected_paths": [
+            "crates/application"
+          ],
+          "guidance_status": "present",
+          "id": "application",
+          "status": "canonical"
+        },
+        {
+          "canonical_path": "crates/adapters/",
+          "detected_paths": [
+            "crates/adapters"
+          ],
+          "guidance_status": "present",
+          "id": "adapters",
+          "status": "canonical"
+        },
+        {
+          "canonical_path": "crates/workers/",
+          "detected_paths": [
+            "crates/workers"
+          ],
+          "guidance_status": "present",
+          "id": "workers",
+          "status": "canonical"
+        },
         {
           "canonical_path": "contracts/",
           "detected_paths": [
@@ -4512,6 +4297,16 @@
           ],
           "guidance_status": "present",
           "id": "db",
+          "status": "canonical"
+        },
+        {
+          "canonical_path": "python/ai-service/",
+          "detected_paths": [
+            "python",
+            "python/ai-service"
+          ],
+          "guidance_status": "present",
+          "id": "python-ai",
           "status": "canonical"
         },
         {
@@ -4535,20 +4330,20 @@
       "severity": "medium",
       "category": "shape",
       "path": ".",
-      "problem": "`Code shape and semantic surface` scored 17 below the standard floor of 85",
+      "problem": "`Code shape and semantic surface` scored 35 below the standard floor of 85",
       "agent_fix": "split large or ambiguous authored code into smaller semantic modules with focused tests",
       "evidence": [
-        "largest authored code file: jansu-schema/src/lake/delta.rs (2558 LOC)",
+        "largest authored code file: jansu-model/src/lib.rs (1820 LOC)",
         "code file exceeds 500 LOC",
         "code file exceeds 1000 LOC",
-        "copy-code advisory classes found: 233 (advisory only, no score impact)"
+        "copy-code advisory classes found: 226 (advisory only, no score impact)"
       ],
       "check_id": "HLT-001-DEAD-MARKER:shape",
       "hardness": "soft",
       "confidence": 0.76,
       "evidence_kind": "repository-scan",
       "rerun_command": "just fast",
-      "fingerprint": "sha256:26fe38e251f1f913bee2b9f35aac5268332097ab3418abe2021199fcf0a09bcf",
+      "fingerprint": "sha256:efe4f4158695347e0e5bd3022d6f1601c0645b784a5c3d5cfe047560593ed0a6",
       "rule_id": "HLT-001-DEAD-MARKER",
       "tlr": "Entropy",
       "lane": "fast",
@@ -4559,20 +4354,20 @@
       "severity": "medium",
       "category": "security",
       "path": ".github/workflows/jankurai.yml",
-      "problem": "`Security and supply-chain posture` scored 66 below the standard floor of 85",
+      "problem": "`Security and supply-chain posture` scored 74 below the standard floor of 85",
       "agent_fix": "wire secret, dependency, provenance, and workflow scans into an operational CI lane",
       "evidence": [
         "secret or dependency scan tooling found",
         "provenance/SBOM tooling found",
-        "security lane present",
-        "canonical security lane wrapper present"
+        "workflow linting tooling found",
+        "security lane present"
       ],
       "check_id": "HLT-016-SUPPLY-CHAIN-DRIFT:security",
       "hardness": "soft",
       "confidence": 0.76,
       "evidence_kind": "workflow-command",
       "rerun_command": "just security",
-      "fingerprint": "sha256:eb6acb55678ae606bd1e3575fe3aa79da832aa766b88714c480c15225d48b3aa",
+      "fingerprint": "sha256:113b64f53ea1ab1b676b502b23f5b6ea736adbd7993914eecc88c7b99fe047ab",
       "rule_id": "HLT-016-SUPPLY-CHAIN-DRIFT",
       "tlr": "Security, secrets, agency",
       "lane": "security",
@@ -4604,497 +4399,6 @@
       "owner": "workspace"
     },
     {
-      "severity": "medium",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "`Ownership and navigation surface` scored 83 below the standard floor of 85",
-      "agent_fix": "tighten owner/test maps and root routing until agents can localize ownership without inference",
-      "evidence": [
-        "root `AGENTS.md` present",
-        "owner map present",
-        "test/proof routing map present",
-        "local `AGENTS.md` file(s)"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "soft",
-      "confidence": 0.76,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:f22331131a2d75b4ff814289d01473fb3ab281f4b3c8ac366b63eb97cfe85438",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/differential/compose.kafka-4.2.yaml` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/differential/compose.kafka-4.2.yaml"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:f3efff127876e61853fa16570c26d6e15413ba98e57ba06b48a08cabecf69774",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/grafana/dashboards/home.json` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/grafana/dashboards/home.json"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:5c80ebf89be157834d4e554a66c722f82f2218727bbb4a3ab7034f2f4802710a",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/grafana/provisioning/dashboards/jansu.yaml` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/grafana/provisioning/dashboards/jansu.yaml"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:5cfdcce905ca5b70829d8df8c18735e9e480661c82af816008fcca356256ff46",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/grafana/provisioning/datasources/prometheus.yaml` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/grafana/provisioning/datasources/prometheus.yaml"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:67716f165fab38b7cdc015726f62be7b64b61d22b11cb37eb7c4bd1c2750ac72",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/initdb.d/010-schema.sql` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/initdb.d/010-schema.sql"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:4d066204f99d053f4b5927a92d6805758f4e9bfe57c7cda57199ecc35892e531",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/initdb.d/011-offset-retention-patch.sql` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/initdb.d/011-offset-retention-patch.sql"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:344bdef78c8f5daa5331bb2da2caf5716ee7626c098817ee6c56ad960650abca",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/lakekeeper/create-default-warehouse.json` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/lakekeeper/create-default-warehouse.json"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:d40956054164a4fc0c7a412ab5dce98536ef8d6d0db585f2230fe56e8f10575d",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/prometheus.yaml` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/prometheus.yaml"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:732dc1cd530510aa3296ae84c1bdc2e23f37b220a5e91f20b9154e0c50ec6ef2",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/schema/customer.proto` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/schema/customer.proto"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:f7f1d67df2dfd5fa89ab0e8bd4069aecd212fd2cf16c5bf84c3e4042c0488e68",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "context",
-      "path": "agent/owner-map.json",
-      "problem": "path `etc/schema/employee.proto` has no owner-map route",
-      "agent_fix": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "evidence": [
-        "etc/schema/employee.proto"
-      ],
-      "check_id": "HLT-003-OWNERLESS-PATH:context",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:b33478873c1fa03cf9739b9ddef0bd2dd48e108d7117cc4c74c4fb1d13feb9bd",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#ownership-boundaries",
-      "owner": "agent"
-    },
-    {
-      "severity": "medium",
-      "category": "proof",
-      "path": "agent/repo-score.md",
-      "problem": "human review or proof claim lacks reproducible evidence",
-      "agent_fix": "attach raw CI logs, review receipts, and replayable commands instead of accepting claims or summaries",
-      "evidence": [
-        "Evidence: Evidence: \"\\\"\\\\\\\"Evidence: \\\\\\\\\\\\\\\"about\\\\\\\\\\\\\\\": \\\\\\\\\\\\\\\"The principal filter, or null to accept all principals.\\\\\\\\\\\\\\\" },\\\\\\\"\\\"\""
-      ],
-      "check_id": "HLT-027-HUMAN-REVIEW-EVIDENCE-GAP:proof",
-      "hardness": "soft",
-      "confidence": 0.88,
-      "evidence_kind": "receipt",
-      "rerun_command": "just score",
-      "fingerprint": "sha256:9242a8c12235f5da083d0f18902ee310492f9ebebefd60f5618aa31e7c9d3f71",
-      "rule_id": "HLT-027-HUMAN-REVIEW-EVIDENCE-GAP",
-      "tlr": "Repair",
-      "lane": "audit",
-      "docs_url": "docs/testing.md",
-      "owner": "agent",
-      "line": 371,
-      "matched_term": "review evidence",
-      "reason": "proof and review claims need receipts"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/differential/compose.kafka-4.2.yaml` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/differential/compose.kafka-4.2.yaml"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:b8209ca393d46ce6d9771f5d7c38c54ba0519af4635cedaecfb31e8374844349",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/grafana/dashboards/home.json` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/grafana/dashboards/home.json"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:8887a8f715e629bc33e9c1564b0d9f90d8d0d50bdc34b6bdc958b3b50c4e7cf7",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/grafana/provisioning/dashboards/jansu.yaml` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/grafana/provisioning/dashboards/jansu.yaml"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:357cd0ad82d8809e3720da1cb299df6af99357068ae3d5cbe9d421e447243f29",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/grafana/provisioning/datasources/prometheus.yaml` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/grafana/provisioning/datasources/prometheus.yaml"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:5548e326e4148f2bfb9bcfd2660c0a096d9790cde1df51720d8fbaa8aae42b0e",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/initdb.d/010-schema.sql` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/initdb.d/010-schema.sql"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:973e231b073279916fede7a1e6601a35257db7d74d86e44e93e7287d967c3714",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/initdb.d/011-offset-retention-patch.sql` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/initdb.d/011-offset-retention-patch.sql"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:c065ff42d17446576c0b7f2dd02678d453d527ffe4d3ad3539d31ad5e5fd8511",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/lakekeeper/create-default-warehouse.json` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/lakekeeper/create-default-warehouse.json"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:6707cf7b9d23dc402b2f52a06552c9f2278fb74ba145a3302856421b5a725486",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/prometheus.yaml` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/prometheus.yaml"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:2c75d4bca5563e597b39574ec3aa7f73e8ede804ce314fa7e8a64503cbd03a9c",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/schema/customer.proto` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/schema/customer.proto"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:c3c3821f0e173c12c0ab0b10ce97ad96efb3f4eadd14e0ab72d3c3d76ccaaa72",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "high",
-      "category": "proof",
-      "path": "agent/test-map.json",
-      "problem": "path `etc/schema/employee.proto` has no test-map proof route",
-      "agent_fix": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "evidence": [
-        "etc/schema/employee.proto"
-      ],
-      "check_id": "HLT-004-UNMAPPED-PROOF:proof",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:40a9cea6ebe9bf4239d2f3f6adb34e0ae6932d4a99d917ecb60eb958dad2a240",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "docs_url": "agent/JANKURAI_STANDARD.md#proof-lanes",
-      "owner": "agent"
-    },
-    {
-      "severity": "medium",
-      "category": "release",
-      "path": "docs/testing.md",
-      "problem": "cost or spend-risk surface lacks budget proof",
-      "agent_fix": "add explicit budgets, quotas, stop conditions, and kill-switch evidence for paid or unbounded operations",
-      "evidence": [
-        "cost surface found without budget/stop-condition policy"
-      ],
-      "check_id": "HLT-026-COST-BUDGET-GAP:release",
-      "hardness": "soft",
-      "confidence": 0.88,
-      "evidence_kind": "policy-manifest",
-      "rerun_command": "just check",
-      "fingerprint": "sha256:edd248b7afc24b644107205fa5b84a88103ac4b622009ff9f19b779de8798f59",
-      "rule_id": "HLT-026-COST-BUDGET-GAP",
-      "tlr": "Verification",
-      "lane": "release",
-      "docs_url": "docs/testing.md",
-      "owner": "standard",
-      "matched_term": "budget",
-      "reason": "unbounded paid work needs budgets and stop conditions"
-    },
-    {
       "severity": "high",
       "category": "release",
       "path": "docs/testing.md",
@@ -5116,41 +4420,9 @@
       "owner": "standard",
       "matched_term": "release readiness",
       "reason": "launch gates need artifact-backed release evidence"
-    },
-    {
-      "severity": "high",
-      "category": "vibe",
-      "path": "jansu-model/src/lib.rs",
-      "problem": "fallback soup detected in product code",
-      "agent_fix": "collapse fallback chains into explicit typed states with bounded retry policy, telemetry, and documented repair guidance",
-      "evidence": [
-        "jansu-model/src/lib.rs:788 syn::parse_str::<Type>(&self.name).unwrap_or_else(|_| panic!(\"not a type: {self:?}\"))"
-      ],
-      "check_id": "HLT-001-DEAD-MARKER:vibe",
-      "hardness": "hard",
-      "confidence": 0.88,
-      "evidence_kind": "repository-scan",
-      "rerun_command": "just fast",
-      "fingerprint": "sha256:6bddc7407b75163f4c77159ec6deae23de88ad61daeeba25aaa0e64742dee8cb",
-      "rule_id": "HLT-001-DEAD-MARKER",
-      "tlr": "Entropy",
-      "lane": "fast",
-      "docs_url": "docs/audit-rubric.md#future-hostile-language-rule",
-      "owner": "tools",
-      "line": 788
     }
   ],
   "agent_fix_queue": [
-    {
-      "path": "agent/test-map.json",
-      "priority": "high",
-      "rule_id": "HLT-004-UNMAPPED-PROOF",
-      "tlr": "Verification",
-      "lane": "fast",
-      "owner": "agent",
-      "task": "add the narrowest stable prefix and runnable proof command to `agent/test-map.json`",
-      "why": "path `etc/differential/compose.kafka-4.2.yaml` has no test-map proof route"
-    },
     {
       "path": "docs/testing.md",
       "priority": "high",
@@ -5172,56 +4444,6 @@
       "why": "`Build speed signals` scored 70 below the standard floor of 85"
     },
     {
-      "path": "docs/testing.md",
-      "priority": "medium",
-      "rule_id": "HLT-026-COST-BUDGET-GAP",
-      "tlr": "Verification",
-      "lane": "release",
-      "owner": "standard",
-      "task": "add explicit budgets, quotas, stop conditions, and kill-switch evidence for paid or unbounded operations",
-      "why": "cost or spend-risk surface lacks budget proof"
-    },
-    {
-      "path": "agent/repo-score.md",
-      "priority": "medium",
-      "rule_id": "HLT-027-HUMAN-REVIEW-EVIDENCE-GAP",
-      "tlr": "Repair",
-      "lane": "audit",
-      "owner": "agent",
-      "task": "attach raw CI logs, review receipts, and replayable commands instead of accepting claims or summaries",
-      "why": "human review or proof claim lacks reproducible evidence"
-    },
-    {
-      "path": "agent/owner-map.json",
-      "priority": "high",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "owner": "agent",
-      "task": "add the narrowest stable prefix for this path to `agent/owner-map.json`",
-      "why": "path `etc/differential/compose.kafka-4.2.yaml` has no owner-map route"
-    },
-    {
-      "path": "agent/owner-map.json",
-      "priority": "medium",
-      "rule_id": "HLT-003-OWNERLESS-PATH",
-      "tlr": "Context/setup",
-      "lane": "fast",
-      "owner": "agent",
-      "task": "tighten owner/test maps and root routing until agents can localize ownership without inference",
-      "why": "`Ownership and navigation surface` scored 83 below the standard floor of 85"
-    },
-    {
-      "path": "jansu-model/src/lib.rs",
-      "priority": "high",
-      "rule_id": "HLT-001-DEAD-MARKER",
-      "tlr": "Entropy",
-      "lane": "fast",
-      "owner": "tools",
-      "task": "collapse fallback chains into explicit typed states with bounded retry policy, telemetry, and documented repair guidance",
-      "why": "fallback soup detected in product code"
-    },
-    {
       "path": ".",
       "priority": "medium",
       "rule_id": "HLT-001-DEAD-MARKER",
@@ -5229,7 +4451,7 @@
       "lane": "fast",
       "owner": "tools",
       "task": "split large or ambiguous authored code into smaller semantic modules with focused tests",
-      "why": "`Code shape and semantic surface` scored 17 below the standard floor of 85"
+      "why": "`Code shape and semantic surface` scored 35 below the standard floor of 85"
     },
     {
       "path": ".github/workflows/jankurai.yml",
@@ -5239,7 +4461,7 @@
       "lane": "security",
       "owner": "ops",
       "task": "wire secret, dependency, provenance, and workflow scans into an operational CI lane",
-      "why": "`Security and supply-chain posture` scored 66 below the standard floor of 85"
+      "why": "`Security and supply-chain posture` scored 74 below the standard floor of 85"
     }
   ]
 }

@@ -373,13 +373,13 @@ pub(super) async fn offset_stage(this: &Engine, topition: &Topition) -> Result<O
         .get_value(0)
         .map(|value| value.as_integer().copied())
         .inspect_err(|err| error!(?topition, ?err))?
-        .unwrap_or_default();
+        .unwrap_or(0);
 
     let high_watermark = row
         .get_value(1)
         .map(|value| value.as_integer().copied())
         .inspect_err(|err| error!(?topition, ?err))?
-        .unwrap_or_default();
+        .unwrap_or(0);
 
     let last_stable = row
         .get_value(1)

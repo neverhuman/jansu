@@ -1,53 +1,8 @@
 {
-  "workspace": "jankurai",
   "tests": {
-    "AGENTS.md": {
-      "command": "just score",
-      "purpose": "verify root routing remains visible to the audit"
-    },
-    "agent/": {
-      "command": "just score",
-      "purpose": "verify manifests remain parseable and authoritative"
-    },
-    "contracts/": {
-      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
-      "purpose": "advisory contract drift scan until project-specific contract checks exist"
-    },
-    "db/migrations/": {
-      "command": "jankurai doctor --fail-on critical",
-      "purpose": "advisory control-plane health check until migration tests exist"
-    },
-    "db/": {
-      "command": "jankurai doctor --fail-on critical",
-      "purpose": "advisory database boundary health check"
-    },
-    "db/constraints/": {
-      "command": "jankurai doctor --fail-on critical",
-      "purpose": "advisory constraint-lane health check until DB proof exists"
-    },
-    "docs/architecture/": {
-      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
-      "purpose": "verify architecture docs remain visible to the audit"
-    },
-    "docs/decisions/": {
-      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
-      "purpose": "verify decision records remain visible to the audit"
-    },
-    "README-jankurai-scaffold.md": {
-      "command": "jankurai doctor --fail-on critical",
-      "purpose": "verify scaffold marker does not hide missing control-plane files"
-    },
-    "tools/": {
+    ".agent/rules/jansu-master-plan.md": {
       "command": "just fast",
-      "purpose": "verify Rust behavior and audit checks"
-    },
-    "crates/": {
-      "command": "just fast",
-      "purpose": "verify Rust behavior and audit checks"
-    },
-    "docs/": {
-      "command": "just score",
-      "purpose": "verify agent-readable documentation remains routed"
+      "purpose": "verify master plan rule file"
     },
     ".agents/": {
       "command": "just score",
@@ -64,6 +19,26 @@
     ".agents/workflows/jankurai-audit.md": {
       "command": "just score",
       "purpose": "verify jankurai audit workflow routing"
+    },
+    ".agents/workflows/jankurai-context-pack.md": {
+      "command": "just score",
+      "purpose": "verify jankurai context-pack workflow routing"
+    },
+    ".agents/workflows/jankurai-kickoff.md": {
+      "command": "just score",
+      "purpose": "verify jankurai kickoff workflow routing"
+    },
+    ".agents/workflows/jankurai-prove.md": {
+      "command": "just score",
+      "purpose": "verify jankurai prove workflow routing"
+    },
+    ".agents/workflows/jankurai-repair-plan.md": {
+      "command": "just score",
+      "purpose": "verify jankurai repair-plan workflow routing"
+    },
+    ".agents/workflows/jankurai-witness.md": {
+      "command": "just score",
+      "purpose": "verify jankurai witness workflow routing"
     },
     ".claude/": {
       "command": "just score",
@@ -101,22 +76,6 @@
       "command": "just fast",
       "purpose": "verify dockerignore file"
     },
-    ".github/workflows/ci.yml": {
-      "command": "just fast",
-      "purpose": "verify CI workflow file"
-    },
-    ".github/workflows/jankurai.yml": {
-      "command": "just fast",
-      "purpose": "verify Jankurai workflow file"
-    },
-    ".agent/rules/jansu-master-plan.md": {
-      "command": "just fast",
-      "purpose": "verify master plan rule file"
-    },
-    "examples/perfect-web-api-db/backend/src/background_job.rs": {
-      "command": "just fast",
-      "purpose": "run proofs for background‑job cell"
-    },
     ".gitattributes": {
       "command": "just fast",
       "purpose": "verify gitattributes file"
@@ -141,21 +100,45 @@
       "command": "just fast",
       "purpose": "verify generic instructions"
     },
+    ".github/workflows/ci.yml": {
+      "command": "just fast",
+      "purpose": "verify CI workflow file"
+    },
     ".github/workflows/differential-kafka-lab.yml": {
       "command": "just fast",
       "purpose": "verify differential kafka lab workflow"
+    },
+    ".github/workflows/jankurai.yml": {
+      "command": "just fast",
+      "purpose": "verify Jankurai workflow file"
     },
     ".github/workflows/release.yml": {
       "command": "just fast",
       "purpose": "verify release workflow"
     },
+    ".gitignore": {
+      "command": "just fast",
+      "purpose": "generic proof for gitignore"
+    },
+    ".gitleaks.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for gitleaks config"
+    },
     "AGENT.md": {
       "command": "just fast",
       "purpose": "verify AGENT documentation"
     },
+    "AGENTS.md": {
+      "command": "just score",
+      "purpose": "verify root routing remains visible to the audit"
+    },
     "AUDIT.md": {
       "command": "just score",
       "purpose": "verify audit file routing"
+    },
+    "CHANGELOG.md": {
+      "command": "just fast",
+      "purpose": "generic proof for changelog"
     },
     "CLAUDE.md": {
       "command": "just fast",
@@ -169,6 +152,10 @@
       "command": "just fast",
       "purpose": "verify Dockerfile"
     },
+    "FEATURE_GAPS.md": {
+      "command": "just fast",
+      "purpose": "generic proof for feature gaps doc"
+    },
     "GEMINI.md": {
       "command": "just fast",
       "purpose": "verify GEMINI documentation"
@@ -178,204 +165,317 @@
       "purpose": "verify LICENSE file"
     },
     "MASTER_PLAN.md": {
-        "command": "just score",
-        "purpose": "verify master plan routing"
-    },
-    "about.hbs": {
-        "command": "just fast",
-        "purpose": "generic proof for documentation file"
-    },
-    "about.toml": {
-        "command": "just fast",
-        "purpose": "generic proof for documentation file"
-    },
-    "assets/": {
-        "command": "just fast",
-        "purpose": "generic proof for assets directory"
-    },
-    "codebook.toml": {
-        "command": "just fast",
-        "purpose": "generic proof for config file"
-    },
-    "command-plain.properties": {
-        "command": "just fast",
-        "purpose": "generic proof for properties file"
-    },
-    "command-scram-256.properties": {
-        "command": "just fast",
-        "purpose": "generic proof for properties file"
-    },
-    "command-scram-512.properties": {
-        "command": "just fast",
-        "purpose": "generic proof for properties file"
-    },
-    "command.properties": {
-        "command": "just fast",
-        "purpose": "generic proof for properties file"
-    },
-    "example.env": {
-        "command": "just fast",
-        "purpose": "generic proof for example env file"
-    },
-    "fuzz/": {
-        "command": "just fast",
-        "purpose": "generic proof for fuzz directory"
-    },
-    "jansu/": {
-        "command": "just fast",
-        "purpose": "generic proof for jansu source"
-    },
-    "jansu-auth/": {
-        "command": "just fast",
-        "purpose": "generic proof for auth component"
-    },
-    "jansu-broker/": {
-        "command": "just fast",
-        "purpose": "generic proof for broker component"
-    },
-    "jansu-cat/": {
-        "command": "just fast",
-        "purpose": "generic proof for cat component"
-    },
-    "jansu-cli/": {
-        "command": "just fast",
-        "purpose": "generic proof for CLI"
-    },
-    "jansu-client/": {
-        "command": "just fast",
-        "purpose": "generic proof for client library"
-    },
-    "jansu-generator/": {
-        "command": "just fast",
-        "purpose": "generic proof for generator"
-    },
-    "jansu-model/": {
-        "command": "just fast",
-        "purpose": "generic proof for model"
-    },
-    "jansu-otel/": {
-        "command": "just fast",
-        "purpose": "generic proof for otel integration"
-    },
-    "jansu-perf/": {
-        "command": "just fast",
-        "purpose": "generic proof for performance tools"
-    },
-    "jansu-proxy/": {
-        "command": "just fast",
-        "purpose": "generic proof for proxy"
-    },
-    "jansu-sans-io/": {
-        "command": "just fast",
-        "purpose": "generic proof for sans‑io library"
-    },
-    "jansu-schema/": {
-        "command": "just fast",
-        "purpose": "generic proof for schema library"
-    },
-    "jansu-service/": {
-        "command": "just fast",
-        "purpose": "generic proof for service"
-    },
-    "jansu-storage/": {
-        "command": "just fast",
-        "purpose": "generic proof for storage component"
-    },
-    "jansu-topic/": {
-        "command": "just fast",
-        "purpose": "generic proof for topic component"
-    },
-    "justfile": {
-        "command": "just fast",
-        "purpose": "generic proof for justfile"
+      "command": "just score",
+      "purpose": "verify master plan routing"
     },
     "README-jankurai-scaffold.md": {
-        "command": "just fast",
-        "purpose": "generic proof for scaffold README"
-    },
-    "rust-toolchain.toml": {
-        "command": "just fast",
-        "purpose": "generic proof for rust toolchain config"
-    },
-    "rustfmt.toml": {
-        "command": "just fast",
-        "purpose": "generic proof for rustfmt config"
-    },
-    "schema-diff-0.5.0-0.6.0.txt": {
-        "command": "just fast",
-        "purpose": "generic proof for schema diff"
-    },
-    "scripts/": {
-        "command": "just fast",
-        "purpose": "generic proof for scripts directory"
-    },
-    "tips/": {
-        "command": "just fast",
-        "purpose": "generic proof for tips directory"
-    },
-    "logs/": {
-        "command": "just fast",
-        "purpose": "generic proof for logs directory"
-    },
-    "phase-logs/": {
-        "command": "just fast",
-        "purpose": "generic proof for phase logs"
-    },
-    "phase08-libsql-produce-leader-epoch.db": {
-        "command": "just fast",
-        "purpose": "generic proof for DB artifact"
-    },
-    "check_errors.log": {
-        "command": "just fast",
-        "purpose": "generic proof for error log"
-    },
-    ".gitleaks.toml": {
-        "command": "just fast",
-        "purpose": "generic proof for gitleaks config"
-    },
-    ".gitignore": {
-        "command": "just fast",
-        "purpose": "generic proof for gitignore"
-    },
-    "CHANGELOG.md": {
-        "command": "just fast",
-        "purpose": "generic proof for changelog"
-    },
-    "FEATURE_GAPS.md": {
-        "command": "just fast",
-        "purpose": "generic proof for feature gaps doc"
+      "command": "just fast",
+      "purpose": "generic proof for scaffold README"
     },
     "README.md": {
-        "command": "just fast",
-        "purpose": "generic proof for README"
+      "command": "just fast",
+      "purpose": "generic proof for README"
+    },
+    "about.hbs": {
+      "command": "just fast",
+      "purpose": "generic proof for documentation file"
+    },
+    "about.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for documentation file"
+    },
+    "agent/": {
+      "command": "just score",
+      "purpose": "verify manifests remain parseable and authoritative"
+    },
+    "agent/coverage-sources.toml": {
+      "command": "jankurai coverage audit . --config agent/coverage-sources.toml --json target/jankurai/coverage/coverage-audit.json --md target/jankurai/coverage/coverage-audit.md && just score",
+      "purpose": "verify coverage evidence source routing and score import"
+    },
+    "agent/zyal/": {
+      "command": "just score",
+      "purpose": "verify canonical ZYAL runbooks stay under agent/zyal and only use the .zyal extension"
+    },
+    "apps/": {
+      "command": "just fast",
+      "purpose": "verify app surfaces remain routed through the audit"
+    },
+    "assets/": {
+      "command": "just fast",
+      "purpose": "generic proof for assets directory"
+    },
+    "check_errors.log": {
+      "command": "just fast",
+      "purpose": "generic proof for error log"
+    },
+    "codebook.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for config file"
+    },
+    "command-plain.properties": {
+      "command": "just fast",
+      "purpose": "generic proof for properties file"
+    },
+    "command-scram-256.properties": {
+      "command": "just fast",
+      "purpose": "generic proof for properties file"
+    },
+    "command-scram-512.properties": {
+      "command": "just fast",
+      "purpose": "generic proof for properties file"
+    },
+    "command.properties": {
+      "command": "just fast",
+      "purpose": "generic proof for properties file"
     },
     "compose.yaml": {
-        "command": "just fast",
-        "purpose": "generic proof for docker compose config"
+      "command": "just fast",
+      "purpose": "generic proof for docker compose config"
+    },
+    "contracts/": {
+      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
+      "purpose": "advisory contract drift scan until project-specific contract checks exist"
+    },
+    "crates/": {
+      "command": "just fast",
+      "purpose": "verify Rust behavior and audit checks"
+    },
+    "crates/jankurai/src/audit/coverage.rs": {
+      "command": "jankurai coverage audit . --config agent/coverage-sources.toml --json target/jankurai/coverage/coverage-audit.json --md target/jankurai/coverage/coverage-audit.md && just score",
+      "purpose": "verify coverage parsers and evidence normalization"
+    },
+    "crates/jankurai/src/commands/coverage.rs": {
+      "command": "jankurai coverage audit . --config agent/coverage-sources.toml --json target/jankurai/coverage/coverage-audit.json --md target/jankurai/coverage/coverage-audit.md && just score",
+      "purpose": "verify coverage audit command behavior"
+    },
+    "crates/jankurai/tests/fixtures/coverage/": {
+      "command": "jankurai coverage audit . --config agent/coverage-sources.toml --json target/jankurai/coverage/coverage-audit.json --md target/jankurai/coverage/coverage-audit.md",
+      "purpose": "verify coverage parser fixture contracts"
     },
     "data/": {
-        "command": "just fast",
-        "purpose": "generic proof for data directory"
+      "command": "just fast",
+      "purpose": "generic proof for data directory"
+    },
+    "db/": {
+      "command": "jankurai doctor --fail-on critical",
+      "purpose": "advisory database boundary health check"
+    },
+    "db/constraints/": {
+      "command": "jankurai doctor --fail-on critical",
+      "purpose": "advisory constraint-lane health check until DB proof exists"
+    },
+    "db/migrations/": {
+      "command": "jankurai doctor --fail-on critical",
+      "purpose": "advisory control-plane health check until migration tests exist"
     },
     "demo/": {
-        "command": "just fast",
-        "purpose": "generic proof for demo directory"
+      "command": "just fast",
+      "purpose": "generic proof for demo directory"
+    },
+    "docs/": {
+      "command": "just score",
+      "purpose": "verify agent-readable documentation remains routed"
+    },
+    "docs/COVERAGE_*.md": {
+      "command": "just score",
+      "purpose": "verify coverage evidence docs remain routed"
+    },
+    "docs/architecture/": {
+      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
+      "purpose": "verify architecture docs remain visible to the audit"
+    },
+    "docs/decisions/": {
+      "command": "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md",
+      "purpose": "verify decision records remain visible to the audit"
     },
     "duckdb-init.sql": {
-        "command": "just fast",
-        "purpose": "generic proof for duckdb init script"
+      "command": "just fast",
+      "purpose": "generic proof for duckdb init script"
     },
     "etc/certs/": {
-        "command": "just fast",
-        "purpose": "generic proof for certs directory"
+      "command": "just fast",
+      "purpose": "generic proof for certs directory"
     },
     "etc/data/": {
-        "command": "just fast",
-        "purpose": "generic proof for etc/data directory"
+      "command": "just fast",
+      "purpose": "generic proof for etc/data directory"
+    },
+    "etc/differential/": {
+      "command": "just ci",
+      "purpose": "differential Kafka lab compose config — requires full infra stack"
+    },
+    "etc/grafana/": {
+      "command": "just ci",
+      "purpose": "Grafana dashboards and provisioning — verified by compose stack"
+    },
+    "etc/initdb.d/": {
+      "command": "cargo nextest run -p jansu-storage --features postgres",
+      "purpose": "Postgres init SQL schema — verified by storage postgres tests"
+    },
+    "etc/lakekeeper/": {
+      "command": "just ci",
+      "purpose": "Lakekeeper warehouse config — verified by compose stack"
+    },
+    "etc/prometheus.yaml": {
+      "command": "just ci",
+      "purpose": "Prometheus config — verified by compose stack observability"
+    },
+    "etc/schema/": {
+      "command": "cargo nextest run -p jansu-schema",
+      "purpose": "Sample schema files (Avro, JSON, Protobuf) — verified by schema crate tests"
+    },
+    "example.env": {
+      "command": "just fast",
+      "purpose": "generic proof for example env file"
+    },
+    "examples/perfect-web-api-db/backend/src/background_job.rs": {
+      "command": "just fast",
+      "purpose": "run proofs for background‑job cell"
+    },
+    "fuzz/": {
+      "command": "just fast",
+      "purpose": "generic proof for fuzz directory"
+    },
+    "jaas-plain.conf": {
+      "command": "just fast",
+      "purpose": "generic proof for JAAS plain config"
+    },
+    "jaas-scram.conf": {
+      "command": "just fast",
+      "purpose": "generic proof for JAAS SCRAM config"
+    },
+    "jansu-auth/": {
+      "command": "just fast",
+      "purpose": "generic proof for auth component"
+    },
+    "jansu-broker/": {
+      "command": "just fast",
+      "purpose": "generic proof for broker component"
+    },
+    "jansu-cat/": {
+      "command": "just fast",
+      "purpose": "generic proof for cat component"
+    },
+    "jansu-cli/": {
+      "command": "just fast",
+      "purpose": "generic proof for CLI"
+    },
+    "jansu-client/": {
+      "command": "just fast",
+      "purpose": "generic proof for client library"
+    },
+    "jansu-generator/": {
+      "command": "just fast",
+      "purpose": "generic proof for generator"
+    },
+    "jansu-model/": {
+      "command": "just fast",
+      "purpose": "generic proof for model"
+    },
+    "jansu-otel/": {
+      "command": "just fast",
+      "purpose": "generic proof for otel integration"
+    },
+    "jansu-perf/": {
+      "command": "just fast",
+      "purpose": "generic proof for performance tools"
+    },
+    "jansu-proxy/": {
+      "command": "just fast",
+      "purpose": "generic proof for proxy"
+    },
+    "jansu-sans-io/": {
+      "command": "just fast",
+      "purpose": "generic proof for sans‑io library"
+    },
+    "jansu-schema/": {
+      "command": "just fast",
+      "purpose": "generic proof for schema library"
+    },
+    "jansu-service/": {
+      "command": "just fast",
+      "purpose": "generic proof for service"
+    },
+    "jansu-storage/": {
+      "command": "just fast",
+      "purpose": "generic proof for storage component"
+    },
+    "jansu-topic/": {
+      "command": "just fast",
+      "purpose": "generic proof for topic component"
+    },
+    "jansu/": {
+      "command": "just fast",
+      "purpose": "generic proof for jansu source"
+    },
+    "justfile": {
+      "command": "just fast",
+      "purpose": "generic proof for justfile"
+    },
+    "logs/": {
+      "command": "just fast",
+      "purpose": "generic proof for logs directory"
     },
     "ops/": {
-        "command": "just fast",
-        "purpose": "generic proof for ops scripts directory"
+      "command": "just fast",
+      "purpose": "generic proof for ops scripts directory"
+    },
+    "ops/ci/": {
+      "command": "just fast",
+      "purpose": "generic proof for CI scripts"
+    },
+    "ops/git-hooks/": {
+      "command": "just fast",
+      "purpose": "generic proof for git hook scripts"
+    },
+    "phase-logs/": {
+      "command": "just fast",
+      "purpose": "generic proof for phase logs"
+    },
+    "python/": {
+      "command": "just score",
+      "purpose": "verify Python AI service routing and containment"
+    },
+    "python/ai-service/": {
+      "command": "just score",
+      "purpose": "verify Python AI service routing and containment"
+    },
+    "phase08-libsql-produce-leader-epoch.db": {
+      "command": "just fast",
+      "purpose": "generic proof for DB artifact"
+    },
+    "rust-toolchain.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for rust toolchain config"
+    },
+    "rustfmt.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for rustfmt config"
+    },
+    "schema-diff-0.5.0-0.6.0.txt": {
+      "command": "just fast",
+      "purpose": "generic proof for schema diff"
+    },
+    "schemas/coverage-*.schema.json": {
+      "command": "just score",
+      "purpose": "verify coverage evidence schemas and fixtures"
+    },
+    "scripts/": {
+      "command": "just fast",
+      "purpose": "generic proof for scripts directory"
+    },
+    "tips/": {
+      "command": "just fast",
+      "purpose": "generic proof for tips directory"
+    },
+    "tools/": {
+      "command": "just fast",
+      "purpose": "verify Rust behavior and audit checks"
+    },
+    "typos.toml": {
+      "command": "just fast",
+      "purpose": "generic proof for typos config"
     }
-  }
+  },
+  "workspace": "jankurai"
 }

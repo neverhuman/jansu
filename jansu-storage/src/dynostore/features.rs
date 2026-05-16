@@ -67,25 +67,34 @@ impl DynoStore {
                 .error_message(Some("".into()))
                 .resource_type(resource.resource_type)
                 .resource_name(resource.resource_name)),
-            ConfigResource::Topic => self
-                .meta
-                .with_mut(&self.object_store, |meta| {
-                    let configs: Vec<_> = resource
-                        .configs
-                        .iter()
-                        .flat_map(|v| v.iter())
-                        .cloned()
-                        .collect();
-                    meta.alter_topic(resource.resource_name.as_str(), &configs)
-                })
-                .await
-                .map(|()| {
-                    AlterConfigsResourceResponse::default()
+            ConfigResource::Topic => {
+                let result = self
+                    .meta
+                    .with_mut(&self.object_store, |meta| {
+                        let configs: Vec<_> = resource
+                            .configs
+                            .iter()
+                            .flat_map(|v| v.iter())
+                            .cloned()
+                            .collect();
+                        meta.alter_topic(resource.resource_name.as_str(), &configs)
+                    })
+                    .await;
+
+                match result {
+                    Ok(()) => Ok(AlterConfigsResourceResponse::default()
                         .error_code(ErrorCode::None.into())
                         .error_message(Some("".into()))
                         .resource_type(resource.resource_type)
-                        .resource_name(resource.resource_name)
-                }),
+                        .resource_name(resource.resource_name)),
+                    Err(Error::Api(error_code)) => Ok(AlterConfigsResourceResponse::default()
+                        .error_code(error_code.into())
+                        .error_message(Some(error_code.to_string()))
+                        .resource_type(resource.resource_type)
+                        .resource_name(resource.resource_name)),
+                    Err(error) => Err(error),
+                }
+            }
             ConfigResource::Unknown => Ok(AlterConfigsResourceResponse::default()
                 .error_code(ErrorCode::None.into())
                 .error_message(Some("".into()))
@@ -96,6 +105,8 @@ impl DynoStore {
 
     #[instrument(skip_all, fields(topic = %topic.name))]
     pub(super) async fn create_topic_inner(&self, topic: CreatableTopic, _validate_only: bool) -> Result<Uuid> {
+        Meta::validate_topic_configs(topic.configs.as_deref())?;
+
         match self
             .meta
             .with_mut(&self.object_store, |meta| {
@@ -311,13 +322,19 @@ impl DynoStore {
 
     pub(super) async fn maintain_inner(&self, now: SystemTime) -> Result<()> {
         if let Some(ref lake) = self.lake {
-            return lake
-                .maintain()
+            lake.maintain()
                 .await
                 .inspect(|maintain| debug!(?maintain))
                 .inspect_err(|err| debug!(?err))
-                .map_err(Into::into);
+                .map_err(Error::from)?;
         }
+
+        let deleted = self.policy_delete(now).await?;
+        debug!(deleted);
+
+        let compacted = self.policy_compact().await?;
+        debug!(compacted);
+
 
         let prefix = Path::from(format!("clusters/{}/groups/consumers/", self.cluster));
         let mut list_stream = self.object_store.list(Some(&prefix));

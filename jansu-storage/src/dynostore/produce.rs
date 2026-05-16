@@ -58,10 +58,10 @@ impl DynoStore {
                     debug!(?watermark);
 
                     let offset = watermark.high.map_or(0, |h| h);
-                    watermark.high = watermark.high.map_or_else(
-                        || Some(deflated.last_offset_delta as i64 + 1i64),
-                        |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
-                    );
+                    watermark.high = match watermark.high {
+                        None => Some(deflated.last_offset_delta as i64 + 1i64),
+                        Some(high) => Some(high + deflated.last_offset_delta as i64 + 1i64),
+                    };
 
                     _ = watermark
                         .timestamps
@@ -201,10 +201,10 @@ impl DynoStore {
                     debug!(?watermark);
 
                     let offset = watermark.high.map_or(0, |h| h);
-                    watermark.high = watermark.high.map_or_else(
-                        || Some(deflated.last_offset_delta as i64 + 1i64),
-                        |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
-                    );
+                    watermark.high = match watermark.high {
+                        None => Some(deflated.last_offset_delta as i64 + 1i64),
+                        Some(high) => Some(high + deflated.last_offset_delta as i64 + 1i64),
+                    };
 
                     _ = watermark
                         .timestamps

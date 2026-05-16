@@ -55,7 +55,7 @@ async fn req() -> Result<(), Error> {
 
     let results = response.results.unwrap_or_default();
     assert_eq!(1, results.len());
-    assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
+    assert_eq!(ErrorCode::UnknownTopicOrPartition, ErrorCode::try_from(results[0].error_code)?);
     assert!(results[0].configs.as_deref().unwrap_or_default().is_empty());
 
     Ok(())

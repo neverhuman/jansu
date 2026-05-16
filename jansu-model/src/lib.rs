@@ -1803,7 +1803,7 @@ mod tests {
             m.fields()[0].versions()
         );
 
-        let node_id = &m.fields()[0].fields().unwrap_or_default()[0];
+        let node_id = &m.fields()[0].fields().expect("test fixture field has sub-fields")[0];
 
         assert_eq!("NodeId", node_id.name());
         assert_eq!(Kind::new("int32"), node_id.kind);

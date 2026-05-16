@@ -395,7 +395,7 @@ impl Delegate {
                 let config_name = row.get_str(0).inspect_err(|err| error!(?err))?;
                 let value = row
                     .get::<Option<String>>(1)
-                    .map(|value| value.unwrap_or_else(String::new))
+                    .map(|value| value.unwrap_or(String::new()))
                     .map(Some)
                     .inspect_err(|err| error!(?err))?;
 

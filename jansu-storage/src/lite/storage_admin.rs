@@ -334,7 +334,7 @@ impl Delegate {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_default() {
+                for config in resource.configs.unwrap_or(Vec::new()) {
                     match OpType::try_from(config.config_operation)? {
                         OpType::Set => {
                             let c = self.connection().await?;
@@ -395,7 +395,7 @@ impl Delegate {
                             };
                             
                             if let Some(new_val) = &config.value {
-                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or(Vec::new());
                                 if !list.contains(&new_val.as_str()) {
                                     list.push(new_val.as_str());
                                 }
@@ -439,7 +439,7 @@ impl Delegate {
                             };
 
                             if let Some(del_val) = &config.value {
-                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|&s| !s.is_empty() && s != del_val.as_str()).collect()).unwrap_or_default();
+                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|&s| !s.is_empty() && s != del_val.as_str()).collect()).unwrap_or(Vec::new());
                                 
                                 if list.is_empty() {
                                     if c.query(

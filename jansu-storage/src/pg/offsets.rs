@@ -163,7 +163,7 @@ impl Postgres {
 
             debug!(?query);
 
-            let list_offset = match offset_type {
+            let opt_row = match offset_type {
                 ListOffset::Earliest | ListOffset::Latest => self
                     .prepare_query_opt(
                         &c,
@@ -190,9 +190,10 @@ impl Postgres {
             .inspect_err(|err| {
                 error!(?err, cluster = self.cluster, ?topition);
             })
-            .inspect(|result| debug!(?result))?
-            .map_or_else(
-                || {
+            .inspect(|result| debug!(?result))?;
+
+            let list_offset = match opt_row {
+                None => {
                     let timestamp = None;
                     let offset = Some(0);
                     debug!(
@@ -208,8 +209,8 @@ impl Postgres {
                         offset,
                         ..Default::default()
                     })
-                },
-                |row| {
+                }
+                Some(row) => {
                     debug!(?row);
 
                     row.try_get::<_, i64>(0).map(Some).and_then(|offset| {
@@ -229,8 +230,8 @@ impl Postgres {
                             }
                         })
                     })
-                },
-            )?;
+                }
+            }?;
 
             responses.push((topition.clone(), list_offset));
         }

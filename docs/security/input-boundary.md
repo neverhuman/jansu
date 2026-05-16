@@ -140,10 +140,10 @@ originate from a registry the broker did not author.
 - Maximum accepted size: Bounded by the registry transport.
 - Fuzz coverage: Covered by round-trip tests in `jansu-schema/src/proto.rs`.
 
-### Lake descriptor parsing (`jansu-schema/src/lake/delta.rs`)
+### Lake descriptor parsing (`jansu-schema/src/lake/delta/mod.rs`)
 
-- Sink: `serde_json::from_slice::<Value>` at
-  `jansu-schema/src/lake/delta.rs:2369` and the surrounding Delta Lake
+- Sink: `deltalake::DeltaTableBuilder` at
+  `jansu-schema/src/lake/delta/mod.rs` and the surrounding Delta Lake
   metadata-load paths.
 - Validator: Delta Lake's transaction-log entries are JSON; the parser
   rejects malformed entries with a typed error.

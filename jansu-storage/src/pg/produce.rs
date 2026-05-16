@@ -121,7 +121,7 @@ impl Postgres {
         debug!(?low, ?high);
 
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = high.unwrap_or_default();
+        let append_start_offset = high.unwrap_or(0_i64);
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -180,7 +180,7 @@ impl Postgres {
                                     .and_then(|config| config.value.as_deref())
                                     .and_then(|value| bool::from_str(value).ok())
                             })
-                            .unwrap_or_default()
+                            .unwrap_or(false)
                     })
                     .inspect(|jansu_lake_sink| debug!(jansu_lake_sink))?)
         {
@@ -313,7 +313,7 @@ impl Postgres {
                     &self.cluster,
                     &topic,
                     &partition,
-                    &low.unwrap_or_default(),
+                    &low.unwrap_or(0_i64),
                     &high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ],
             )

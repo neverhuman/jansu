@@ -251,7 +251,7 @@ where
             REQUESTS.add(1, &[KeyValue::new("method", "with_mut_loop")]);
 
             let (outcome, dv) = self.data_version.lock().map(|guard| {
-                let mut dv = guard.clone().unwrap_or_default();
+                let mut dv = guard.clone().unwrap_or(DataVersion::default());
                 let outcome = f(&mut dv.data);
                 (outcome, dv)
             })?;

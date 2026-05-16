@@ -87,7 +87,7 @@ impl<O> PutRateLimiter<O> {
             entries
                 .get(location)
                 .cloned()
-                .or_else(|| self.rate_limiter())
+                .or(self.rate_limiter())
                 .and_then(|rate_limiter| {
                     entries
                         .insert_evict(location.to_owned(), rate_limiter.clone(), true)

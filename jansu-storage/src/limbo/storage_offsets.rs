@@ -191,8 +191,8 @@ pub(super) async fn offset_for_leader_epoch(
         .await?;
 
     if let Some(row) = rows.next().await? {
-        let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or_default() as i32;
-        let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default() as i64;
+        let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or(0) as i32;
+        let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or(0) as i64;
         Ok(Some((next_epoch, end_offset)))
     } else {
         Ok(None)
@@ -238,8 +238,8 @@ pub(super) async fn leader_epoch_history(
 
     while let Some(row) = rows.next().await? {
         history.push(LeaderEpochRecord {
-            epoch: row.get::<Option<i32>>(0)?.unwrap_or_default(),
-            start_offset: row.get::<Option<i64>>(1)?.unwrap_or_default(),
+            epoch: row.get::<Option<i32>>(0)?.unwrap_or(0_i32),
+            start_offset: row.get::<Option<i64>>(1)?.unwrap_or(0_i64),
         });
     }
 
@@ -398,7 +398,7 @@ pub(super) async fn list_offsets(
 
         debug!(?query);
 
-        let list_offset = match offset_type {
+        let opt_row = match offset_type {
             ListOffsetRequest::Earliest | ListOffsetRequest::Latest => this
                 .prepare_query_opt(
                     &c,
@@ -429,9 +429,10 @@ pub(super) async fn list_offsets(
         .inspect_err(|err| {
             error!(?err, cluster = this.cluster, ?topition);
         })
-        .inspect(|result| debug!(?result))?
-        .map_or_else(
-            || {
+        .inspect(|result| debug!(?result))?;
+
+        let list_offset = match opt_row {
+            None => {
                 let timestamp = None;
                 let offset = Some(0);
                 debug!(
@@ -447,8 +448,8 @@ pub(super) async fn list_offsets(
                     offset,
                     ..Default::default()
                 })
-            },
-            |row| {
+            }
+            Some(row) => {
                 debug!(?row);
 
                 row.get_value(0)
@@ -476,8 +477,8 @@ pub(super) async fn list_offsets(
                                 }
                             })
                     })
-            },
-        )?;
+            }
+        }?;
 
         responses.push((topition.clone(), list_offset));
     }

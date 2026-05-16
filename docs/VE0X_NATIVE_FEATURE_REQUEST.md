@@ -53,6 +53,10 @@ Pending work discovered during xdoug validation:
   the in-memory path, including the end-of-log after-last case, and the
   non-Postgres local profiles (`libsql` and `slatedb`) now match the same
   dynostore contract.
+- `DescribeConfigs` now returns all 22 Kafka-standard topic config defaults
+  across every storage backend via centralized service-layer defaults. Synonym
+  expansion covers all config keys. `IncrementalAlterConfigs` accepts all 22
+  standard keys in DynoStore (enforcement deferred to owning phases).
 
 Acceptance target:
 - the native runtime can depend on Jansu as its canonical embedded event bus

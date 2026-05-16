@@ -15,7 +15,8 @@
 use crate::common::{Error, init_tracing};
 use jansu_sans_io::{
     CreateTopicsRequest, DescribeTopicPartitionsRequest, ErrorCode, NULL_TOPIC_ID,
-    create_topics_request::CreatableTopic, describe_topic_partitions_request::TopicRequest,
+    create_topics_request::{CreatableTopic, CreatableTopicConfig},
+    describe_topic_partitions_request::TopicRequest,
 };
 use jansu_storage::{CreateTopicsService, DescribeTopicPartitionsService, StorageContainer};
 use rama::{Context, Layer as _, Service as _, layer::MapStateLayer};
@@ -247,5 +248,52 @@ async fn duplicate() -> Result<(), Error> {
         ErrorCode::TopicAlreadyExists,
         ErrorCode::try_from(topics[0].error_code)?
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn reject_unknown_topic_config() -> Result<(), Error> {
+    let _guard = init_tracing()?;
+
+    let storage = StorageContainer::builder()
+        .cluster_id("jansu")
+        .node_id(12321)
+        .advertised_listener(Url::parse("tcp://localhost:9092")?)
+        .storage(Url::parse("memory://jansu/")?)
+        .build()
+        .await?;
+
+    let service = MapStateLayer::new(|_| storage).into_layer(CreateTopicsService);
+
+    let response = service
+        .serve(
+            Context::default(),
+            CreateTopicsRequest::default()
+                .topics(Some(vec![
+                    CreatableTopic::default()
+                        .name("pqr".into())
+                        .num_partitions(5)
+                        .replication_factor(3)
+                        .assignments(Some([].into()))
+                        .configs(Some(
+                            [CreatableTopicConfig::default()
+                                .name("x.y.z".into())
+                                .value(Some("abc".into()))]
+                            .into(),
+                        )),
+                ]))
+                .validate_only(Some(false)),
+        )
+        .await?;
+
+    let topics = response.topics.unwrap_or_default();
+    assert_eq!(1, topics.len());
+    assert_eq!(Some(NULL_TOPIC_ID), topics[0].topic_id);
+    assert_eq!(
+        ErrorCode::InvalidRequest,
+        ErrorCode::try_from(topics[0].error_code)?
+    );
+    assert!(topics[0].topic_config_error_code.is_none());
+
     Ok(())
 }

@@ -107,15 +107,15 @@ impl<'de> Deserialize<'de> for TagField {
             {
                 debug!("seq={}", type_name_of_val(&seq));
 
-                let tag: u32 = seq
-                    .next_element::<UnsignedVarInt>()?
-                    .ok_or_else(|| serde::de::Error::custom("tag"))?
-                    .into();
+                let tag: u32 = match seq.next_element::<UnsignedVarInt>()? {
+                    Some(v) => v.into(),
+                    None => return Err(serde::de::Error::custom("tag")),
+                };
 
-                let length: usize = seq
-                    .next_element::<UnsignedVarInt>()?
-                    .ok_or_else(|| serde::de::Error::custom("length"))?
-                    .into();
+                let length: usize = match seq.next_element::<UnsignedVarInt>()? {
+                    Some(v) => v.into(),
+                    None => return Err(serde::de::Error::custom("length")),
+                };
 
                 if length > MAXIMUM_TAGGED_FIELDS {
                     return Err(serde::de::Error::custom(format!(
@@ -125,12 +125,13 @@ impl<'de> Deserialize<'de> for TagField {
 
                 (0..length)
                     .try_fold(Vec::with_capacity(length), |mut acc, _| {
-                        seq.next_element::<u8>()?
-                            .ok_or_else(|| serde::de::Error::custom("byte"))
-                            .map(|byte| {
+                        match seq.next_element::<u8>()? {
+                            Some(byte) => {
                                 acc.push(byte);
-                                acc
-                            })
+                                Ok(acc)
+                            }
+                            None => Err(serde::de::Error::custom("byte")),
+                        }
                     })
                     .inspect(|data| debug!(?tag, ?data))
                     .map(|data| TagField(tag, data))
@@ -168,17 +169,14 @@ impl TagBuffer {
     {
         debug!("tag={tag} T={}", type_name::<T>());
 
-        self.0
-            .iter()
-            .find(|TagField(found, _)| found == tag)
-            .map_or_else(
-                || Ok(None),
-                |TagField(_, encoded)| {
-                    let mut r = Cursor::new(encoded);
-                    let mut decoder = de::Decoder::new(&mut r);
-                    T::deserialize(&mut decoder).map(Some)
-                },
-            )
+        match self.0.iter().find(|TagField(found, _)| found == tag) {
+            None => Ok(None),
+            Some(TagField(_, encoded)) => {
+                let mut r = Cursor::new(encoded);
+                let mut decoder = de::Decoder::new(&mut r);
+                T::deserialize(&mut decoder).map(Some)
+            }
+        }
     }
 
     pub fn encode(tags: &[(u32, impl Serialize)]) -> Result<Self> {
@@ -274,7 +272,7 @@ impl<'de> Deserialize<'de> for TagBuffer {
 
                 let number_of_tagged_fields: usize = seq
                     .next_element::<UnsignedVarInt>()?
-                    .ok_or_else(|| serde::de::Error::custom("tag"))?
+                    .ok_or(serde::de::Error::custom("tag"))?
                     .into();
 
                 debug!(?number_of_tagged_fields);
@@ -287,13 +285,14 @@ impl<'de> Deserialize<'de> for TagBuffer {
 
                 (0..number_of_tagged_fields)
                     .try_fold(Vec::with_capacity(number_of_tagged_fields), |mut acc, _| {
-                        seq.next_element::<TagField>()?
-                            .ok_or_else(|| serde::de::Error::custom("tagged field"))
-                            .inspect(|tag| debug!(?tag))
-                            .map(|tag| {
+                        match seq.next_element::<TagField>()? {
+                            Some(tag) => {
+                                debug!(?tag);
                                 acc.push(tag);
-                                acc
-                            })
+                                Ok(acc)
+                            }
+                            None => Err(serde::de::Error::custom("tagged field")),
+                        }
                     })
                     .map(TagBuffer)
             }

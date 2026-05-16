@@ -59,7 +59,7 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or_default();
+/// let topics = response.topics.unwrap_or(Vec::new());
 ///
 /// assert_eq!(1, topics.len());
 /// assert_eq!(name, topics[0].name.as_str());
@@ -92,7 +92,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut topics = vec![];
 
-        for mut topic in req.topics.unwrap_or_default() {
+        for mut topic in req.topics.unwrap_or(Vec::new()) {
             let name = topic.name.clone();
 
             let num_partitions = Some(match topic.num_partitions {
@@ -113,7 +113,7 @@ where
 
             match ctx
                 .state()
-                .create_topic(topic, req.validate_only.unwrap_or_default())
+                .create_topic(topic, req.validate_only.unwrap_or(false))
                 .await
             {
                 Ok(topic_id) => {

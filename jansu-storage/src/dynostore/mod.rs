@@ -72,6 +72,7 @@ use url::Url;
 use uuid::Uuid;
 
 mod batch;
+mod delegate_compaction;
 mod describe;
 mod features;
 mod fetch;
@@ -136,6 +137,56 @@ impl OptiCon<Meta> {
 }
 
 impl Meta {
+    fn supports_topic_config(name: &str) -> bool {
+        matches!(
+            name,
+            "cleanup.policy"
+                | "compression.type"
+                | "delete.retention.ms"
+                | "file.delete.delay.ms"
+                | "flush.messages"
+                | "flush.ms"
+                | "index.interval.bytes"
+                | "max.compaction.lag.ms"
+                | "max.message.bytes"
+                | "message.downconversion.enable"
+                | "message.timestamp.difference.max.ms"
+                | "message.timestamp.type"
+                | "min.cleanable.dirty.ratio"
+                | "min.compaction.lag.ms"
+                | "min.insync.replicas"
+                | "retention.bytes"
+                | "retention.ms"
+                | "segment.bytes"
+                | "segment.index.bytes"
+                | "segment.jitter.ms"
+                | "segment.ms"
+                | "unclean.leader.election.enable"
+        )
+    }
+
+    fn validate_topic_configs(configs: Option<&[CreatableTopicConfig]>) -> Result<()> {
+        if let Some(configs) = configs {
+            for config in configs {
+                if !Self::supports_topic_config(config.name.as_str()) {
+                    return Err(Error::Api(ErrorCode::InvalidRequest));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_topic_config_changes(changes: &[AlterableConfig]) -> Result<()> {
+        for change in changes {
+            if !Self::supports_topic_config(change.name.as_str()) {
+                return Err(Error::Api(ErrorCode::InvalidRequest));
+            }
+        }
+
+        Ok(())
+    }
+
     fn record_leader_epoch_boundary(&mut self, topition: &Topition, epoch: i32, start_offset: i64) {
         let key = format!("{}:{}", topition.topic(), topition.partition());
         let history = self.leader_epoch_history.entry(key).or_default();
@@ -235,6 +286,8 @@ impl Meta {
 
     fn alter_topic(&mut self, topic: &str, changes: &[AlterableConfig]) -> Result<()> {
         if let Some(metadata) = self.topics.get_mut(topic) {
+            Self::validate_topic_config_changes(changes)?;
+
             let mut configuration = metadata
                 .topic
                 .configs
@@ -259,12 +312,12 @@ impl Meta {
                                 .get(change.name.as_str())
                                 .and_then(|v| v.as_deref())
                                 .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
-                                .unwrap_or_default();
-                            
+                                .unwrap_or(Vec::new());
+
                             if !list.contains(&new_val.as_str()) {
                                 list.push(new_val.as_str());
                             }
-                            
+
                             _ = configuration.insert(change.name.clone(), Some(list.join(",")));
                         }
                     }
@@ -274,7 +327,7 @@ impl Meta {
                                 .get(change.name.as_str())
                                 .and_then(|v| v.as_deref())
                                 .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
-                                .unwrap_or_default();
+                                .unwrap_or(Vec::new());
                                 
                             if list.is_empty() {
                                 _ = configuration.remove(change.name.as_str());

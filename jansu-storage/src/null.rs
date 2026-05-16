@@ -377,7 +377,7 @@ impl Storage for Engine {
         group_ids: Option<&[String]>,
     ) -> Result<Vec<DeletableGroupResult>> {
         Ok(group_ids
-            .unwrap_or_default()
+            .unwrap_or(&[])
             .iter()
             .map(|group_id| {
                 DeletableGroupResult::default()
@@ -394,7 +394,7 @@ impl Storage for Engine {
         _include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
         Ok(group_ids
-            .unwrap_or_default()
+            .unwrap_or(&[])
             .iter()
             .map(|name| NamedGroupDetail {
                 name: name.to_owned(),
@@ -433,7 +433,7 @@ impl Storage for Engine {
                 } else {
                     Err(UpdateError::Outdated {
                         current: Box::new(group.detail.clone()),
-                        version: group.version.clone().unwrap_or_default(),
+                        version: group.version.clone().unwrap_or(Version::default()),
                     })
                 }
             })

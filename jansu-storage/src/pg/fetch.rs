@@ -288,12 +288,12 @@ impl Postgres {
         let log_start = row
             .try_get::<_, Option<i64>>(0)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let high_watermark = row
             .try_get::<_, Option<i64>>(1)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let last_stable = row
             .try_get::<_, Option<i64>>(1)

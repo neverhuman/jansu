@@ -30,3 +30,19 @@ Append-only tracker for gaps surfaced by veox-native integration work.
 - Resolved: backend-specific end-of-log timestamp behavior for `libsql` and
   `slatedb` now matches the dynostore contract on the after-last timestamp
   case.
+- Resolved: `DescribeConfigs` now returns 22 Kafka-standard topic config
+  defaults (cleanup.policy, retention.ms, segment.bytes, max.message.bytes,
+  min.insync.replicas, compression.type, etc.) via centralized service-layer
+  defaults. All backends (dynostore, slatedb, libsql, pg) return identical
+  config sets.
+- Resolved: Synonym expansion now covers all 22 topic config keys with
+  proper broker-level alias names (e.g., segment.bytes → log.segment.bytes).
+- Resolved: Cross-backend DescribeConfigs parity — PG and limbo backends
+  now return full default config sets via the service layer, fixing the gap
+  where they previously returned empty configs for topics with no overrides.
+- Resolved: IncrementalAlterConfigs now accepts all 22 standard Kafka
+  topic config keys in DynoStore (stored but enforcement deferred).
+- Resolved: Non-existent topics now return `UnknownTopicOrPartition` in
+  DynoStore DescribeConfigs (was incorrectly returning `ErrorCode::None`).
+- Note: Items 1–6 above (embedding, veox, no-SQL profile) are Jansu-native
+  embedding features, not Kafka protocol parity gaps.

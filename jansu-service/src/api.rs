@@ -276,29 +276,32 @@ where
     }
 
     pub fn build(self) -> Result<FrameRouteService<State, E>, Error> {
-        let advertised_versions = self.advertised_versions.clone().unwrap_or_else(|| {
-            let requests = RootMessageMeta::messages().requests();
-            let mut advertised_versions = BTreeMap::new();
+        let advertised_versions = match self.advertised_versions.clone() {
+            Some(v) => v,
+            None => {
+                let requests = RootMessageMeta::messages().requests();
+                let mut advertised_versions = BTreeMap::new();
 
-            for api_key in self
-                .routes
-                .keys()
-                .copied()
-                .chain(std::iter::once(ApiVersionsRequest::KEY))
-            {
-                if let Some(meta) = requests.get(&api_key) {
-                    let _ = advertised_versions.insert(
-                        api_key,
-                        ApiVersionRange {
-                            min_version: meta.version.valid.start,
-                            max_version: meta.version.valid.end,
-                        },
-                    );
+                for api_key in self
+                    .routes
+                    .keys()
+                    .copied()
+                    .chain(std::iter::once(ApiVersionsRequest::KEY))
+                {
+                    if let Some(meta) = requests.get(&api_key) {
+                        let _ = advertised_versions.insert(
+                            api_key,
+                            ApiVersionRange {
+                                min_version: meta.version.valid.start,
+                                max_version: meta.version.valid.end,
+                            },
+                        );
+                    }
                 }
-            }
 
-            advertised_versions
-        });
+                advertised_versions
+            }
+        };
 
         self.with_route(
             ApiVersionsRequest::KEY,

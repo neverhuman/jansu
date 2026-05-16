@@ -105,7 +105,7 @@ impl Postgres {
 
         let c = self.connection().await.inspect_err(|err| error!(?err))?;
 
-        let topics = topics.unwrap_or_default();
+        let topics = topics.unwrap_or(&[]);
         let mut responses = Vec::with_capacity(topics.len());
 
         for topic in topics {

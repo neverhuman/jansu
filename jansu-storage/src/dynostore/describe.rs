@@ -222,34 +222,36 @@ impl DynoStore {
             ConfigResource::Topic => match self.topic_metadata(&TopicId::Name(name.into())).await {
                 Ok(Some(topic_metadata)) => {
                     let error_code = ErrorCode::None;
+                    let mut configs: Vec<DescribeConfigsResourceResult> = Vec::new();
+
+                    if let Some(topic_configs) = topic_metadata.topic.configs.as_ref() {
+                        for config in topic_configs {
+                            configs.push(
+                                DescribeConfigsResourceResult::default()
+                                    .name(config.name.clone())
+                                    .value(config.value.clone())
+                                    .read_only(false)
+                                    .is_default(None)
+                                    .config_source(Some(ConfigSource::DefaultConfig.into()))
+                                    .is_sensitive(false)
+                                    .synonyms(Some([].into()))
+                                    .config_type(Some(ConfigType::String.into()))
+                                    .documentation(Some("".into())),
+                            );
+                        }
+                    }
 
                     Ok(DescribeConfigsResult::default()
                         .error_code(error_code.into())
                         .error_message(Some(error_code.to_string()))
                         .resource_type(i8::from(resource))
                         .resource_name(name.into())
-                        .configs(topic_metadata.topic.configs.map(|configs| {
-                            configs
-                                .iter()
-                                .map(|config| {
-                                    DescribeConfigsResourceResult::default()
-                                        .name(config.name.clone())
-                                        .value(config.value.clone())
-                                        .read_only(false)
-                                        .is_default(None)
-                                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                                        .is_sensitive(false)
-                                        .synonyms(Some([].into()))
-                                        .config_type(Some(ConfigType::String.into()))
-                                        .documentation(Some("".into()))
-                                })
-                                .collect()
-                        })))
+                        .configs(Some(configs)))
                 }
 
                 Ok(None) => Ok(DescribeConfigsResult::default()
-                    .error_code(ErrorCode::None.into())
-                    .error_message(Some(ErrorCode::None.to_string()))
+                    .error_code(ErrorCode::UnknownTopicOrPartition.into())
+                    .error_message(Some(ErrorCode::UnknownTopicOrPartition.to_string()))
                     .resource_type(i8::from(resource))
                     .resource_name(name.into())
                     .configs(Some(vec![]))),
