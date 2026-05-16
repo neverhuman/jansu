@@ -120,10 +120,10 @@ where
 
         let mut set = JoinSet::new();
 
-        let mut interrupt_signal = signal(SignalKind::interrupt()).unwrap();
+        let mut interrupt_signal = signal(SignalKind::interrupt())?;
         debug!(?interrupt_signal);
 
-        let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
+        let mut terminate_signal = signal(SignalKind::terminate())?;
         debug!(?terminate_signal);
 
         let silent = self.silent;
@@ -134,7 +134,7 @@ where
             self.serve(started)
                 .await
                 .inspect_err(|err| error!(?err))
-                .unwrap();
+                .ok();
         });
 
         let kind = tokio::select! {
@@ -245,7 +245,7 @@ where
         let m = MultiProgress::new();
 
         let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {msg}")
-            .unwrap()
+            .expect("invariant: spinner template is valid")
             .tick_chars("⠁⠂⠄⡀⢀⠠⠐");
 
         let ls = if self.silent {

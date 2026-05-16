@@ -27,6 +27,9 @@ use super::leader_epoch::{
 };
 use crate::{Error, LeaderEpochRecord, Result, Storage, Topition};
 
+/// Intermediate accumulator type for per-topic response slots.
+type ResponseTopics = Vec<(String, Vec<(i32, Option<ListOffsetsPartitionResponse>)>)>;
+
 /// A [`Service`] using [`Storage`] as [`Context`] taking [`ListOffsetsRequest`] returning [`ListOffsetsResponse`].
 /// ```
 /// use rama::{Context, Layer as _, Service, layer::MapStateLayer};
@@ -146,10 +149,8 @@ where
         let topics = if let Some(request_topics) = req.topics {
             // Phase 1: Walk the request in order, validate each partition,
             // and build the response skeleton preserving request topology.
-            let mut response_topics: Vec<(
-                String,
-                Vec<(i32, Option<ListOffsetsPartitionResponse>)>,
-            )> = Vec::with_capacity(request_topics.len());
+            let mut response_topics: ResponseTopics =
+                Vec::with_capacity(request_topics.len());
 
             let mut pending = Vec::new();
             let mut histories: BTreeMap<Topition, Vec<LeaderEpochRecord>> = BTreeMap::new();

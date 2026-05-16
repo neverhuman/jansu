@@ -77,30 +77,29 @@ where
                         let current_epoch = current_leader_epoch(&history);
 
                         // Validate current_leader_epoch if present (fencing)
-                        if let Some(cle) = partition.current_leader_epoch {
-                            if cle != -1
-                                && let Some(current_epoch) = current_epoch
-                            {
-                                if cle < current_epoch.epoch {
-                                    partition_results.push(
-                                        EpochEndOffset::default()
-                                            .error_code(ErrorCode::FencedLeaderEpoch.into())
-                                            .partition(partition.partition)
-                                            .leader_epoch(Some(-1))
-                                            .end_offset(-1),
-                                    );
-                                    continue;
-                                }
-                                if cle > current_epoch.epoch {
-                                    partition_results.push(
-                                        EpochEndOffset::default()
-                                            .error_code(ErrorCode::UnknownLeaderEpoch.into())
-                                            .partition(partition.partition)
-                                            .leader_epoch(Some(-1))
-                                            .end_offset(-1),
-                                    );
-                                    continue;
-                                }
+                        if let Some(cle) = partition.current_leader_epoch
+                            && cle != -1
+                            && let Some(current_epoch) = current_epoch
+                        {
+                            if cle < current_epoch.epoch {
+                                partition_results.push(
+                                    EpochEndOffset::default()
+                                        .error_code(ErrorCode::FencedLeaderEpoch.into())
+                                        .partition(partition.partition)
+                                        .leader_epoch(Some(-1))
+                                        .end_offset(-1),
+                                );
+                                continue;
+                            }
+                            if cle > current_epoch.epoch {
+                                partition_results.push(
+                                    EpochEndOffset::default()
+                                        .error_code(ErrorCode::UnknownLeaderEpoch.into())
+                                        .partition(partition.partition)
+                                        .leader_epoch(Some(-1))
+                                        .end_offset(-1),
+                                );
+                                continue;
                             }
                         }
 

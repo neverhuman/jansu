@@ -2914,7 +2914,7 @@ impl Builder<i32, String, Url, Url> {
             let pb = ProgressBar::new(1);
             pb.set_style(
                 ProgressStyle::with_template("[{elapsed}] {bar:40.cyan/blue} {msg}")
-                    .unwrap()
+                    .expect("invariant: progress bar template is valid")
                     .progress_chars("##-"),
             );
 
