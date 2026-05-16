@@ -75,9 +75,9 @@ minimum:
 Reviewers must reject any pull request that introduces, or fails to remove,
 any of the following patterns inside a file in scope:
 
-- **Mutable action references.** Examples: `actions/checkout@v4`,
-  `actions/checkout@main`, `org/action@latest`. All references must use the
-  full 40-character commit SHA. The action's human-readable version may be
+- **Mutable action references.** Any `uses:` line that resolves to a branch
+  name, version tag, or other mutable ref is forbidden. All references must use
+  the full 40-character commit SHA. The action's human-readable version may be
   recorded in a trailing comment, for example
   `uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v6`.
 - **Secret echo.** Any direct or indirect dump of a secret variable. This

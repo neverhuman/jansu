@@ -241,20 +241,48 @@ impl Meta {
                 .iter()
                 .flat_map(|configs| configs.iter())
                 .fold(BTreeMap::new(), |mut acc, item| {
-                    _ = acc.insert(item.name.as_str(), item.value.as_deref());
+                    _ = acc.insert(item.name.clone(), item.value.clone());
                     acc
                 });
 
             for change in changes {
                 match OpType::try_from(change.config_operation)? {
                     OpType::Set => {
-                        _ = configuration.insert(change.name.as_str(), change.value.as_deref());
+                        _ = configuration.insert(change.name.clone(), change.value.clone());
                     }
                     OpType::Delete => {
                         _ = configuration.remove(change.name.as_str());
                     }
-                    OpType::Append => return Err(Error::FeatureUnsupported { backend: "dynostore", feature: "config append op".into() }),
-                    OpType::Subtract => return Err(Error::FeatureUnsupported { backend: "dynostore", feature: "config subtract op".into() }),
+                    OpType::Append => {
+                        if let Some(new_val) = &change.value {
+                            let mut list = configuration
+                                .get(change.name.as_str())
+                                .and_then(|v| v.as_deref())
+                                .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
+                                .unwrap_or_default();
+                            
+                            if !list.contains(&new_val.as_str()) {
+                                list.push(new_val.as_str());
+                            }
+                            
+                            _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                        }
+                    }
+                    OpType::Subtract => {
+                        if let Some(del_val) = &change.value {
+                            let list = configuration
+                                .get(change.name.as_str())
+                                .and_then(|v| v.as_deref())
+                                .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
+                                .unwrap_or_default();
+                                
+                            if list.is_empty() {
+                                _ = configuration.remove(change.name.as_str());
+                            } else {
+                                _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -267,8 +295,8 @@ impl Meta {
                         .fold(Vec::new(), |mut acc, (key, value)| {
                             acc.push(
                                 CreatableTopicConfig::default()
-                                    .name(key.to_owned())
-                                    .value(value.map(|value| value.to_owned())),
+                                    .name(key)
+                                    .value(value),
                             );
                             acc
                         }),

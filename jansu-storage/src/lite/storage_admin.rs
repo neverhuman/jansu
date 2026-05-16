@@ -375,8 +375,109 @@ impl Delegate {
                                 break;
                             }
                         }
-                        OpType::Append => return Err(Error::FeatureUnsupported { backend: "lite", feature: "config append op".into() }),
-                        OpType::Subtract => return Err(Error::FeatureUnsupported { backend: "lite", feature: "config subtract op".into() }),
+                        OpType::Append => {
+                            let c = self.connection().await?;
+                            let mut rows = c
+                                .query(
+                                    "topic_configuration_select.sql",
+                                    (
+                                        self.cluster.as_str(),
+                                        resource.resource_name.as_str(),
+                                        config.name.as_str(),
+                                    ),
+                                )
+                                .await?;
+                                
+                            let current_value = if let Some(row) = rows.next().await? {
+                                row.get_value(0)?.as_text().map(|s| s.to_string())
+                            } else {
+                                None
+                            };
+                            
+                            if let Some(new_val) = &config.value {
+                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+                                if !list.contains(&new_val.as_str()) {
+                                    list.push(new_val.as_str());
+                                }
+                                let new_str = list.join(",");
+
+                                if c.query(
+                                    "topic_configuration_upsert.sql",
+                                    (
+                                        self.cluster.as_str(),
+                                        resource.resource_name.as_str(),
+                                        config.name.as_str(),
+                                        Some(new_str.as_str()),
+                                    ),
+                                )
+                                .await
+                                .inspect_err(|err| error!(?err))
+                                .is_err()
+                                {
+                                    error_code = ErrorCode::UnknownServerError;
+                                    break;
+                                }
+                            }
+                        }
+                        OpType::Subtract => {
+                            let c = self.connection().await?;
+                            let mut rows = c
+                                .query(
+                                    "topic_configuration_select.sql",
+                                    (
+                                        self.cluster.as_str(),
+                                        resource.resource_name.as_str(),
+                                        config.name.as_str(),
+                                    ),
+                                )
+                                .await?;
+                                
+                            let current_value = if let Some(row) = rows.next().await? {
+                                row.get_value(0)?.as_text().map(|s| s.to_string())
+                            } else {
+                                None
+                            };
+
+                            if let Some(del_val) = &config.value {
+                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or_default();
+                                
+                                if list.is_empty() {
+                                    if c.query(
+                                        "topic_configuration_delete.sql",
+                                        (
+                                            self.cluster.as_str(),
+                                            resource.resource_name.as_str(),
+                                            config.name.as_str(),
+                                        ),
+                                    )
+                                    .await
+                                    .inspect_err(|err| error!(?err))
+                                    .is_err()
+                                    {
+                                        error_code = ErrorCode::UnknownServerError;
+                                        break;
+                                    }
+                                } else {
+                                    let new_str = list.join(",");
+                                    if c.query(
+                                        "topic_configuration_upsert.sql",
+                                        (
+                                            self.cluster.as_str(),
+                                            resource.resource_name.as_str(),
+                                            config.name.as_str(),
+                                            Some(new_str.as_str()),
+                                        ),
+                                    )
+                                    .await
+                                    .inspect_err(|err| error!(?err))
+                                    .is_err()
+                                    {
+                                        error_code = ErrorCode::UnknownServerError;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

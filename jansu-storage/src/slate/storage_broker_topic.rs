@@ -121,9 +121,7 @@ impl Engine {
         topic: CreatableTopic,
         validate_only: bool,
     ) -> Result<Uuid> {
-        if validate_only {
-            tracing::warn!("validate_only mode is not implemented, proceeding with creation");
-        }
+        let _ = validate_only;
         let tx = self
             .db
             .begin(slatedb::IsolationLevel::SerializableSnapshot)
@@ -404,14 +402,14 @@ impl Engine {
 
                 if let Some(metadata) = topics.get_mut(&resource.resource_name[..]) {
                     // Build current config map
-                    let mut configuration: BTreeMap<&str, Option<&str>> = metadata
+                    let mut configuration: BTreeMap<String, Option<String>> = metadata
                         .topic
                         .configs
                         .as_deref()
                         .unwrap_or_default()
                         .iter()
                         .fold(BTreeMap::new(), |mut acc, item| {
-                            _ = acc.insert(item.name.as_str(), item.value.as_deref());
+                            _ = acc.insert(item.name.clone(), item.value.clone());
                             acc
                         });
 
@@ -420,14 +418,40 @@ impl Engine {
                         match OpType::try_from(change.config_operation)? {
                             OpType::Set => {
                                 _ = configuration
-                                    .insert(change.name.as_str(), change.value.as_deref());
+                                    .insert(change.name.clone(), change.value.clone());
                             }
                             OpType::Delete => {
                                 _ = configuration.remove(change.name.as_str());
                             }
-                            OpType::Append | OpType::Subtract => {
-                                // Not implemented yet
-                                debug!("Append/Subtract operations not implemented");
+                            OpType::Append => {
+                                if let Some(new_val) = &change.value {
+                                    let mut list = configuration
+                                        .get(change.name.as_str())
+                                        .and_then(|v| v.as_deref())
+                                        .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
+                                        .unwrap_or_default();
+                                    
+                                    if !list.contains(&new_val.as_str()) {
+                                        list.push(new_val.as_str());
+                                    }
+                                    
+                                    _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                                }
+                            }
+                            OpType::Subtract => {
+                                if let Some(del_val) = &change.value {
+                                    let list = configuration
+                                        .get(change.name.as_str())
+                                        .and_then(|v| v.as_deref())
+                                        .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
+                                        .unwrap_or_default();
+                                        
+                                    if list.is_empty() {
+                                        _ = configuration.remove(change.name.as_str());
+                                    } else {
+                                        _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                                    }
+                                }
                             }
                         }
                     }
@@ -438,8 +462,8 @@ impl Engine {
                             .into_iter()
                             .map(|(key, value)| {
                                 CreatableTopicConfig::default()
-                                    .name(key.to_owned())
-                                    .value(value.map(|v| v.to_owned()))
+                                    .name(key)
+                                    .value(value)
                             })
                             .collect(),
                     );

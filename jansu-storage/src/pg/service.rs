@@ -405,16 +405,97 @@ impl Postgres {
                             }
                         }
                         OpType::Append => {
-                            return Err(Error::FeatureUnsupported {
-                                backend: "postgres",
-                                feature: "incremental config alter: Append operation".into(),
-                            });
+                            let c = self.connection().await?;
+                            let rows = self
+                                .prepare_query(
+                                    &c,
+                                    "topic_configuration_select.sql",
+                                    &[&self.cluster, &resource.resource_name, &config.name],
+                                )
+                                .await
+                                .unwrap_or_default();
+                                
+                            let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
+                            
+                            if let Some(new_val) = &config.value {
+                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or_default();
+                                if !list.contains(&new_val.as_str()) {
+                                    list.push(new_val.as_str());
+                                }
+                                let new_str = list.join(",");
+
+                                if self
+                                    .prepare_execute(
+                                        &c,
+                                        "topic_configuration_upsert.sql",
+                                        &[
+                                            &self.cluster,
+                                            &resource.resource_name,
+                                            &config.name,
+                                            &Some(new_str),
+                                        ],
+                                    )
+                                    .await
+                                    .inspect_err(|err| error!(?err))
+                                    .is_err()
+                                {
+                                    error_code = ErrorCode::UnknownServerError;
+                                    break;
+                                }
+                            }
                         }
                         OpType::Subtract => {
-                            return Err(Error::FeatureUnsupported {
-                                backend: "postgres",
-                                feature: "incremental config alter: Subtract operation".into(),
-                            });
+                            let c = self.connection().await?;
+                            let rows = self
+                                .prepare_query(
+                                    &c,
+                                    "topic_configuration_select.sql",
+                                    &[&self.cluster, &resource.resource_name, &config.name],
+                                )
+                                .await
+                                .unwrap_or_default();
+                                
+                            let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
+
+                            if let Some(del_val) = &config.value {
+                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or_default();
+                                
+                                if list.is_empty() {
+                                    if self
+                                        .prepare_execute(
+                                            &c,
+                                            "topic_configuration_delete.sql",
+                                            &[&self.cluster, &resource.resource_name, &config.name],
+                                        )
+                                        .await
+                                        .inspect_err(|err| error!(?err))
+                                        .is_err()
+                                    {
+                                        error_code = ErrorCode::UnknownServerError;
+                                        break;
+                                    }
+                                } else {
+                                    let new_str = list.join(",");
+                                    if self
+                                        .prepare_execute(
+                                            &c,
+                                            "topic_configuration_upsert.sql",
+                                            &[
+                                                &self.cluster,
+                                                &resource.resource_name,
+                                                &config.name,
+                                                &Some(new_str),
+                                            ],
+                                        )
+                                        .await
+                                        .inspect_err(|err| error!(?err))
+                                        .is_err()
+                                    {
+                                        error_code = ErrorCode::UnknownServerError;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

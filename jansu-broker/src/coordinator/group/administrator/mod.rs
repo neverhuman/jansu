@@ -753,22 +753,25 @@ where
             let now = SystemTime::now();
 
             let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers.remove(group_id).unwrap_or_else(|| {
-                    debug!(?iteration, ?group_id);
+                match wrappers.remove(group_id) {
+                    Some(existing) => existing,
+                    None => {
+                        debug!(?iteration, ?group_id);
 
-                    let inner = Inner {
-                        session_timeout_ms,
-                        rebalance_timeout_ms,
-                        members: Default::default(),
-                        generation_id: -1,
-                        state: Forming::default(),
-                        skip_assignment: Some(false),
-                        storage: self.storage.clone(),
-                        inception: SystemTime::now(),
-                    };
+                        let inner = Inner {
+                            session_timeout_ms,
+                            rebalance_timeout_ms,
+                            members: Default::default(),
+                            generation_id: -1,
+                            state: Forming::default(),
+                            skip_assignment: Some(false),
+                            storage: self.storage.clone(),
+                            inception: SystemTime::now(),
+                        };
 
-                    (Wrapper::Forming(inner), None)
-                })
+                        (Wrapper::Forming(inner), None)
+                    }
+                }
             })?;
 
             original = original.missed_heartbeat(group_id, now);
@@ -1162,7 +1165,7 @@ where
 
         let now = SystemTime::now();
         let wrapper = Wrapper::Forming(Inner::new(self.storage.clone()))
-            .missed_heartbeat(group_id.unwrap_or_default(), now);
+            .missed_heartbeat(group_id.unwrap_or(""), now);
         let (_wrapper, body) = wrapper
             .offset_fetch(now, group_id, topics, groups, require_stable)
             .await;

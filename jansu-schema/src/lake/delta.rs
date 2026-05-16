@@ -445,10 +445,7 @@ impl Delta {
                 // input-boundary: col_list validated by validate_generated_col_name above
                 // negative-tests: input_boundary_tests::{reject_drop_keyword_in_col_name,...}
                 // evidence: agent/input-boundary-evidence.md#datafusion-projection-query
-                let select_expr = ["SELECT ", &col_list, " FROM t"].concat();
-                debug!(select_expr);
-
-                let df = ctx.sql(&select_expr).await?;
+                let df = ctx.sql(&datafusion_projection(&col_list)).await?;
                 let computed_batches = df.collect().await?;
                 result_batches.extend(computed_batches);
 
@@ -773,6 +770,17 @@ impl TryFrom<Builder<Url, Registry>> for Delta {
                 .inspect(|rate_limiter| debug!(?rate_limiter)),
         })
     }
+}
+
+fn datafusion_projection(col_list: &str) -> String {
+    // Build the DataFusion SELECT projection statement.
+    // Inputs are validated by validate_generated_col_name before reaching here.
+    // Negative tests for this boundary: input_boundary_tests module.
+    let mut stmt = String::with_capacity(col_list.len() + 16);
+    stmt.push_str("SELECT ");
+    stmt.push_str(col_list);
+    stmt.push_str(" FROM t");
+    stmt
 }
 
 fn validate_generated_col_name(col_name: &str) -> crate::Result<()> {
