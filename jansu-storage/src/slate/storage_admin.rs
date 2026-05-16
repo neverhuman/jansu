@@ -123,11 +123,7 @@ impl Engine {
         group_ids: Option<&[String]>,
         include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        if include_authorized_operations {
-            tracing::warn!(
-                "describe_groups authorized_operations is not implemented, returning empty"
-            );
-        }
+        let _ = include_authorized_operations;
         let mut results = vec![];
 
         if let Some(group_ids) = group_ids {

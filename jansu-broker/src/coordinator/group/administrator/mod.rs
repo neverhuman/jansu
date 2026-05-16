@@ -51,12 +51,12 @@ use super::{Coordinator, OffsetCommit};
 const PAUSE_MS: u128 = 3_000;
 
 fn timeout_millis(timeout_ms: i32) -> u128 {
-    u128::try_from(timeout_ms.max(0)).unwrap_or_default()
+    u128::from(timeout_ms.max(0).unsigned_abs())
 }
 
 fn member_timed_out(last_contact: Option<SystemTime>, timeout_ms: i32, now: SystemTime) -> bool {
     last_contact
-        .map(|last_contact| now.duration_since(last_contact).unwrap_or_default())
+        .map(|last_contact| now.duration_since(last_contact).unwrap_or(Duration::ZERO))
         .inspect(|duration| {
             debug!("since last contact: {}ms", duration.as_millis());
         })

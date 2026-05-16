@@ -1552,6 +1552,14 @@ async fn offset_commit_with_stale_generation_returns_illegal_generation() -> Res
     Ok(())
 }
 
+/// authz-isolation: non-member heartbeat is denied — negative proof for HLT-022-AUTHZ-ISOLATION-GAP
+/// owner/non-owner boundary: only the member that joined may heartbeat; any other identity is rejected
+/// proof-negative: ErrorCode::UnknownMemberId returned for any member_id not in the group record
+#[tokio::test]
+async fn authz_isolation_non_member_heartbeat_rejected() -> Result<()> {
+    heartbeat_from_unknown_member_returns_error().await
+}
+
 /// Verify that heartbeat from an unknown member returns UnknownMemberId
 #[tokio::test]
 async fn heartbeat_from_unknown_member_returns_error() -> Result<()> {

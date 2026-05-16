@@ -436,8 +436,128 @@ pub(super) async fn txn_add_partitions(
             Ok(TxnAddPartitionsResponse::VersionZeroToThree(results))
         }
 
-        TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-            Err(Error::FeatureUnsupported { backend: "limbo", feature: "TxnAddPartitions v4+".into() })
+        TxnAddPartitionsRequest::VersionFourPlus { transactions } => {
+            debug!(?transactions);
+
+            let mut c = this.connection().await.inspect_err(|err| error!(?err))?;
+            let tx = c.transaction().await.inspect_err(|err| error!(?err))?;
+
+            let mut results = vec![];
+
+            for transaction in transactions {
+                let transaction_id = &transaction.transactional_id;
+                let producer_id = transaction.producer_id;
+                let producer_epoch = transaction.producer_epoch;
+                let verify_only = transaction.verify_only;
+
+                let mut topic_results = vec![];
+
+                for topic in transaction.topics.unwrap_or(vec![]) {
+                    let mut results_by_partition = vec![];
+
+                    for partition_index in topic.partitions.unwrap_or(vec![]) {
+                        if verify_only {
+                            let row = this
+                                .prepare_query_opt(
+                                    &tx,
+                                    &sql_lookup("txn_topition_select.sql")?,
+                                    (
+                                        this.cluster.as_str(),
+                                        producer_id,
+                                        producer_epoch,
+                                        topic.name.as_str(),
+                                        partition_index,
+                                    ),
+                                )
+                                .await?;
+
+                            if row.is_some() {
+                                results_by_partition.push(
+                                    AddPartitionsToTxnPartitionResult::default()
+                                        .partition_index(partition_index)
+                                        .partition_error_code(i16::from(ErrorCode::None)),
+                                );
+                            } else {
+                                results_by_partition.push(
+                                    AddPartitionsToTxnPartitionResult::default()
+                                        .partition_index(partition_index)
+                                        .partition_error_code(i16::from(ErrorCode::InvalidTxnState)),
+                                );
+                            }
+                        } else {
+                            _ = this
+                                .prepare_execute(
+                                    &tx,
+                                    &sql_lookup("txn_topition_insert.sql")?,
+                                    (
+                                        this.cluster.as_str(),
+                                        topic.name.as_str(),
+                                        partition_index,
+                                        transaction_id.as_str(),
+                                        producer_id,
+                                        producer_epoch,
+                                    ),
+                                )
+                                .await
+                                .inspect_err(|err| {
+                                    error!(
+                                        ?err,
+                                        cluster = this.cluster,
+                                        topic = topic.name,
+                                        partition_index,
+                                        transaction_id
+                                    )
+                                })?;
+
+                            results_by_partition.push(
+                                AddPartitionsToTxnPartitionResult::default()
+                                    .partition_index(partition_index)
+                                    .partition_error_code(i16::from(ErrorCode::None)),
+                            );
+                        }
+                    }
+
+                    topic_results.push(
+                        AddPartitionsToTxnTopicResult::default()
+                            .name(topic.name)
+                            .results_by_partition(Some(results_by_partition)),
+                    )
+                }
+
+                if !verify_only {
+                    _ = this
+                        .prepare_execute(
+                            &tx,
+                            &sql_lookup("txn_detail_update_started_at.sql")?,
+                            (
+                                this.cluster.as_str(),
+                                transaction_id.as_str(),
+                                producer_id,
+                                producer_epoch,
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| {
+                            error!(
+                                ?err,
+                                cluster = this.cluster,
+                                transaction_id,
+                                producer_id,
+                                producer_epoch,
+                            )
+                        })?;
+                }
+
+                results.push(
+                    AddPartitionsToTxnResult::default()
+                        .transactional_id(transaction_id.clone())
+                        .topic_results(Some(topic_results)),
+                );
+            }
+
+            tx.commit().await?;
+
+            Ok(TxnAddPartitionsResponse::VersionFourPlus(results))
         }
     }
 }

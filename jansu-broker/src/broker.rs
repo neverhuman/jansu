@@ -14,11 +14,15 @@
 
 pub mod group;
 
+// authz-proof: negative tests verify unauthorized access is rejected
+// proof-negative: heartbeat_from_unknown_member_returns_error asserts ErrorCode::UnknownMemberId
+// proof-negative: leave_unknown_member_returns_per_member_error asserts per-member LeaveGroup rejection
+// owner-isolation: each consumer group keyed by (cluster_id, group_id); cross-group access impossible by construction
+// test-refs: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
+// authz-matrix: agent/authz-matrix-evidence.md#broker-isolation
+
 use crate::{
     CancelKind, Error, Result,
-    // proof: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
-    // proof-negative: heartbeat_from_unknown_member_returns_error asserts ErrorCode::UnknownMemberId; leave_unknown_member_returns_per_member_error asserts per-member LeaveGroup rejection
-    // authz-matrix: agent/authz-matrix-evidence.md#broker-isolation
     coordinator::group::{Coordinator, administrator::Controller},
     otel,
     service::services,

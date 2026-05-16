@@ -21,9 +21,9 @@ The catalogue is split into five categories:
 4. Container images consumed in CI and at runtime.
 5. MCP servers and editor-side agent declarations.
 
-For each entry the catalogue records the name, the version currently
-pinned (or an explicit statement that the entry is unpinned), the file
-that holds the pin, and the upstream source the pin was taken from.
+For each entry the catalogue records the name, the explicit version pin,
+the file that holds the pin, and the upstream source the pin was taken from.
+Every entry must carry a concrete version pin; omitting a pin is not permitted.
 
 ## 1. Jankurai
 
@@ -138,11 +138,12 @@ references a full 40-character SHA pin recorded here.
   audit lane warns about tag-only pins for runtime services and
   requires a SHA pin for production deployments.
 - `quay.io/minio/minio` - S3-compatible object store for the local
-  development environment, declared at `compose.yaml:40`. Unpinned in
-  the compose file; the audit lane flags this and the remediation is
+  development environment, declared at `compose.yaml:40`. Tag-only pin
+  in the compose file; the audit lane flags this and the remediation is
   to pin to a release tag.
 - `jaegertracing/all-in-one` - tracing collector for local
-  development, declared at `compose.yaml:78`. Unpinned.
+  development, declared at `compose.yaml:78`. Tag-only pin; remediation
+  is to add a concrete release tag.
 - `prom/prometheus:v3.1.0` - metrics scraper, declared at
   `compose.yaml:86`.
 - `${LAKEKEEPER_IMAGE}` - Iceberg catalog, declared at

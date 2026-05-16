@@ -59,15 +59,12 @@ jobs:
       - run: df -h
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
-      - run: just ci
-      - run: sudo apt-get install -y libclang-dev libkrb5-dev
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
-      - run: cargo install cargo-nextest --version 0.9.135 --locked
-      - run: df -h
-      - run: just test
+      - name: Run CI test lane
+        run: bash ops/ci/test.sh
       - run: df -h
         if: always()
       - run: ls -l

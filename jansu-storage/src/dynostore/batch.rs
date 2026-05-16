@@ -367,8 +367,122 @@ impl DynoStore {
                     .await
             }
 
-            TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                Err(Error::FeatureUnsupported { backend: "dynostore", feature: "TxnAddPartitions v4+".into() })
+            TxnAddPartitionsRequest::VersionFourPlus { transactions } => {
+                use jansu_sans_io::add_partitions_to_txn_response::AddPartitionsToTxnResult;
+
+                self.meta
+                    .with_mut(&self.object_store, |meta| {
+                        let mut results = Vec::with_capacity(transactions.len());
+
+                        for txn_request in &transactions {
+                            let transaction_id = txn_request.transactional_id.clone();
+                            let producer_id = txn_request.producer_id;
+                            let producer_epoch = txn_request.producer_epoch;
+                            let verify_only = txn_request.verify_only;
+                            let topics = txn_request.topics.as_deref().unwrap_or(&[]);
+
+                            let make_topic_results = |error_code: ErrorCode| -> Vec<AddPartitionsToTxnTopicResult> {
+                                topics
+                                    .iter()
+                                    .map(|topic| {
+                                        AddPartitionsToTxnTopicResult::default()
+                                            .name(topic.name.clone())
+                                            .results_by_partition(Some(
+                                                topic
+                                                    .partitions
+                                                    .as_deref()
+                                                    .unwrap_or(&[])
+                                                    .iter()
+                                                    .map(|p| {
+                                                        AddPartitionsToTxnPartitionResult::default()
+                                                            .partition_index(*p)
+                                                            .partition_error_code(error_code.into())
+                                                    })
+                                                    .collect(),
+                                            ))
+                                    })
+                                    .collect()
+                            };
+
+                            let topic_results = if let Some(transaction) = meta.transactions.get_mut(&transaction_id) {
+                                if transaction.producer != producer_id {
+                                    make_topic_results(ErrorCode::UnknownProducerId)
+                                } else if let Some(mut current_epoch) = transaction.epochs.last_entry() {
+                                    if &producer_epoch != current_epoch.key() {
+                                        make_topic_results(ErrorCode::ProducerFenced)
+                                    } else {
+                                        let txn_detail = current_epoch.get_mut();
+
+                                        topics
+                                            .iter()
+                                            .map(|topic| {
+                                                let partition_results: Vec<_> = topic
+                                                    .partitions
+                                                    .as_deref()
+                                                    .unwrap_or(&[])
+                                                    .iter()
+                                                    .map(|p| {
+                                                        if verify_only {
+                                                            let found = txn_detail
+                                                                .produces
+                                                                .get(&topic.name)
+                                                                .is_some_and(|partitions| partitions.contains_key(p));
+                                                            
+                                                            AddPartitionsToTxnPartitionResult::default()
+                                                                .partition_index(*p)
+                                                                .partition_error_code(
+                                                                    if found { ErrorCode::None.into() } else { ErrorCode::InvalidTxnState.into() }
+                                                                )
+                                                        } else {
+                                                            _ = txn_detail
+                                                                .produces
+                                                                .entry(topic.name.clone())
+                                                                .or_default()
+                                                                .entry(*p)
+                                                                .or_default();
+                                                                
+                                                            AddPartitionsToTxnPartitionResult::default()
+                                                                .partition_index(*p)
+                                                                .partition_error_code(ErrorCode::None.into())
+                                                        }
+                                                    })
+                                                    .collect();
+
+                                                AddPartitionsToTxnTopicResult::default()
+                                                    .name(topic.name.clone())
+                                                    .results_by_partition(Some(partition_results))
+                                            })
+                                            .collect()
+                                    }
+                                } else {
+                                    make_topic_results(ErrorCode::ProducerFenced)
+                                }
+                            } else {
+                                make_topic_results(ErrorCode::TransactionalIdNotFound)
+                            };
+
+                            if !verify_only {
+                                if let Some(transaction) = meta.transactions.get_mut(&transaction_id) {
+                                    if let Some(mut current_epoch) = transaction.epochs.last_entry() {
+                                        if &producer_epoch == current_epoch.key() {
+                                            let txn_detail = current_epoch.get_mut();
+                                            txn_detail.started_at = Some(SystemTime::now());
+                                            txn_detail.state = Some(TxnState::Begin);
+                                        }
+                                    }
+                                }
+                            }
+
+                            results.push(
+                                AddPartitionsToTxnResult::default()
+                                    .transactional_id(transaction_id)
+                                    .topic_results(Some(topic_results)),
+                            );
+                        }
+
+                        Ok(TxnAddPartitionsResponse::VersionFourPlus(results))
+                    })
+                    .await
             }
         }
     }

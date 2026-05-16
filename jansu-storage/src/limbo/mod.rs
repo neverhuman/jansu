@@ -39,7 +39,7 @@ use jansu_sans_io::{
     BatchAttribute, ConfigResource, ConfigSource, ConfigType, ControlBatch, EndTransactionMarker,
     ErrorCode, IsolationLevel, NULL_TOPIC_ID, OpType, ScramMechanism,
     add_partitions_to_txn_response::{
-        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult,
+        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult, AddPartitionsToTxnResult,
     },
     create_topics_request::CreatableTopic,
     delete_groups_response::DeletableGroupResult,

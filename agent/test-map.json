@@ -332,6 +332,50 @@
     ".gitleaks.toml": {
         "command": "just fast",
         "purpose": "generic proof for gitleaks config"
+    },
+    ".gitignore": {
+        "command": "just fast",
+        "purpose": "generic proof for gitignore"
+    },
+    "CHANGELOG.md": {
+        "command": "just fast",
+        "purpose": "generic proof for changelog"
+    },
+    "FEATURE_GAPS.md": {
+        "command": "just fast",
+        "purpose": "generic proof for feature gaps doc"
+    },
+    "README.md": {
+        "command": "just fast",
+        "purpose": "generic proof for README"
+    },
+    "compose.yaml": {
+        "command": "just fast",
+        "purpose": "generic proof for docker compose config"
+    },
+    "data/": {
+        "command": "just fast",
+        "purpose": "generic proof for data directory"
+    },
+    "demo/": {
+        "command": "just fast",
+        "purpose": "generic proof for demo directory"
+    },
+    "duckdb-init.sql": {
+        "command": "just fast",
+        "purpose": "generic proof for duckdb init script"
+    },
+    "etc/certs/": {
+        "command": "just fast",
+        "purpose": "generic proof for certs directory"
+    },
+    "etc/data/": {
+        "command": "just fast",
+        "purpose": "generic proof for etc/data directory"
+    },
+    "ops/": {
+        "command": "just fast",
+        "purpose": "generic proof for ops scripts directory"
     }
   }
 }

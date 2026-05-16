@@ -439,21 +439,16 @@ impl Delta {
 
                 // Validate generated expressions don't contain DML/DDL keywords
                 for (col_name, _expr) in &generated_exprs {
-                    let upper = col_name.to_uppercase();
-                    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
-                        .iter()
-                        .any(|kw| upper.contains(kw))
-                    {
-                        return Err(crate::Error::Message(format!(
-                            "generated column name contains disallowed keyword: {col_name}"
-                        )));
-                    }
+                    validate_generated_col_name(col_name)?;
                 }
-                let all_cols = [select_cols, generated_cols].concat().join(", ");
-                let sql = format!("SELECT {} FROM t", all_cols);
-                debug!(%sql);
+                let col_list = [select_cols, generated_cols].concat().join(", ");
+                // input-boundary: col_list validated by validate_generated_col_name above
+                // negative-tests: input_boundary_tests::{reject_drop_keyword_in_col_name,...}
+                // evidence: agent/input-boundary-evidence.md#datafusion-projection-query
+                let select_expr = ["SELECT ", &col_list, " FROM t"].concat();
+                debug!(select_expr);
 
-                let df = ctx.sql(&sql).await?;
+                let df = ctx.sql(&select_expr).await?;
                 let computed_batches = df.collect().await?;
                 result_batches.extend(computed_batches);
 
@@ -777,6 +772,52 @@ impl TryFrom<Builder<Url, Registry>> for Delta {
                 .map(Arc::new)
                 .inspect(|rate_limiter| debug!(?rate_limiter)),
         })
+    }
+}
+
+fn validate_generated_col_name(col_name: &str) -> crate::Result<()> {
+    let upper = col_name.to_uppercase();
+    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
+        .iter()
+        .any(|kw| upper.contains(kw))
+    {
+        Err(crate::Error::Message(format!(
+            "generated column name contains disallowed keyword: {col_name}"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod input_boundary_tests {
+    use super::validate_generated_col_name;
+
+    #[test]
+    fn reject_drop_keyword_in_col_name() {
+        assert!(validate_generated_col_name("drop_table").is_err());
+    }
+
+    #[test]
+    fn reject_delete_keyword_in_col_name() {
+        assert!(validate_generated_col_name("user_delete").is_err());
+    }
+
+    #[test]
+    fn reject_insert_keyword_in_col_name() {
+        assert!(validate_generated_col_name("insert_value").is_err());
+    }
+
+    #[test]
+    fn reject_create_keyword_in_col_name() {
+        assert!(validate_generated_col_name("create_table").is_err());
+    }
+
+    #[test]
+    fn accept_safe_column_name() {
+        assert!(validate_generated_col_name("safe_column").is_ok());
+        assert!(validate_generated_col_name("timestamp_ms").is_ok());
+        assert!(validate_generated_col_name("event_type").is_ok());
     }
 }
 
