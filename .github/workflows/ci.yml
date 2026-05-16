@@ -382,6 +382,6 @@ jobs:
           path: jansu-${{matrix.target}}.tar.gz
           if-no-files-found: error
       - if: ${{matrix.enabled && github.ref_type == 'tag'}}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: jansu-${{matrix.target}}.tar.gz
