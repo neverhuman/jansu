@@ -85,17 +85,18 @@ safe_error_route!(
     req,
     AlterConfigsResponse,
     {
-        let responses = req
-            .resources
-            .unwrap_or_default()
-            .into_iter()
-            .map(|resource| {
-                _AlterConfigsResourceResponse::default()
-                    .resource_type(resource.resource_type)
-                    .resource_name(resource.resource_name)
-                    .error_code(unknown_server_error())
-            })
-            .collect();
+        let responses = match req.resources {
+            Some(resources) => resources
+                .into_iter()
+                .map(|resource| {
+                    _AlterConfigsResourceResponse::default()
+                        .resource_type(resource.resource_type)
+                        .resource_name(resource.resource_name)
+                        .error_code(unknown_server_error())
+                })
+                .collect(),
+            None => Vec::new(),
+        };
 
         AlterConfigsResponse::default()
             .throttle_time_ms(0)
@@ -109,29 +110,35 @@ safe_error_route!(
     req,
     AlterReplicaLogDirsResponse,
     {
-        let results = req
-            .dirs
-            .unwrap_or_default()
-            .into_iter()
-            .flat_map(|dir| {
-                dir.topics.unwrap_or_default().into_iter().map(|topic| {
-                    let partitions = topic
-                        .partitions
-                        .unwrap_or_default()
+        let results = match req.dirs {
+            Some(dirs) => dirs
+                .into_iter()
+                .flat_map(|dir| match dir.topics {
+                    Some(topics) => topics
                         .into_iter()
-                        .map(|partition_index| {
-                            _AlterReplicaLogDirPartitionResult::default()
-                                .partition_index(partition_index)
-                                .error_code(unknown_server_error())
-                        })
-                        .collect();
+                        .map(|topic| {
+                            let partitions = match topic.partitions {
+                                Some(partitions) => partitions
+                                    .into_iter()
+                                    .map(|partition_index| {
+                                        _AlterReplicaLogDirPartitionResult::default()
+                                            .partition_index(partition_index)
+                                            .error_code(unknown_server_error())
+                                    })
+                                    .collect(),
+                                None => Vec::new(),
+                            };
 
-                    _AlterReplicaLogDirTopicResult::default()
-                        .topic_name(topic.name)
-                        .partitions(Some(partitions))
+                            _AlterReplicaLogDirTopicResult::default()
+                                .topic_name(topic.name)
+                                .partitions(Some(partitions))
+                        })
+                        .collect::<Vec<_>>(),
+                    None => Vec::new(),
                 })
-            })
-            .collect();
+                .collect(),
+            None => Vec::new(),
+        };
 
         AlterReplicaLogDirsResponse::default()
             .throttle_time_ms(0)
@@ -145,17 +152,18 @@ safe_error_route!(
     req,
     CreatePartitionsResponse,
     {
-        let results = req
-            .topics
-            .unwrap_or_default()
-            .into_iter()
-            .map(|topic| {
-                _CreatePartitionsTopicResult::default()
-                    .name(topic.name)
-                    .error_code(unknown_server_error())
-                    .error_message(Some(unknown_server_error_message()))
-            })
-            .collect();
+        let results = match req.topics {
+            Some(topics) => topics
+                .into_iter()
+                .map(|topic| {
+                    _CreatePartitionsTopicResult::default()
+                        .name(topic.name)
+                        .error_code(unknown_server_error())
+                        .error_message(Some(unknown_server_error_message()))
+                })
+                .collect(),
+            None => Vec::new(),
+        };
 
         CreatePartitionsResponse::default()
             .throttle_time_ms(0)
@@ -178,8 +186,8 @@ safe_error_route!(
 safe_error_route!(delete_acls, DeleteAclsRequest, req, DeleteAclsResponse, {
     let filter_results = req
         .filters
-        .unwrap_or_default()
-        .into_iter()
+        .iter()
+        .flatten()
         .map(|_| {
             _DeleteAclsFilterResult::default()
                 .error_code(unknown_server_error())

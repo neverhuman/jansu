@@ -16,6 +16,8 @@ pub mod group;
 
 use crate::{
     CancelKind, Error, Result,
+    // proof: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
+    // authz-matrix: docs/security/authz-matrix.md#broker-isolation
     coordinator::group::{Coordinator, administrator::Controller},
     otel,
     service::services,
@@ -24,7 +26,10 @@ use console::Term;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use jansu_sans_io::{ErrorCode, RootMessageMeta};
 use jansu_schema::{Registry, lake::House};
-use jansu_storage::{ArcDynStorage, BrokerRegistrationRequest, Storage, StorageContainer};
+use jansu_storage::{
+    AdvertisedListenerStorage, ArcDynStorage, BrokerRegistrationRequest, Storage, StorageContainer,
+};
+use jansu_model::AgentException;
 use rama::{Context, Service};
 use rsasl::config::SASLConfig;
 use rustls::ServerConfig;
@@ -39,7 +44,7 @@ use std::{
 use tokio::{
     net::TcpListener,
     signal::unix::{SignalKind, signal},
-    task::JoinSet,
+    task::{JoinHandle, JoinSet},
     time::{self, Instant, sleep},
 };
 use tokio_rustls::TlsAcceptor;
@@ -64,6 +69,45 @@ pub struct Broker<G, S> {
     maintenance_interval: Option<Duration>,
 
     cancellation: CancellationToken,
+}
+
+#[derive(Debug)]
+pub struct BrokerHandle {
+    pub bootstrap: Url,
+    pub local_addr: SocketAddr,
+    cancellation: CancellationToken,
+    join: Option<JoinHandle<Result<ErrorCode>>>,
+}
+
+fn broker_agent_exception(
+    code: &'static str,
+    purpose: &'static str,
+    reason: impl Into<String>,
+    common_fixes: &'static [&'static str],
+    repair_hint: &'static str,
+) -> Error {
+    Error::from(jansu_model::Error::from(AgentException::new(
+        code,
+        purpose,
+        reason,
+        common_fixes,
+        "docs/exceptions/README.md",
+        repair_hint,
+    )))
+}
+
+impl BrokerHandle {
+    pub async fn join(mut self) -> Result<ErrorCode> {
+        let join = self.join.take().expect("broker handle join task missing");
+
+        Ok(join.await??)
+    }
+}
+
+impl Drop for BrokerHandle {
+    fn drop(&mut self) {
+        self.cancellation.cancel();
+    }
 }
 
 impl<G, S> Broker<G, S>
@@ -199,6 +243,29 @@ where
         self.listen(started).await
     }
 
+    pub async fn start(mut self, cancellation: CancellationToken) -> Result<BrokerHandle> {
+        self.cancellation = cancellation.clone();
+        self.register().await?;
+
+        let started = Instant::now();
+        let listener = self.bind_listener().await?;
+        let local_addr = listener.local_addr()?;
+        let bootstrap = self.bootstrap_url(local_addr)?;
+        let storage = AdvertisedListenerStorage::new(self.storage.clone(), bootstrap.clone());
+
+        let join = tokio::spawn(async move {
+            self.serve_listener(started, listener, storage).await?;
+            Ok(ErrorCode::None)
+        });
+
+        Ok(BrokerHandle {
+            bootstrap,
+            local_addr,
+            cancellation,
+            join: Some(join),
+        })
+    }
+
     pub async fn register(&mut self) -> Result<()> {
         self.storage
             .register_broker(BrokerRegistrationRequest {
@@ -211,31 +278,115 @@ where
             .map_err(Into::into)
     }
 
-    pub async fn listen(&self, started: Instant) -> Result<()> {
+    fn bootstrap_url(&self, local_addr: SocketAddr) -> Result<Url> {
+        let mut bootstrap = self.advertised_listener.clone();
+        let port = local_addr.port();
+        let host = local_addr.ip().to_string();
+
+        let set_port = |bootstrap: &mut Url| bootstrap.set_port(Some(port));
+        let set_host = |bootstrap: &mut Url| bootstrap.set_host(Some(&host));
+
+        match (bootstrap.port() == Some(0), bootstrap.host_str().is_none()) {
+            (true, true) => {
+                self.update_bootstrap_url(&mut bootstrap, "port", set_port)?;
+                self.update_bootstrap_url(&mut bootstrap, "host", set_host)?;
+            }
+            (true, false) => {
+                self.update_bootstrap_url(&mut bootstrap, "port", set_port)?;
+            }
+            (false, true) => {
+                self.update_bootstrap_url(&mut bootstrap, "host", set_host)?;
+            }
+            (false, false) => {}
+        }
+
+        Ok(bootstrap)
+    }
+
+    fn update_bootstrap_url<F, E>(&self, bootstrap: &mut Url, kind: &str, update: F) -> Result<()>
+    where
+        F: FnOnce(&mut Url) -> std::result::Result<(), E>,
+        E: std::fmt::Debug,
+    {
+        update(bootstrap).map_err(|err| {
+            Error::Custom(format!("unable to update bootstrap {kind} for {bootstrap}: {err:?}"))
+        })
+    }
+
+    async fn bind_listener(&self) -> Result<TcpListener> {
         debug!(%self.listener, %self.advertised_listener);
 
-        let listener = TcpListener::bind(self.listener.host().map_or_else(
-            || {
-                SocketAddr::from((
-                    IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-                    self.listener.port().unwrap_or(9092),
-                ))
-            },
-            |host| {
-                let port = self.listener.port().unwrap_or(9092);
+        let port = match self.listener.port() {
+            Some(port) => port,
+            None => {
+                return Err(broker_agent_exception(
+                    "BROKER_BIND_PORT_MISSING",
+                    "bind the broker listener",
+                    format!("listener URL requires an explicit port: {}", self.listener),
+                    &[
+                        "set an explicit tcp:// host:port listener URL",
+                        "prefer tcp://0.0.0.0:9092/ for the broker and keep the advertised URL separate",
+                    ],
+                    "fix the listener URL and rerun cargo test -p jansu-broker --lib --no-run",
+                ));
+            }
+        };
+
+        let addr = match self.listener.host() {
+            None => SocketAddr::from((IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)),
+            Some(host) => {
                 debug!(?host, port);
 
                 match host {
-                    url::Host::Domain(domain) => SocketAddr::from_str(&format!("{domain}:{port}"))
-                        .unwrap_or(SocketAddr::from((IpAddr::V6(Ipv6Addr::UNSPECIFIED), port))),
+                    url::Host::Domain(domain) => match SocketAddr::from_str(&format!("{domain}:{port}")) {
+                        Ok(addr) => addr,
+                        Err(err) => {
+                            return Err(broker_agent_exception(
+                                "BROKER_BIND_PARSE_FAIL",
+                                "bind the broker listener",
+                                format!("unable to parse listener address {domain}:{port}: {err}"),
+                                &[
+                                    "use an IP literal or a resolvable host name in the listener URL",
+                                    "avoid embedding the port in the host segment",
+                                ],
+                                "fix the listener URL and rerun cargo test -p jansu-broker --lib --no-run",
+                            ));
+                        }
+                    },
                     url::Host::Ipv4(ipv4_addr) => SocketAddr::from((IpAddr::V4(ipv4_addr), port)),
                     url::Host::Ipv6(ipv6_addr) => SocketAddr::from((IpAddr::V6(ipv6_addr), port)),
                 }
-            },
-        ))
+            }
+        };
+
+        Ok(TcpListener::bind(addr)
+            .await
+            .inspect_err(|err| error!(?err, %self.advertised_listener))?)
+    }
+
+    pub async fn listen(&self, started: Instant) -> Result<()> {
+        let listener = self.bind_listener().await?;
+        self.serve_listener(
+            started,
+            listener,
+            AdvertisedListenerStorage::new(
+                self.storage.clone(),
+                self.advertised_listener.clone(),
+            ),
+        )
         .await
-        .inspect(|listener| debug!(listener = ?listener.local_addr().ok()))
-        .inspect_err(|err| error!(?err, %self.advertised_listener))?;
+    }
+
+    async fn serve_listener<StorageT>(
+        &self,
+        _started: Instant,
+        listener: TcpListener,
+        storage: StorageT,
+    ) -> Result<()>
+    where
+        StorageT: Storage + Clone,
+    {
+        debug!(listener = ?listener.local_addr().ok());
 
         let mut interval =
             time::interval(self.maintenance_interval.unwrap_or(Duration::from_mins(10)));
@@ -251,8 +402,6 @@ where
         let ls = if self.silent {
             None
         } else {
-            println!("ready in {}ms", started.elapsed().as_millis(),);
-
             let ls = m.add(ProgressBar::new_spinner());
             ls.set_style(spinner_style.clone());
 
@@ -301,7 +450,7 @@ where
                         self.cluster_id.as_str(),
                         self.cancellation.clone(),
                         self.groups.clone(),
-                        self.storage.clone(),
+                        storage.clone(),
                         self.sasl_config.clone()
                     )?;
 
@@ -616,6 +765,7 @@ impl Builder<i32, String, Uuid, Url, Url, Url> {
             .await
             .map(|storage| Arc::new(storage) as ArcDynStorage)?;
 
+        // proof: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
         let groups = Controller::with_storage(storage.clone())?;
 
         let sasl_config = if self.authentication {
