@@ -46,7 +46,7 @@ where
                 // Re-authentication (KIP-368): a Java kafka-clients
                 // connection periodically issues another SaslHandshake
                 // on the same TCP socket. The previous handshake left
-                // the Stage in `Session`/`Finished`, so a stale
+                // the Stage in `Session`/`Finished`, so a prior
                 // `take()` would fall into the else branch and reject
                 // a perfectly valid mechanism with
                 // `UnsupportedSaslMechanism`. Always start with a

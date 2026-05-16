@@ -1075,12 +1075,12 @@ impl Serializer for &mut RecordBatchEncoder {
 
     #[instrument(skip(self))]
     fn serialize_char(self, v: char) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{v}")
+        unreachable!("char serialization is not used in Kafka record batch encoding: {v}")
     }
 
     #[instrument(skip(self))]
     fn serialize_str(self, v: &str) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{v}")
+        unreachable!("str serialization is not used in Kafka record batch encoding: {v}")
     }
 
     #[instrument(skip(self))]
@@ -1099,12 +1099,12 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!("{}", type_name_of_val(value))
+        unreachable!("serialize_some is not used in Kafka record batch encoding: {}", type_name_of_val(value))
     }
 
     #[instrument(skip_all)]
     fn serialize_unit(self) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        unreachable!("serialize_unit is not used in Kafka record batch encoding")
     }
 
     #[instrument(skip(self))]
@@ -1112,7 +1112,7 @@ impl Serializer for &mut RecordBatchEncoder {
         self,
         name: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        unreachable!("serialize_unit_struct is not used in Kafka record batch encoding")
     }
 
     #[instrument(skip(self))]
@@ -1122,7 +1122,7 @@ impl Serializer for &mut RecordBatchEncoder {
         variant_index: u32,
         variant: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{name}, {variant_index}, {variant}")
+        unreachable!("serialize_unit_variant is not used in Kafka record batch encoding: {name}, {variant_index}, {variant}")
     }
 
     #[instrument(skip_all, fields(name, value = type_name::<T>()))]
@@ -1134,7 +1134,7 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!("{}, {name}", type_name_of_val(value))
+        unreachable!("serialize_newtype_struct is not used in Kafka record batch encoding: {}, {name}", type_name_of_val(value))
     }
 
     #[instrument(skip_all, fields(name, variant_index, variant, value = type_name::<T>()))]
@@ -1148,8 +1148,8 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!(
-            "{}, {name}, {variant_index}, {variant}",
+        unreachable!(
+            "serialize_newtype_variant is not used in Kafka record batch encoding: {}, {name}, {variant_index}, {variant}",
             type_name_of_val(value)
         );
     }
@@ -1164,7 +1164,7 @@ impl Serializer for &mut RecordBatchEncoder {
 
     #[instrument(skip(self))]
     fn serialize_tuple(self, len: usize) -> std::result::Result<Self::SerializeTuple, Self::Error> {
-        unimplemented!("{len}")
+        unreachable!("serialize_tuple is not used in Kafka record batch encoding: {len}")
     }
 
     #[instrument(skip(self))]
@@ -1173,7 +1173,7 @@ impl Serializer for &mut RecordBatchEncoder {
         name: &'static str,
         len: usize,
     ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
-        unimplemented!("{name}, {len}")
+        unreachable!("serialize_tuple_struct is not used in Kafka record batch encoding: {name}, {len}")
     }
 
     #[instrument(skip(self))]
@@ -1184,7 +1184,7 @@ impl Serializer for &mut RecordBatchEncoder {
         variant: &'static str,
         len: usize,
     ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
-        unimplemented!("{name}, {variant_index}, {variant}, {len}")
+        unreachable!("serialize_tuple_variant is not used in Kafka record batch encoding: {name}, {variant_index}, {variant}, {len}")
     }
 
     #[instrument(skip(self))]
@@ -1192,7 +1192,7 @@ impl Serializer for &mut RecordBatchEncoder {
         self,
         len: Option<usize>,
     ) -> std::result::Result<Self::SerializeMap, Self::Error> {
-        unimplemented!("{len:?}")
+        unreachable!("serialize_map is not used in Kafka record batch encoding: {len:?}")
     }
 
     #[instrument(skip(self))]
@@ -1239,15 +1239,15 @@ impl SerializeTuple for &mut RecordBatchEncoder {
 
     type Error = Error;
 
-    fn serialize_element<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        unreachable!("serialize_element is not used in Kafka record batch encoding")
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unreachable!("SerializeTuple::end is not used in Kafka record batch encoding")
     }
 }
 
@@ -1256,15 +1256,15 @@ impl SerializeTupleVariant for &mut RecordBatchEncoder {
 
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        unreachable!("SerializeTupleVariant::serialize_field is not used in Kafka record batch encoding")
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unreachable!("SerializeTupleVariant::end is not used in Kafka record batch encoding")
     }
 }
 
@@ -1273,22 +1273,22 @@ impl SerializeMap for &mut RecordBatchEncoder {
 
     type Error = Error;
 
-    fn serialize_key<T>(&mut self, key: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_key<T>(&mut self, _key: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        unreachable!("SerializeMap::serialize_key is not used in Kafka record batch encoding")
     }
 
-    fn serialize_value<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_value<T>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        unreachable!("SerializeMap::serialize_value is not used in Kafka record batch encoding")
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unreachable!("SerializeMap::end is not used in Kafka record batch encoding")
     }
 }
 
@@ -1319,15 +1319,15 @@ impl SerializeTupleStruct for &mut RecordBatchEncoder {
 
     type Error = Error;
 
-    fn serialize_field<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _value: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        unreachable!("SerializeTupleStruct::serialize_field is not used in Kafka record batch encoding")
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        unreachable!("SerializeTupleStruct::end is not used in Kafka record batch encoding")
     }
 }
 

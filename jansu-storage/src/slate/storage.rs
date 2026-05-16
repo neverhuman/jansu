@@ -1733,7 +1733,7 @@ impl Storage for Engine {
                     .map(|(e, detail)| (*e, detail.state == Some(TxnState::Begin)))
                     .unwrap_or((0, false));
 
-                // If old epoch is in Begin state, we need to abort it
+                // If prior epoch is in Begin state, we need to abort it
                 if needs_abort && let Some(old_detail) = existing_txn.epochs.get_mut(&old_epoch) {
                     // Write abort markers for all partitions this transaction produced to
                     let topics = self.get_topics().await?;
@@ -1812,7 +1812,7 @@ impl Storage for Engine {
                         }
                     }
 
-                    // Mark old epoch as aborted
+                    // Mark prior epoch as aborted
                     old_detail.state = Some(TxnState::Aborted);
                 }
 
