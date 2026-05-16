@@ -158,9 +158,7 @@ use jansu_sans_io::{
     list_groups_response::ListedGroup,
     metadata_request::MetadataRequestTopic,
     metadata_response::{MetadataResponseBroker, MetadataResponseTopic},
-    offset_commit_request::OffsetCommitRequestPartition,
     record::deflated,
-    to_system_time, to_timestamp,
     txn_offset_commit_request::TxnOffsetCommitRequestTopic,
     txn_offset_commit_response::TxnOffsetCommitResponseTopic,
 };
@@ -231,154 +229,11 @@ pub use error::{Error, Result};
 mod topition;
 pub use topition::{LeaderEpochRecord, Topition, TopitionOffset};
 
-pub type ListOffsetRequest = ListOffset;
-
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ListOffsetResponse {
-    pub error_code: ErrorCode,
-    pub timestamp: Option<SystemTime>,
-    pub offset: Option<i64>,
-}
-
-impl Default for ListOffsetResponse {
-    fn default() -> Self {
-        Self {
-            error_code: ErrorCode::None,
-            timestamp: None,
-            offset: None,
-        }
-    }
-}
-
-impl ListOffsetResponse {
-    pub fn offset(&self) -> Option<i64> {
-        self.offset
-    }
-
-    pub fn timestamp(&self) -> Result<Option<i64>> {
-        self.timestamp.map_or(Ok(None), |system_time| {
-            to_timestamp(&system_time).map(Some).map_err(Into::into)
-        })
-    }
-
-    pub fn error_code(&self) -> ErrorCode {
-        self.error_code
-    }
-}
-
-/// Offset Commit Request
-///
-/// A structure representing an [`jansu_sans_io::OffsetCommitRequestPartition](OffsetCommitRequestPartition).
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct OffsetCommitRequest {
-    offset: i64,
-    leader_epoch: Option<i32>,
-    timestamp: Option<SystemTime>,
-    metadata: Option<String>,
-}
-
-impl OffsetCommitRequest {
-    pub fn offset(self, offset: i64) -> Self {
-        Self { offset, ..self }
-    }
-}
-
-pub(crate) const DEFAULT_OFFSET_RETENTION: Duration = Duration::from_secs(7 * 24 * 60 * 60);
-
-/// Committed offset record.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(default)]
-pub struct OffsetFetchRecord {
-    offset: i64,
-    leader_epoch: Option<i32>,
-    metadata: Option<String>,
-    commit_timestamp: Option<SystemTime>,
-    expires_at: Option<SystemTime>,
-}
-
-impl OffsetFetchRecord {
-    pub fn with_offset(self, offset: i64) -> Self {
-        Self { offset, ..self }
-    }
-
-    pub fn from_commit(
-        commit: &OffsetCommitRequest,
-        retention: Option<Duration>,
-        now: SystemTime,
-    ) -> Self {
-        let expires_at = retention
-            .or(Some(DEFAULT_OFFSET_RETENTION))
-            .and_then(|retention| now.checked_add(retention));
-
-        Self {
-            offset: commit.offset,
-            leader_epoch: commit.leader_epoch,
-            metadata: commit.metadata.clone(),
-            commit_timestamp: Some(commit.timestamp.unwrap_or(now)),
-            expires_at,
-        }
-    }
-
-    pub fn from_parts(
-        offset: i64,
-        leader_epoch: Option<i32>,
-        metadata: Option<String>,
-        commit_timestamp: Option<SystemTime>,
-        expires_at: Option<SystemTime>,
-    ) -> Self {
-        Self {
-            offset,
-            leader_epoch,
-            metadata,
-            commit_timestamp,
-            expires_at,
-        }
-    }
-
-    pub fn expired(&self, now: SystemTime) -> bool {
-        self.expires_at.is_some_and(|expires_at| now >= expires_at)
-    }
-
-    pub fn committed_offset(&self) -> i64 {
-        self.offset
-    }
-
-    pub fn leader_epoch(&self) -> Option<i32> {
-        self.leader_epoch
-    }
-
-    pub fn metadata(&self) -> Option<&str> {
-        self.metadata.as_deref()
-    }
-
-    pub fn commit_timestamp(&self) -> Option<SystemTime> {
-        self.commit_timestamp
-    }
-
-    pub fn expires_at(&self) -> Option<SystemTime> {
-        self.expires_at
-    }
-}
-
-impl TryFrom<&OffsetCommitRequestPartition> for OffsetCommitRequest {
-    type Error = Error;
-
-    fn try_from(value: &OffsetCommitRequestPartition) -> Result<Self, Self::Error> {
-        value
-            .commit_timestamp
-            .map_or(Ok(None), |commit_timestamp| {
-                to_system_time(commit_timestamp)
-                    .map(Some)
-                    .map_err(Into::into)
-            })
-            .map(|timestamp| Self {
-                offset: value.committed_offset,
-                leader_epoch: value.committed_leader_epoch,
-                timestamp,
-                metadata: value.committed_metadata.clone(),
-            })
-    }
-}
+mod offset;
+pub(crate) use offset::DEFAULT_OFFSET_RETENTION;
+pub use offset::{
+    ListOffsetRequest, ListOffsetResponse, OffsetCommitRequest, OffsetFetchRecord, OffsetStage,
+};
 
 /// Topic Id
 ///
@@ -514,32 +369,6 @@ impl MetadataResponse {
 
     pub fn topics(&self) -> &[MetadataResponseTopic] {
         self.topics.as_ref()
-    }
-}
-
-/// Offset Stage
-///
-/// An offset stage structure represents the `last_stable`, `high_watermark` and `log_start` offsets.
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
-pub struct OffsetStage {
-    last_stable: i64,
-    high_watermark: i64,
-    log_start: i64,
-}
-
-impl OffsetStage {
-    pub fn last_stable(&self) -> i64 {
-        self.last_stable
-    }
-
-    pub fn high_watermark(&self) -> i64 {
-        self.high_watermark
-    }
-
-    pub fn log_start(&self) -> i64 {
-        self.log_start
     }
 }
 
