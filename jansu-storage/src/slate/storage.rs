@@ -77,8 +77,8 @@ impl Storage for Engine {
     /// The Postgres engine needs to store broker records to be able to join on them,
     /// but for SlateDB this is unnecessary overhead.
     ///
-    /// Currently persists broker information to SlateDB under the `BROKERS` key,
-    /// but this could be removed in favor of a no-op implementation.
+    /// Persist broker information to SlateDB under the `BROKERS` key so the
+    /// storage engine keeps broker metadata consistent with the other backends.
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
         debug!(?broker_registration);
 
@@ -1208,11 +1208,19 @@ impl Storage for Engine {
                             offset: Some(offset),
                             timestamp: to_system_time(ts).ok(),
                         },
-                        // Match PostgreSQL behavior: return offset 0 when no match found
-                        None => ListOffsetResponse {
-                            error_code: ErrorCode::None,
-                            offset: Some(0),
-                            timestamp: None,
+                        None => match watermark.timestamps.as_ref().and_then(|ts| {
+                            ts.last_key_value().map(|(ts, off)| (*ts, *off))
+                        }) {
+                            Some((ts, off)) => ListOffsetResponse {
+                                error_code: ErrorCode::None,
+                                offset: Some(off + 1),
+                                timestamp: to_system_time(ts).ok(),
+                            },
+                            None => ListOffsetResponse {
+                                error_code: ErrorCode::None,
+                                offset: Some(0),
+                                timestamp: None,
+                            },
                         },
                     }
                 }

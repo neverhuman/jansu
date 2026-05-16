@@ -661,7 +661,12 @@ where
     Ok(())
 }
 
-pub async fn single_record<G>(cluster_id: impl Into<String>, broker_id: i32, sc: G) -> Result<()>
+pub async fn single_record<G>(
+    cluster_id: impl Into<String>,
+    broker_id: i32,
+    sc: G,
+    expected_after_last_offset: i64,
+) -> Result<()>
 where
     G: Storage + Clone,
 {
@@ -693,15 +698,20 @@ where
 
     let value = Bytes::copy_from_slice(alphanumeric_string(15).as_bytes());
 
-    let before = SystemTime::now();
-    debug!(before = to_timestamp(&before)?);
-    sleep(Duration::from_millis(500)).await;
-
     let batch = inflated::Batch::builder()
-        .record(Record::builder().value(value.clone().into()))
+        .base_timestamp(1_000)
+        .max_timestamp(1_000)
+        .record(
+            Record::builder()
+                .timestamp_delta(0)
+                .value(Some(value.clone().into())),
+        )
         .build()
         .and_then(TryInto::try_into)
         .inspect(|deflated| debug!(?deflated))?;
+
+    let before = to_system_time(500)?;
+    debug!(before = to_timestamp(&before)?);
 
     assert_eq!(
         0,
@@ -710,7 +720,7 @@ where
             .inspect(|offset| debug!(?offset))?
     );
 
-    let after = SystemTime::now();
+    let after = to_system_time(1_500)?;
     debug!(after = to_timestamp(&after)?);
 
     let offsets = [(topition.clone(), ListOffset::Latest)];
@@ -749,7 +759,8 @@ where
         .await?;
 
     assert_eq!(1, responses.len());
-    assert_eq!(Some(0), responses[0].1.offset);
+    assert_eq!(Some(expected_after_last_offset), responses[0].1.offset);
+    assert_eq!(Some(to_system_time(1_000)?), responses[0].1.timestamp);
 
     Ok(())
 }
@@ -1480,6 +1491,7 @@ mod pg {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }
@@ -1560,6 +1572,7 @@ mod in_memory {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }
@@ -1655,6 +1668,7 @@ mod lite {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }
@@ -1750,6 +1764,7 @@ mod slatedb {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }

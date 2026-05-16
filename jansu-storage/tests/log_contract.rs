@@ -31,7 +31,6 @@ use jansu_sans_io::{
 use jansu_storage::{
     ListOffsetResponse, Storage, StorageCertification, StorageEngine, StorageFeature, Topition,
 };
-use tokio::time::sleep;
 use url::Url;
 
 use crate::common::{Error, build_storage, create_topic, init_tracing, register_broker};
@@ -116,6 +115,30 @@ async fn produce_record(
         .map_err(Into::into)
 }
 
+async fn produce_record_at(
+    storage: &impl Storage,
+    topition: &Topition,
+    timestamp_ms: i64,
+    value: &'static [u8],
+) -> Result<i64, Error> {
+    let batch = inflated::Batch::builder()
+        .base_timestamp(timestamp_ms)
+        .max_timestamp(timestamp_ms)
+        .record(
+            Record::builder()
+                .timestamp_delta(0)
+                .value(Some(Bytes::from_static(value).into())),
+        )
+        .build()
+        .and_then(TryInto::try_into)
+        .map_err(Error::from)?;
+
+    storage
+        .produce(None, topition, batch)
+        .await
+        .map_err(Into::into)
+}
+
 async fn assert_empty_offsets(storage: &impl Storage, topic: &str) -> Result<(), Error> {
     for partition in 0..PARTITIONS {
         let topition = topition(topic, partition);
@@ -175,15 +198,32 @@ async fn assert_fetch_counts(storage: &impl Storage, topic: &str) -> Result<(), 
 
 async fn assert_timestamp_lookup(storage: &impl Storage, topic: &str) -> Result<(), Error> {
     let topition = topition(topic, 0);
-    let before = SystemTime::now();
+    let first = 1_000;
+    let second = 2_000;
+    let third = 3_000;
 
-    sleep(Duration::from_millis(25)).await;
-    let _ = produce_record(storage, &topition, b"one").await?;
+    let _ = produce_record_at(storage, &topition, first, b"one").await?;
+    let _ = produce_record_at(storage, &topition, second, b"two").await?;
+    let _ = produce_record_at(storage, &topition, third, b"three").await?;
 
+    let before = SystemTime::UNIX_EPOCH + Duration::from_millis(500);
     let response = list_offset(storage, &topition, ListOffset::Timestamp(before)).await?;
-
     assert_eq!(ErrorCode::None, response.error_code);
     assert_eq!(Some(0), response.offset);
+
+    let middle = SystemTime::UNIX_EPOCH + Duration::from_millis(1_500);
+    let response = list_offset(storage, &topition, ListOffset::Timestamp(middle)).await?;
+    assert_eq!(ErrorCode::None, response.error_code);
+    assert_eq!(Some(1), response.offset);
+
+    let after = SystemTime::UNIX_EPOCH + Duration::from_millis(3_500);
+    let response = list_offset(storage, &topition, ListOffset::Timestamp(after)).await?;
+    assert_eq!(ErrorCode::None, response.error_code);
+    assert_eq!(Some(3), response.offset);
+    assert_eq!(
+        Some(SystemTime::UNIX_EPOCH + Duration::from_millis(third as u64)),
+        response.timestamp
+    );
 
     Ok(())
 }
@@ -278,7 +318,7 @@ async fn fetch_reads_written_records() -> Result<(), Error> {
 }
 
 #[tokio::test]
-async fn timestamp_lookup_before_first_record_returns_first_offset() -> Result<(), Error> {
+async fn timestamp_lookup_returns_first_middle_and_end_offsets() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("timestamp-lookup");
@@ -304,6 +344,7 @@ async fn null_storage_reports_log_features_unsupported() -> Result<(), Error> {
         StorageFeature::ContiguousOffsets,
         StorageFeature::EmptyPartitionOffsets,
         StorageFeature::FetchVisibility,
+        StorageFeature::LeaderEpochHistory,
         StorageFeature::ListOffsetsEarliestLatest,
         StorageFeature::TimestampLookup,
         StorageFeature::LogStartOffset,

@@ -3482,18 +3482,46 @@ impl Storage for Delegate {
                     .await
                     .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition)),
 
-                ListOffset::Timestamp(timestamp) => c
-                    .query_opt(
-                        query,
-                        (
-                            self.cluster.as_str(),
-                            topition.topic(),
-                            topition.partition(),
-                            LiteTimestamp::from(timestamp),
-                        ),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err)),
+                ListOffset::Timestamp(timestamp) => {
+                    let row = c
+                        .query_opt(
+                            query,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                                LiteTimestamp::from(timestamp),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err))?;
+
+                    if row.is_some() {
+                        Ok(row)
+                    } else {
+                        let query = match isolation_level {
+                            IsolationLevel::ReadCommitted => {
+                                "list_latest_offset_committed.sql"
+                            }
+                            IsolationLevel::ReadUncommitted => {
+                                "list_latest_offset_uncommitted.sql"
+                            }
+                        };
+
+                        debug!(?query);
+
+                        c.query_opt(
+                            query,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))
+                    }
+                }
             }
             .inspect_err(|err| {
                 error!(?err, cluster = self.cluster, ?topition);
