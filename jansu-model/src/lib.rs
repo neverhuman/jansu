@@ -325,8 +325,8 @@ impl FromStr for VersionRange {
 pub struct Version {
     /// The valid version ranges of this Kafka message.
     pub valid: VersionRange,
-    /// The deprecated version range of this Kafka message.
-    pub deprecated: Option<VersionRange>,
+    /// The superseded version range of this Kafka message.
+    pub superseded: Option<VersionRange>,
     /// The range of versions where this message uses flexible encoding.
     pub flexible: VersionRange,
 }
@@ -346,8 +346,8 @@ impl Version {
     }
 
     #[must_use]
-    pub fn deprecated(&self) -> Option<VersionRange> {
-        self.deprecated
+    pub fn superseded(&self) -> Option<VersionRange> {
+        self.superseded
     }
 
     #[must_use]
@@ -364,7 +364,7 @@ impl<'a> TryFrom<&Wv<'a>> for Version {
 
         Ok(Self {
             valid: value.as_a("validVersions")?,
-            deprecated: value.as_option("deprecatedVersions")?,
+            superseded: value.as_option("deprecatedVersions")?,
             flexible: value.as_a("flexibleVersions")?,
         })
     }
@@ -944,7 +944,7 @@ fn as_str<'v>(value: &'v Value, name: &str) -> Result<&'v str> {
 
 #[cfg(test)]
 mod tests {
-    use std::{any::type_name_of_val, collections::HashMap};
+    use std::collections::HashMap;
 
     use serde_json::json;
 
@@ -1398,7 +1398,7 @@ mod tests {
                 name: String::from("CreateTopicsRequest"),
                 versions: Version {
                     valid: VersionRange::from_str("0-7")?,
-                    deprecated: Some(VersionRange::from_str("0-1")?),
+                    superseded: Some(VersionRange::from_str("0-1")?),
                     flexible: VersionRange::from_str("5+")?,
                 },
                 common_structs: Some(vec![CommonStruct {
@@ -1636,12 +1636,6 @@ mod tests {
 
             assert_eq!(2, tuple.elems.len());
 
-            println!(
-                "i: {}, ty: {}",
-                tuple.to_token_stream(),
-                type_name_of_val(&tuple)
-            );
-
             let Expr::Path(ref lhs) = tuple.elems[0] else {
                 return Err(Error::Message(String::from(
                     "lhs expecting a path expression",
@@ -1655,9 +1649,6 @@ mod tests {
             };
 
             _ = mappings.insert(lhs.clone(), tuple.elems[1].clone());
-
-            println!("lhs: {}", lhs.to_token_stream());
-            println!("rhs: {}", tuple.elems[1].to_token_stream());
         }
 
         let one = syn::parse_str::<Ident>("one")?;
@@ -1698,7 +1689,7 @@ mod tests {
         assert_eq!(
             Version {
                 valid: VersionRange { start: 0, end: 4 },
-                deprecated: Some(VersionRange { start: 0, end: 0 }),
+                superseded: Some(VersionRange { start: 0, end: 0 }),
                 flexible: VersionRange {
                     start: 3,
                     end: i16::MAX
@@ -1747,7 +1738,7 @@ mod tests {
         assert_eq!(
             Version {
                 valid: VersionRange { start: 0, end: 16 },
-                deprecated: None,
+                superseded: None,
                 flexible: VersionRange {
                     start: 12,
                     end: i16::MAX
