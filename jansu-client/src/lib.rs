@@ -308,7 +308,7 @@ impl Builder {
 
     /// Inquire with the broker supported api versions
     async fn bootstrap(&self) -> Result<BTreeMap<i16, i16>, Error> {
-        // Create a temporary pool to establish the API requests
+        // Create an interim pool to establish the API requests
         // and versions supported by the broker
         let versions = BTreeMap::from([(ApiVersionsRequest::KEY, 0)]);
 
