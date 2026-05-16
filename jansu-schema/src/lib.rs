@@ -97,6 +97,11 @@ pub enum Error {
 
     EvalAlt(#[from] Box<EvalAltResult>),
 
+    NotImplemented {
+        kind: &'static str,
+        detail: String,
+    },
+
     BuilderExhausted,
 
     ChronoParse(#[from] chrono::ParseError),

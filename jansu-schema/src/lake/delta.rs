@@ -942,7 +942,7 @@ mod tests {
 
             schema_registry.validate(topic, &record_batch).await?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1042,7 +1042,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1135,7 +1135,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1239,7 +1239,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1353,7 +1353,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1467,7 +1467,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1571,7 +1571,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1685,7 +1685,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1766,7 +1766,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -1913,7 +1913,7 @@ mod tests {
                 .base_timestamp(119_731_017_000)
                 .build()?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -2003,7 +2003,7 @@ mod tests {
 
             schema_registry.validate(topic, &record_batch_001).await?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -2281,7 +2281,7 @@ mod tests {
 
             schema_registry.validate(topic, &record_batch).await?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
@@ -2418,7 +2418,7 @@ mod tests {
 
             schema_registry.validate(topic, &record_batch).await?;
 
-            let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+            let temp_dir = tempdir().inspect(|scratch| debug!(?scratch))?;
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 

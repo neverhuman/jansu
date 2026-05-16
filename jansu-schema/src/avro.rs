@@ -538,7 +538,10 @@ impl AsKafkaRecord for Schema {
 
 impl Generator for Schema {
     fn generate(&self) -> Result<jansu_sans_io::record::Builder> {
-        todo!()
+        Err(Error::NotImplemented {
+            kind: "avro_generate",
+            detail: String::from("Generator::generate for Avro schemas is not yet implemented"),
+        })
     }
 }
 
@@ -566,7 +569,7 @@ fn json_value(value: Value) -> Result<JsonValue> {
 
         Value::String(inner) | Value::Enum(_, inner) => Ok(JsonValue::String(inner)),
 
-        Value::Fixed(_, _) => todo!(),
+        Value::Fixed(_, _) => return Err(anyhow::anyhow!("unsupported avro fixed value").into()),
 
         Value::Union(_, value) => json_value(*value),
 
@@ -590,23 +593,45 @@ fn json_value(value: Value) -> Result<JsonValue> {
             .map(Map::from_iter)
             .map(JsonValue::Object),
 
-        Value::Date(_) => todo!(),
+        Value::Date(_) => return Err(anyhow::anyhow!("unsupported avro date value").into()),
 
-        Value::Decimal(_decimal) => todo!(),
-        Value::BigDecimal(_big_decimal) => todo!(),
+        Value::Decimal(_decimal) => {
+            return Err(anyhow::anyhow!("unsupported avro decimal value").into());
+        }
+        Value::BigDecimal(_big_decimal) => {
+            return Err(anyhow::anyhow!("unsupported avro big decimal value").into());
+        }
 
-        Value::TimeMillis(_) => todo!(),
-        Value::TimeMicros(_) => todo!(),
+        Value::TimeMillis(_) => {
+            return Err(anyhow::anyhow!("unsupported avro time millis").into());
+        }
+        Value::TimeMicros(_) => {
+            return Err(anyhow::anyhow!("unsupported avro time micros").into());
+        }
 
-        Value::TimestampMillis(_) => todo!(),
-        Value::TimestampMicros(_) => todo!(),
-        Value::TimestampNanos(_) => todo!(),
+        Value::TimestampMillis(_) => {
+            return Err(anyhow::anyhow!("unsupported avro timestamp millis").into());
+        }
+        Value::TimestampMicros(_) => {
+            return Err(anyhow::anyhow!("unsupported avro timestamp micros").into());
+        }
+        Value::TimestampNanos(_) => {
+            return Err(anyhow::anyhow!("unsupported avro timestamp nanos").into());
+        }
 
-        Value::LocalTimestampMillis(_) => todo!(),
-        Value::LocalTimestampMicros(_) => todo!(),
-        Value::LocalTimestampNanos(_) => todo!(),
+        Value::LocalTimestampMillis(_) => {
+            return Err(anyhow::anyhow!("unsupported avro local timestamp millis").into());
+        }
+        Value::LocalTimestampMicros(_) => {
+            return Err(anyhow::anyhow!("unsupported avro local timestamp micros").into());
+        }
+        Value::LocalTimestampNanos(_) => {
+            return Err(anyhow::anyhow!("unsupported avro local timestamp nanos").into());
+        }
 
-        Value::Duration(_duration) => todo!(),
+        Value::Duration(_duration) => {
+            return Err(anyhow::anyhow!("unsupported avro duration").into());
+        }
 
         Value::Uuid(uuid) => json_value(Value::String(uuid.to_string())),
     }
