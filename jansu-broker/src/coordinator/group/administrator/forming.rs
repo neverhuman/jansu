@@ -137,15 +137,12 @@ where
                     topic
                         .partition_indexes
                         .as_ref()
-                        .map(|partition_indexes| {
-                            partition_indexes
-                                .iter()
-                                .map(|partition_index| {
-                                    Topition::new(topic.name.clone(), *partition_index)
-                                })
-                                .collect::<Vec<_>>()
+                        .into_iter()
+                        .flatten()
+                        .map(|partition_index| {
+                            Topition::new(topic.name.clone(), *partition_index)
                         })
-                        .unwrap_or_default()
+                        .collect::<Vec<_>>()
                 })
                 .collect();
 
@@ -207,15 +204,12 @@ where
                             topic
                                 .partition_indexes
                                 .as_ref()
-                                .map(|partition_indexes| {
-                                    partition_indexes
-                                        .iter()
-                                        .map(|partition_index| {
-                                            Topition::new(topic.name.clone(), *partition_index)
-                                        })
-                                        .collect::<Vec<_>>()
+                                .into_iter()
+                                .flatten()
+                                .map(|partition_index| {
+                                    Topition::new(topic.name.clone(), *partition_index)
                                 })
-                                .unwrap_or_default()
+                                .collect::<Vec<_>>()
                         })
                         .collect::<Vec<_>>()
                 }) {

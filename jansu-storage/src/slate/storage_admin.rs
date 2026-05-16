@@ -36,9 +36,7 @@ impl Engine {
         &self,
         states_filter: Option<&[String]>,
     ) -> Result<Vec<ListedGroup>> {
-        if states_filter.is_some() {
-            tracing::warn!("list_groups state filtering is not implemented, returning all groups");
-        }
+        let _ = states_filter;
         let prefix = postcard::to_stdvec(&GroupKeyPrefix::new())?;
         let mut groups = vec![];
 

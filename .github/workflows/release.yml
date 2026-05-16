@@ -45,20 +45,9 @@ jobs:
       - name: Install cargo-nextest
         run: cargo install cargo-nextest --locked
 
-      # ---------- Build ----------
-      - name: Build release binary
-        run: just release
-
-      - name: Build Docker image
-        run: just docker-build
-
-      # ---------- Test ----------
-      - name: Run test suite
-        run: just test
-
-      # ---------- Security ----------
-      - name: Run security lane
-        run: ./tools/security-lane.sh
+      # ---------- Build / Test / Security ----------
+      - name: Run release lane
+        run: bash ops/ci/release.sh
 
       # ---------- Publish (only on tag, not dry‑run) ----------
       - name: Log in to GitHub Container Registry (if not dry‑run)

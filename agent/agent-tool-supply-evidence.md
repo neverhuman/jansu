@@ -3,8 +3,8 @@
 This document is the pinned-version catalogue for every external tool,
 plugin, CLI, action, and managed agent that participates in the Jansu
 build, test, audit, release, or developer-experience flow. The audit
-lane (`security`) reads this file as the source of truth when it
-checks that nothing has slipped in unpinned.
+lane (`security`) reads this file as the source of truth and verifies
+that all entries carry explicit version pins.
 
 Review cadence: quarterly. The next scheduled review is recorded in
 `AUDIT.md`. Any unscheduled change to this catalogue (for example, a

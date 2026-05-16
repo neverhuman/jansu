@@ -19,15 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
-      - name: Install jankurai
-        run: cargo install jankurai --locked
-      - run: jankurai --version
-      - name: jankurai audit
-        run: jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md --sarif target/jankurai/jankurai.sarif --github-step-summary target/jankurai/summary.md --repair-queue-jsonl target/jankurai/repair-queue.jsonl
-      - name: DB doctor proof
-        run: just db-doctor
-      - name: Tool adoption evidence
-        run: just tool-adoption-evidence
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - name: Run jankurai audit lane
+        run: bash ops/ci/jankurai.sh
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360
         if: always()

@@ -140,11 +140,83 @@ pub(super) async fn create_topic(
 }
 
 pub(super) async fn delete_records(
-    _this: &Engine,
+    this: &Engine,
     topics: &[DeleteRecordsTopic],
 ) -> Result<Vec<DeleteRecordsTopicResult>> {
-    debug!(?topics);
-    Err(Error::FeatureUnsupported { backend: "limbo", feature: "delete_records".into() })
+    debug!(cluster = this.cluster, ?topics);
+
+    let mut connection = this.connection().await.inspect_err(|err| error!(?err))?;
+    let tx = connection.transaction().await?;
+
+    let mut results = vec![];
+
+    for topic in topics {
+        let mut partitions = vec![];
+
+        for partition in topic.partitions.as_ref().unwrap_or(&vec![]) {
+            let partition_index = partition.partition_index;
+            let offset = partition.offset;
+            let topic_name = topic.name.as_str();
+
+            let params = (this.cluster.as_str(), topic_name, partition_index);
+
+            // Validate if topition exists
+            let mut rows = tx.query(
+                &sql_lookup("topition_select.sql")?,
+                params,
+            ).await?;
+
+            if rows.next().await?.is_none() {
+                partitions.push(
+                    DeleteRecordsPartitionResult::default()
+                        .partition_index(partition_index)
+                        .low_watermark(-1)
+                        .error_code(i16::from(ErrorCode::UnknownTopicOrPartition)),
+                );
+                continue;
+            }
+
+            _ = this.prepare_execute(
+                &tx,
+                &sql_lookup("record_delete_by_offset.sql")?,
+                (this.cluster.as_str(), topic_name, partition_index, offset),
+            ).await.inspect_err(|err| error!(?err))?;
+
+            _ = this.prepare_execute(
+                &tx,
+                &sql_lookup("watermark_update_low.sql")?,
+                (this.cluster.as_str(), topic_name, partition_index, offset),
+            ).await.inspect_err(|err| error!(?err))?;
+
+            let mut rows = tx.query(
+                &sql_lookup("watermark_select_no_update.sql")?,
+                params,
+            ).await?;
+
+            let low_watermark = if let Some(row) = rows.next().await? {
+                row.get_value(0)?.as_integer().copied().unwrap_or(0)
+            } else {
+                0
+            };
+
+            partitions.push(
+                DeleteRecordsPartitionResult::default()
+                    .partition_index(partition_index)
+                    .low_watermark(low_watermark)
+                    .error_code(i16::from(ErrorCode::None)),
+            );
+        }
+
+        results.push(
+            DeleteRecordsTopicResult::default()
+                .name(topic.name.clone())
+                .partitions(Some(partitions)),
+        );
+    }
+
+    tx.commit().await?;
+
+    Ok(results)
 }
 
 pub(super) async fn delete_topic(this: &Engine, topic: &TopicId) -> Result<ErrorCode> {

@@ -44,7 +44,7 @@ use jansu_sans_io::{
     create_topics_request::CreatableTopic,
     delete_groups_response::DeletableGroupResult,
     delete_records_request::DeleteRecordsTopic,
-    delete_records_response::DeleteRecordsTopicResult,
+    delete_records_response::{DeleteRecordsTopicResult, DeleteRecordsPartitionResult},
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
     describe_topic_partitions_response::{
