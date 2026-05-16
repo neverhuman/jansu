@@ -24,15 +24,15 @@ use std::{
 };
 
 use crate::{
-    BrokerRegistrationRequest, ChannelRequestLayer, DEFAULT_OFFSET_RETENTION, Error, GroupDetail,
-    LeaderEpochRecord, ListOffsetResponse, MetadataResponse, NamedGroupDetail,
-    OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse, RequestChannelService,
-    RequestStorageService, Result, ScramCredential, Storage, TopicId, Topition,
+    BrokerRegistrationRequest, DEFAULT_OFFSET_RETENTION, Error, GroupDetail, LeaderEpochRecord,
+    ListOffsetResponse, MetadataResponse, NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord,
+    OffsetStage, ProducerIdResponse, Result, ScramCredential, Storage, TopicId, Topition,
     TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, TxnState,
-    UpdateError, Version, bounded_channel,
-    proxy::SemaphoreProxy,
-    sql::{Cache, default_hash, idempotent_sequence_check, remove_comments},
+    UpdateError, Version,
+    sql::{default_hash, idempotent_sequence_check},
 };
+#[cfg(test)]
+use crate::sql::remove_comments;
 use async_trait::async_trait;
 use bytes::Bytes;
 use deadpool::managed;
@@ -65,15 +65,13 @@ use jansu_schema::{
 };
 use libsql::{Row, ffi::SQLITE_CONSTRAINT_UNIQUE};
 use opentelemetry::KeyValue;
-use rama::{Context, Layer as _, Service as _};
 use rand::{rng, seq::SliceRandom as _};
-use regex::Regex;
-use tokio::{fs::rename, sync::Semaphore, task::JoinSet};
-use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, instrument, warn};
+use tokio::{fs::rename, sync::Semaphore};
+use tracing::{debug, error, instrument};
 use url::Url;
 use uuid::Uuid;
 
+#[cfg(test)]
 macro_rules! include_sql {
     ($e: expr) => {
         remove_comments(include_str!($e))
@@ -125,19 +123,19 @@ use connection::{ConnectionManager, Pool, PoolConnection, is_unique_constraint};
 ///
 #[derive(Clone, Debug)]
 pub(crate) struct Delegate {
-    cluster: String,
-    node: i32,
-    advertised_listener: Url,
-    pool: Pool,
+    pub(super) cluster: String,
+    pub(super) node: i32,
+    pub(super) advertised_listener: Url,
+    pub(super) pool: Pool,
 
-    schemas: Option<Registry>,
+    pub(super) schemas: Option<Registry>,
 
-    lake: Option<House>,
+    pub(super) lake: Option<House>,
 
-    vacuum_into: Option<PathBuf>,
+    pub(super) vacuum_into: Option<PathBuf>,
 
-    maintenance: Arc<Semaphore>,
-    compaction: CompactionMode,
+    pub(super) maintenance: Arc<Semaphore>,
+    pub(super) compaction: CompactionMode,
 }
 
 impl Delegate {
@@ -1045,369 +1043,14 @@ impl Delegate {
     }
 }
 
-#[derive(Clone, Default, Debug)]
-pub struct Builder<C, N, L, D> {
-    cluster: C,
-    node: N,
-    advertised_listener: L,
-    storage: D,
-    schemas: Option<Registry>,
-    lake: Option<House>,
-    cancellation: CancellationToken,
-}
-
-impl<C, N, L, D> Builder<C, N, L, D> {
-    pub(crate) fn cluster<T>(self, cluster: T) -> Builder<String, N, L, D>
-    where
-        T: Into<String>,
-    {
-        Builder {
-            cluster: cluster.into(),
-            node: self.node,
-            advertised_listener: self.advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn node(self, node: i32) -> Builder<C, i32, L, D> {
-        debug!(node);
-        Builder {
-            cluster: self.cluster,
-            node,
-            advertised_listener: self.advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn advertised_listener(self, advertised_listener: Url) -> Builder<C, N, Url, D> {
-        debug!(%advertised_listener);
-        Builder {
-            cluster: self.cluster,
-            node: self.node,
-            advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn storage(self, storage: Url) -> Builder<C, N, L, Url> {
-        debug!(%storage);
-        Builder {
-            cluster: self.cluster,
-            node: self.node,
-            advertised_listener: self.advertised_listener,
-            storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn schemas(self, schemas: Option<Registry>) -> Builder<C, N, L, D> {
-        Self { schemas, ..self }
-    }
-
-    pub(crate) fn lake(self, lake: Option<House>) -> Self {
-        Self { lake, ..self }
-    }
-
-    pub(crate) fn cancellation(self, cancellation: CancellationToken) -> Self {
-        Self {
-            cancellation,
-            ..self
-        }
-    }
-}
-
-static DDL: LazyLock<Cache> = LazyLock::new(|| {
-    let mapping = [
-        ("010-cluster.sql", include_sql!("../ddl/010-cluster.sql")),
-        (
-            "020-consumer-group.sql",
-            include_sql!("../ddl/020-consumer-group.sql"),
-        ),
-        ("020-producer.sql", include_sql!("../ddl/020-producer.sql")),
-        (
-            "020-scram-credential.sql",
-            include_sql!("../ddl/020-scram-credential.sql"),
-        ),
-        ("020-topic.sql", include_sql!("../ddl/020-topic.sql")),
-        (
-            "030-consumer-group-detail.sql",
-            include_sql!("../ddl/030-consumer-group-detail.sql"),
-        ),
-        (
-            "030-producer-epoch.sql",
-            include_sql!("../ddl/030-producer-epoch.sql"),
-        ),
-        (
-            "030-topic-configuration.sql",
-            include_sql!("../ddl/030-topic-configuration.sql"),
-        ),
-        ("030-topition.sql", include_sql!("../ddl/030-topition.sql")),
-        ("030-txn.sql", include_sql!("../ddl/030-txn.sql")),
-        (
-            "030-virtual-topic.sql",
-            include_sql!("../ddl/030-virtual-topic.sql"),
-        ),
-        (
-            "040-consumer-offset.sql",
-            include_sql!("../ddl/040-consumer-offset.sql"),
-        ),
-        ("040-header.sql", include_sql!("../ddl/040-header.sql")),
-        (
-            "040-producer-detail.sql",
-            include_sql!("../ddl/040-producer-detail.sql"),
-        ),
-        ("040-record.sql", include_sql!("../ddl/040-record.sql")),
-        (
-            "040-leader-epoch-history.sql",
-            include_sql!("../ddl/040-leader-epoch-history.sql"),
-        ),
-        ("040-txn-detail.sql", include_sql!("../ddl/040-txn-detail.sql")),
-        ("040-watermark.sql", include_sql!("../ddl/040-watermark.sql")),
-        (
-            "050-txn-offset-commit.sql",
-            include_sql!("../ddl/050-txn-offset-commit.sql"),
-        ),
-        (
-            "050-txn-topition.sql",
-            include_sql!("../ddl/050-txn-topition.sql"),
-        ),
-        (
-            "060-txn-offset-commit-tp.sql",
-            include_sql!("../ddl/060-txn-offset-commit-tp.sql"),
-        ),
-        (
-            "060-txn-produce-offset.sql",
-            include_sql!("../ddl/060-txn-produce-offset.sql"),
-        ),
-    ];
-
-    Cache::new(BTreeMap::from(mapping))
-});
-
-pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
-    Cache::new(
-        crate::sql::SQL
-            .iter()
-            .map(|(name, sql)| fix_parameters(sql).map(|sql| (*name, sql)))
-            .collect::<Result<BTreeMap<_, _>>>()
-            .unwrap_or_default(),
-    )
-});
-
-fn fix_parameters(sql: &str) -> Result<String> {
-    Regex::new(r"\$(?<i>\d+)")
-        .map(|re| re.replace_all(sql, "?$i").into_owned())
-        .map_err(Into::into)
-}
-
+mod builder;
 mod engine;
 
+pub(crate) use builder::{Builder, CompactionMode, SQL};
 pub(crate) use engine::Engine;
 
-
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum CompactionMode {
-    Single,
-    #[default]
-    Multi,
-}
-
-impl FromStr for CompactionMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        match s {
-            "single" => Ok(Self::Single),
-            "multi" => Ok(Self::Multi),
-            otherwise => Err(Error::Message(otherwise.to_owned())),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum CommunicationMode {
-    Mpsc,
-    Direct,
-    #[default]
-    Semaphore,
-}
-
-impl FromStr for CommunicationMode {
-    type Err = Error;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        match s {
-            "direct" => Ok(Self::Direct),
-            "mpsc" => Ok(Self::Mpsc),
-            "semaphore" => Ok(Self::Semaphore),
-            otherwise => Err(Error::Message(otherwise.to_owned())),
-        }
-    }
-}
-
-impl Builder<String, i32, Url, Url> {
-    pub(crate) async fn build(self) -> Result<Arc<Box<dyn Storage>>> {
-        debug!(domain = self.storage.domain(), path = self.storage.path());
-
-        let mut path = env::current_dir().inspect(|current_dir| debug!(?current_dir))?;
-
-        if let Some(domain) = self.storage.domain() {
-            path.push(domain);
-        }
-
-        if let Some(relative) = self.storage.path().strip_prefix("/") {
-            path.push(relative);
-        } else {
-            path.push(self.storage.path());
-        }
-
-        debug!(?path);
-
-        let vacuum_into = self.storage.query_pairs().find_map(|(k, v)| {
-            if k == "vacuum_into" {
-                Some(PathBuf::from(v.as_ref()))
-            } else {
-                None
-            }
-        });
-
-        let busy_timeout = self
-            .storage
-            .query_pairs()
-            .find_map(|(k, v)| {
-                if k == "busy_timeout" {
-                    human_units::Duration::from_str(v.as_ref())
-                        .map(|duration| duration.0)
-                        .inspect_err(|err| warn!(storage = %self.storage, v = v.as_ref(), ?err))
-                        .ok()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Duration::from_secs(5));
-
-        let compaction = self
-            .storage
-            .query_pairs()
-            .find_map(|(k, v)| {
-                if k == "compaction" {
-                    CompactionMode::from_str(v.as_ref()).ok()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default();
-
-        let db = libsql::Builder::new_local(path).build().await?;
-
-        {
-            let connection = db.connect()?;
-
-            for (name, ddl) in DDL.iter() {
-                _ = connection
-                    .execute(ddl.as_str(), ())
-                    .await
-                    .inspect(|rows| debug!(name, rows))
-                    .inspect_err(|err| error!(name, ?err));
-            }
-        }
-
-        match self
-            .storage
-            .query_pairs()
-            .find_map(|(k, v)| {
-                if k == "mode" {
-                    CommunicationMode::from_str(v.as_ref()).ok()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_default()
-        {
-            CommunicationMode::Mpsc => {
-                let (sender, receiver) = bounded_channel(1);
-                let mut server = JoinSet::new();
-
-                let _ = {
-                    let cancellation = self.cancellation.clone();
-
-                    let storage = Delegate {
-                        cluster: self.cluster,
-                        node: self.node,
-                        advertised_listener: self.advertised_listener,
-                        pool: Pool::builder(ConnectionManager {
-                            db: Arc::new(Mutex::new(db)),
-                            busy_timeout,
-                        })
-                        .build()?,
-                        schemas: self.schemas,
-                        lake: self.lake,
-                        vacuum_into,
-                        maintenance: Arc::new(Semaphore::new(1)),
-                        compaction,
-                    };
-
-                    server.spawn(async move {
-                        let server = ChannelRequestLayer::new(cancellation)
-                            .into_layer(RequestStorageService::new(storage));
-
-                        server.serve(Context::default(), receiver).await
-                    })
-                };
-
-                let inner = RequestChannelService::new(sender);
-
-                Ok(Arc::new(Box::new(Engine {
-                    server: Arc::new(server),
-                    inner,
-                }) as Box<dyn Storage>))
-            }
-
-            CommunicationMode::Direct => Ok(Arc::new(Box::new(Delegate {
-                cluster: self.cluster,
-                node: self.node,
-                advertised_listener: self.advertised_listener,
-                pool: Pool::builder(ConnectionManager {
-                    db: Arc::new(Mutex::new(db)),
-                    busy_timeout,
-                })
-                .build()?,
-                schemas: self.schemas,
-                lake: self.lake,
-                vacuum_into,
-                maintenance: Arc::new(Semaphore::new(1)),
-                compaction,
-            }) as Box<dyn Storage>)),
-
-            CommunicationMode::Semaphore => Ok(Arc::new(Box::new(SemaphoreProxy::new(Delegate {
-                cluster: self.cluster,
-                node: self.node,
-                advertised_listener: self.advertised_listener,
-                pool: Pool::builder(ConnectionManager {
-                    db: Arc::new(Mutex::new(db)),
-                    busy_timeout,
-                })
-                .build()?,
-                schemas: self.schemas,
-                lake: self.lake,
-                vacuum_into,
-                maintenance: Arc::new(Semaphore::new(1)),
-                compaction,
-            })) as Box<dyn Storage>)),
-        }
-    }
-}
+#[cfg(test)]
+use builder::fix_parameters;
 
 fn unique_constraint(error_code: ErrorCode) -> impl Fn(libsql::Error) -> Error {
     move |err| {
@@ -2510,18 +2153,46 @@ impl Storage for Delegate {
                     .await
                     .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition)),
 
-                ListOffset::Timestamp(timestamp) => c
-                    .query_opt(
-                        query,
-                        (
-                            self.cluster.as_str(),
-                            topition.topic(),
-                            topition.partition(),
-                            LiteTimestamp::from(timestamp),
-                        ),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err)),
+                ListOffset::Timestamp(timestamp) => {
+                    let row = c
+                        .query_opt(
+                            query,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                                LiteTimestamp::from(timestamp),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err))?;
+
+                    if row.is_some() {
+                        Ok(row)
+                    } else {
+                        let query = match isolation_level {
+                            IsolationLevel::ReadCommitted => {
+                                "list_latest_offset_committed.sql"
+                            }
+                            IsolationLevel::ReadUncommitted => {
+                                "list_latest_offset_uncommitted.sql"
+                            }
+                        };
+
+                        debug!(?query);
+
+                        c.query_opt(
+                            query,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))
+                    }
+                }
             }
             .inspect_err(|err| {
                 error!(?err, cluster = self.cluster, ?topition);
