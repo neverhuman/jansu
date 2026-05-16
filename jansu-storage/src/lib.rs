@@ -135,7 +135,7 @@ use opentelemetry_semantic_conventions::SCHEMA_URL;
 use pg::Postgres;
 
 use jansu_sans_io::{
-    ConfigResource, ErrorCode, IsolationLevel, ListOffset, NULL_TOPIC_ID, ScramMechanism,
+    ConfigResource, ErrorCode, IsolationLevel, ListOffset, ScramMechanism,
     add_partitions_to_txn_request::{
         AddPartitionsToTxnRequest, AddPartitionsToTxnTopic, AddPartitionsToTxnTransaction,
     },
@@ -145,19 +145,14 @@ use jansu_sans_io::{
     delete_groups_response::DeletableGroupResult,
     delete_records_request::DeleteRecordsTopic,
     delete_records_response::DeleteRecordsTopicResult,
-    delete_topics_request::DeleteTopicState,
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::DescribeConfigsResult,
     describe_groups_response,
-    describe_topic_partitions_request::TopicRequest,
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
-    fetch_request::FetchTopic,
     incremental_alter_configs_request::AlterConfigsResource,
     incremental_alter_configs_response::AlterConfigsResourceResponse,
     join_group_response::JoinGroupResponseMember,
     list_groups_response::ListedGroup,
-    metadata_request::MetadataRequestTopic,
-    metadata_response::{MetadataResponseBroker, MetadataResponseTopic},
     record::deflated,
     txn_offset_commit_request::TxnOffsetCommitRequestTopic,
     txn_offset_commit_response::TxnOffsetCommitResponseTopic,
@@ -235,142 +230,11 @@ pub use offset::{
     ListOffsetRequest, ListOffsetResponse, OffsetCommitRequest, OffsetFetchRecord, OffsetStage,
 };
 
-/// Topic Id
-///
-/// An enumeration of either the name or UUID of a topic.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub enum TopicId {
-    Name(String),
-    Id(Uuid),
-}
+mod topic;
+pub use topic::{BrokerRegistrationRequest, MetadataResponse, TopicId};
 
-impl FromStr for TopicId {
-    type Err = Error;
-
-    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
-        Ok(Self::Name(s.into()))
-    }
-}
-
-impl From<&str> for TopicId {
-    fn from(value: &str) -> Self {
-        Self::Name(value.to_owned())
-    }
-}
-
-impl From<String> for TopicId {
-    fn from(value: String) -> Self {
-        Self::Name(value)
-    }
-}
-
-impl From<Uuid> for TopicId {
-    fn from(value: Uuid) -> Self {
-        Self::Id(value)
-    }
-}
-
-impl From<[u8; 16]> for TopicId {
-    fn from(value: [u8; 16]) -> Self {
-        Self::Id(Uuid::from_bytes(value))
-    }
-}
-
-impl From<&TopicId> for [u8; 16] {
-    fn from(value: &TopicId) -> Self {
-        match value {
-            TopicId::Id(id) => id.into_bytes(),
-            TopicId::Name(_) => NULL_TOPIC_ID,
-        }
-    }
-}
-
-impl From<&FetchTopic> for TopicId {
-    fn from(value: &FetchTopic) -> Self {
-        if let Some(ref name) = value.topic {
-            Self::Name(name.into())
-        } else if let Some(ref id) = value.topic_id {
-            Self::Id(Uuid::from_bytes(*id))
-        } else {
-            panic!("neither name nor uuid")
-        }
-    }
-}
-
-impl From<&MetadataRequestTopic> for TopicId {
-    fn from(value: &MetadataRequestTopic) -> Self {
-        if let Some(ref name) = value.name {
-            Self::Name(name.into())
-        } else if let Some(ref id) = value.topic_id {
-            Self::Id(Uuid::from_bytes(*id))
-        } else {
-            panic!("neither name nor uuid")
-        }
-    }
-}
-
-impl From<DeleteTopicState> for TopicId {
-    fn from(value: DeleteTopicState) -> Self {
-        match value {
-            DeleteTopicState {
-                name: Some(name),
-                topic_id,
-                ..
-            } if topic_id == NULL_TOPIC_ID => name.into(),
-
-            DeleteTopicState { topic_id, .. } => topic_id.into(),
-        }
-    }
-}
-
-impl From<&TopicRequest> for TopicId {
-    fn from(value: &TopicRequest) -> Self {
-        value.name.to_owned().into()
-    }
-}
-
-impl From<&Topition> for TopicId {
-    fn from(value: &Topition) -> Self {
-        value.topic.to_owned().into()
-    }
-}
-
-/// Broker Registration Request
-///
-/// A broker will register with storage using this structure.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct BrokerRegistrationRequest {
-    pub broker_id: i32,
-    pub cluster_id: String,
-    pub incarnation_id: Uuid,
-    pub rack: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct MetadataResponse {
-    cluster: Option<String>,
-    controller: Option<i32>,
-    brokers: Vec<MetadataResponseBroker>,
-    topics: Vec<MetadataResponseTopic>,
-}
-
-impl MetadataResponse {
-    pub fn cluster(&self) -> Option<&str> {
-        self.cluster.as_deref()
-    }
-
-    pub fn controller(&self) -> Option<i32> {
-        self.controller
-    }
-
-    pub fn brokers(&self) -> &[MetadataResponseBroker] {
-        self.brokers.as_ref()
-    }
-
-    pub fn topics(&self) -> &[MetadataResponseTopic] {
-        self.topics.as_ref()
-    }
-}
+#[cfg(feature = "slatedb")]
+pub(crate) use jansu_sans_io::NULL_TOPIC_ID;
 
 /// Storage engine kind.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
