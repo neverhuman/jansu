@@ -17,7 +17,7 @@
 #[repr(i8)]
 pub enum Permission {
     /// Represents any permission which this client cannot understand,
-    /// perhaps because this client is too old.
+    /// perhaps because this client predates the relevant protocol revision.
     #[default]
     Unknown = 0,
 
@@ -110,7 +110,7 @@ impl From<i8> for Operation {
 #[repr(i8)]
 pub enum Resource {
     /// Represents any ResourceType which this client cannot understand,
-    /// perhaps because this client is too old.
+    /// perhaps because this client predates the relevant protocol revision.
     #[default]
     Unknown = 0,
 
