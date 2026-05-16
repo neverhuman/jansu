@@ -157,21 +157,14 @@ pub(super) fn sql_lookup(key: &str) -> Result<String> {
 }
 
 pub(super) fn unique_constraint(error_code: ErrorCode) -> impl Fn(turso::Error) -> Error {
-    let _ = error_code;
     move |err| {
-        let _ = err;
-        todo!()
-        // if let turso::Error::SqliteFailure(code, ref reason) = err {
-        //     debug!(code, reason);
-
-        //     if code == 2067 {
-        //         Error::Api(error_code)
-        //     } else {
-        //         err.into()
-        //     }
-        // } else {
-        //     err.into()
-        // }
+        if let turso::Error::SqlExecutionFailure(ref msg) = err {
+            debug!(msg);
+            if msg.contains("UNIQUE constraint") {
+                return Error::Api(error_code);
+            }
+        }
+        err.into()
     }
 }
 

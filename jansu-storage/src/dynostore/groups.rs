@@ -67,14 +67,7 @@ impl DynoStore {
                 results.push(
                     DeletableGroupResult::default()
                         .group_id(group_id.into())
-                        .error_code(
-                            if had_group_state || !deleted_committed_offsets.is_empty() {
-                                ErrorCode::None
-                            } else {
-                                ErrorCode::GroupIdNotFound
-                            }
-                            .into(),
-                        ),
+                        .error_code(ErrorCode::None.into()),
                 );
             }
         }

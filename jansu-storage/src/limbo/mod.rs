@@ -202,6 +202,8 @@ mod timestamp;
 mod tests;
 
 use builder::{sql_lookup, unique_constraint};
+#[cfg(test)]
+use builder::fix_parameters;
 use timestamp::LiteTimestamp;
 
 #[async_trait]

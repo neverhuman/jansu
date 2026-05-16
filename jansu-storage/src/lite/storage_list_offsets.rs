@@ -14,6 +14,25 @@
 
 use super::*;
 
+fn row_to_list_offset_response(row: libsql::Row) -> Result<ListOffsetResponse> {
+    debug!(?row);
+    row.get::<i64>(0)
+        .map_err(Into::into)
+        .map(Some)
+        .and_then(|offset| {
+            row.get_value(1)
+                .map_err(Into::into)
+                .and_then(LiteTimestamp::try_from)
+                .map(SystemTime::from)
+                .map(Some)
+                .map(|timestamp| ListOffsetResponse {
+                    timestamp,
+                    offset,
+                    ..Default::default()
+                })
+        })
+}
+
 impl Delegate {
     pub(super) async fn delegate_list_offsets(
         &self,
@@ -52,98 +71,82 @@ impl Delegate {
                 continue;
             }
 
-            let query = match (offset_type, isolation_level) {
-                (ListOffset::Earliest, _) => "list_earliest_offset.sql",
-                (ListOffset::Latest, IsolationLevel::ReadCommitted) => {
-                    "list_latest_offset_committed.sql"
+            let list_offset = match offset_type {
+                ListOffset::Timestamp(timestamp) => {
+                    let row = c
+                        .query_opt(
+                            "list_latest_offset_timestamp.sql",
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                                LiteTimestamp::from(timestamp),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
+
+                    match row {
+                        Some(row) => row_to_list_offset_response(row)?,
+                        None => {
+                            // Timestamp is after all records: return high watermark + last timestamp.
+                            let hwm_row = c
+                                .query_opt(
+                                    "list_latest_offset_uncommitted.sql",
+                                    (
+                                        self.cluster.as_str(),
+                                        topition.topic(),
+                                        topition.partition(),
+                                    ),
+                                )
+                                .await
+                                .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
+
+                            match hwm_row {
+                                Some(row) => row_to_list_offset_response(row)?,
+                                None => ListOffsetResponse {
+                                    offset: Some(0),
+                                    timestamp: None,
+                                    ..Default::default()
+                                },
+                            }
+                        }
+                    }
                 }
-                (ListOffset::Latest, IsolationLevel::ReadUncommitted) => {
-                    "list_latest_offset_uncommitted.sql"
+
+                ListOffset::Earliest | ListOffset::Latest => {
+                    let query = match (offset_type, isolation_level) {
+                        (ListOffset::Earliest, _) => "list_earliest_offset.sql",
+                        (ListOffset::Latest, IsolationLevel::ReadCommitted) => {
+                            "list_latest_offset_committed.sql"
+                        }
+                        _ => "list_latest_offset_uncommitted.sql",
+                    };
+
+                    let row = c
+                        .query_opt(
+                            query,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                            ),
+                        )
+                        .await
+                        .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
+
+                    match row {
+                        Some(row) => row_to_list_offset_response(row)?,
+                        None => ListOffsetResponse {
+                            offset: Some(0),
+                            timestamp: None,
+                            ..Default::default()
+                        },
+                    }
                 }
-                (ListOffset::Timestamp(_), _) => "list_latest_offset_timestamp.sql",
             };
 
-            debug!(?query);
-
-            let list_offset = match offset_type {
-                ListOffset::Earliest | ListOffset::Latest => c
-                    .query_opt(
-                        query,
-                        (
-                            self.cluster.as_str(),
-                            topition.topic(),
-                            topition.partition(),
-                        ),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition)),
-
-                ListOffset::Timestamp(timestamp) => c
-                    .query_opt(
-                        query,
-                        (
-                            self.cluster.as_str(),
-                            topition.topic(),
-                            topition.partition(),
-                            LiteTimestamp::from(timestamp),
-                        ),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err)),
-            }
-            .inspect_err(|err| {
-                error!(?err, cluster = self.cluster, ?topition);
-            })
-            .inspect(|result| debug!(?result))?
-            .map_or_else(
-                || {
-                    let timestamp = None;
-                    let offset = Some(0);
-                    debug!(
-                        cluster = self.cluster,
-                        ?topition,
-                        ?offset_type,
-                        offset,
-                        ?timestamp
-                    );
-
-                    Ok(ListOffsetResponse {
-                        timestamp,
-                        offset,
-                        ..Default::default()
-                    })
-                },
-                |row| {
-                    debug!(?row);
-
-                    row.get::<i64>(0)
-                        .map_err(Into::into)
-                        .map(Some)
-                        .and_then(|offset| {
-                            row.get_value(1)
-                                .map_err(Into::into)
-                                .and_then(LiteTimestamp::try_from)
-                                .map(SystemTime::from)
-                                .map(Some)
-                                .map(|timestamp| {
-                                    debug!(
-                                        cluster = self.cluster,
-                                        ?topition,
-                                        ?offset_type,
-                                        offset,
-                                        ?timestamp
-                                    );
-
-                                    ListOffsetResponse {
-                                        timestamp,
-                                        offset,
-                                        ..Default::default()
-                                    }
-                                })
-                        })
-                },
-            )?;
-
+            debug!(cluster = self.cluster, ?topition, ?offset_type, ?list_offset);
             responses.push((topition.clone(), list_offset));
         }
 
@@ -155,5 +158,4 @@ impl Delegate {
             )
         })
     }
-
 }

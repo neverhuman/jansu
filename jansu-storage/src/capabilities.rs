@@ -172,6 +172,10 @@ impl StorageCapabilities {
                     StorageCertification::Unsupported,
                 ),
                 (
+                    StorageFeature::LeaderEpochHistory,
+                    StorageCertification::Unsupported,
+                ),
+                (
                     StorageFeature::ListOffsetsEarliestLatest,
                     StorageCertification::Unsupported,
                 ),
