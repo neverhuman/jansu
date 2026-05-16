@@ -3,63 +3,84 @@ schema_version = "1.0.0"
 [[tools]]
 id = "audit-ci"
 mode = "auto"
+evidence_path = "target/jankurai/repo-score.json"
 
 [[tools]]
 id = "proof-routing"
 mode = "auto"
+evidence_path = "target/jankurai/repair-queue.jsonl"
 
 [[tools]]
 id = "security"
 mode = "auto"
+evidence_path = "target/jankurai/security/evidence.json"
 
 [[tools]]
 id = "ux-qa"
 mode = "auto"
+evidence_path = "target/jankurai/ux-qa.json"
 
 [[tools]]
 id = "db-migration-analyze"
 mode = "auto"
+evidence_path = "target/jankurai/migration-report.json"
 
 [[tools]]
 id = "contract-drift"
 mode = "auto"
+evidence_path = "target/jankurai/repo-score.json"
 
 [[tools]]
 id = "rust-witness"
 mode = "auto"
+evidence_path = "target/jankurai/rust/witness-graph.json"
 
 [[tools]]
 id = "proofbind"
 mode = "auto"
+evidence_path = "target/jankurai/proofbind/surface-witness.json"
 
 [[tools]]
 id = "proofmark-rust"
 mode = "auto"
+evidence_path = "target/jankurai/proofmark/proofmark-receipt.json"
 
 [[tools]]
 id = "ci-bad-behavior"
 mode = "auto"
+evidence_path = "target/jankurai/language-bad-behavior.log"
 
 [[tools]]
 id = "git-bad-behavior"
 mode = "auto"
+evidence_path = "target/jankurai/language-bad-behavior.log"
 
 [[tools]]
 id = "release-bad-behavior"
 mode = "auto"
+evidence_path = "target/jankurai/language-bad-behavior.log"
 
 [[tools]]
 id = "authz-matrix"
 mode = "auto"
+evidence_path = "target/jankurai/authz/authz-matrix.md"
 
 [[tools]]
 id = "input-boundary"
 mode = "auto"
+evidence_path = "target/jankurai/input-boundary/input-boundary.md"
 
 [[tools]]
 id = "agent-tool-supply"
 mode = "auto"
+evidence_path = "target/jankurai/agent-tool-supply/agent-tool-supply.md"
+
+[[tools]]
+id = "release-readiness"
+mode = "auto"
+evidence_path = "target/jankurai/release/readiness-checklist.md"
 
 [[tools]]
 id = "cost-budget"
 mode = "auto"
+evidence_path = "target/jankurai/cost/cost-budget.md"
