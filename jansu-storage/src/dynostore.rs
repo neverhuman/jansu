@@ -240,8 +240,18 @@ impl Meta {
                     OpType::Delete => {
                         _ = configuration.remove(change.name.as_str());
                     }
-                    OpType::Append => todo!(),
-                    OpType::Subtract => todo!(),
+                    OpType::Append => {
+                        return Err(Error::FeatureUnsupported {
+                            backend: "dynostore",
+                            feature: "AlterConfig OpType::Append".into(),
+                        });
+                    }
+                    OpType::Subtract => {
+                        return Err(Error::FeatureUnsupported {
+                            backend: "dynostore",
+                            feature: "AlterConfig OpType::Subtract".into(),
+                        });
+                    }
                 }
             }
 
@@ -642,7 +652,10 @@ impl Storage for DynoStore {
         &self,
         _topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        todo!()
+        Err(Error::FeatureUnsupported {
+            backend: "dynostore",
+            feature: "delete_records".into(),
+        })
     }
 
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
@@ -1822,7 +1835,7 @@ impl Storage for DynoStore {
                     .resource_name(name.into())
                     .configs(Some(vec![]))),
 
-                Err(_) => todo!(),
+                Err(error) => Err(error),
             },
 
             _ => Ok(DescribeConfigsResult::default()
@@ -2181,7 +2194,10 @@ impl Storage for DynoStore {
                                             }))
                                         }
                                     } else {
-                                        todo!()
+                                        Err(Error::FeatureUnsupported {
+                                            backend: "dynostore",
+                                            feature: "InitProducer epoch overflow path".into(),
+                                        })
                                     }
                                 }
                             }
@@ -2432,7 +2448,10 @@ impl Storage for DynoStore {
             }
 
             TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+                Err(Error::FeatureUnsupported {
+                    backend: "dynostore",
+                    feature: "TxnAddPartitions VersionFourPlus".into(),
+                })
             }
         }
     }

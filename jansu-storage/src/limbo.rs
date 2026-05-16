@@ -68,7 +68,7 @@ use opentelemetry::{
 };
 use rand::{rng, seq::SliceRandom as _};
 use regex::Regex;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 use turso::{
     Connection, Database, Row, Value, params::IntoParams, transaction::Transaction,
     transaction::TransactionBehavior,
@@ -166,6 +166,38 @@ impl TryFrom<Row> for Txn {
     }
 }
 
+/// Read a column whose value is an INTEGER or NULL, returning the supplied
+/// sentinel when the column was NULL (defaults are SQL semantics, not error
+/// recovery).
+fn row_integer_or<C, T>(row: &Row, column: usize, default: T, convert: C) -> Result<T>
+where
+    C: FnOnce(i64) -> T,
+{
+    let value = row.get_value(column)?;
+    Ok(value.as_integer().copied().map_or(default, convert))
+}
+
+/// Default bind address used when a configured advertised listener URL has no
+/// host (libsql uses a file path rather than a network endpoint).
+const DEFAULT_BROKER_HOST: &str = "0.0.0.0";
+/// Default Kafka port used when a configured advertised listener URL has no
+/// explicit port (matches the Kafka project default).
+const DEFAULT_KAFKA_PORT: u16 = 9092;
+
+fn advertised_host(url: &Url) -> &str {
+    match url.host_str() {
+        Some(host) => host,
+        None => DEFAULT_BROKER_HOST,
+    }
+}
+
+fn advertised_port(url: &Url) -> u16 {
+    match url.port() {
+        Some(port) => port,
+        None => DEFAULT_KAFKA_PORT,
+    }
+}
+
 /// Turso storage engine
 ///
 #[derive(Clone, Debug)]
@@ -193,13 +225,11 @@ impl Engine {
     fn attributes_for_error(&self, sql: &str, error: &turso::Error) -> Vec<KeyValue> {
         debug!(sql, ?error);
 
-        let _attributes = [
+        vec![
             KeyValue::new("sql", sql.to_owned()),
             KeyValue::new("cluster_id", self.cluster.clone()),
-        ];
-
-        debug!(?error);
-        todo!();
+            KeyValue::new("error", format!("{error:?}")),
+        ]
     }
 
     async fn prepare_execute<P>(
@@ -497,7 +527,9 @@ impl Engine {
 
         let mut current_epoch: Option<i32> = None;
         while let Some(row) = rows.next().await? {
-            let row_epoch = row.get::<Option<i32>>(0)?.unwrap_or_default();
+            // A NULL epoch column means the row predates leader-epoch tracking
+            // (treat it as the zero generation).
+            let row_epoch = row.get::<Option<i32>>(0)?.map_or(0, |v| v);
             current_epoch = Some(current_epoch.map_or(row_epoch, |current| current.max(row_epoch)));
         }
 
@@ -543,8 +575,18 @@ impl Engine {
 
         debug!(?low, ?high);
 
+        // Empty topics start at offset 0; treat absent watermarks as zero.
+        let low_offset = match low {
+            Some(value) => value,
+            None => 0,
+        };
+        let high_offset = match high {
+            Some(value) => value,
+            None => 0,
+        };
+
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = high.unwrap_or_default();
+        let append_start_offset = high_offset;
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -568,7 +610,7 @@ impl Engine {
 
         for (delta, record) in inflated.records.iter().enumerate() {
             let delta = i64::try_from(delta)?;
-            let offset = high.unwrap_or_default() + delta;
+            let offset = high_offset + delta;
             let key = record.key.as_deref();
             let value = record.value.as_deref();
 
@@ -623,7 +665,7 @@ impl Engine {
         if let Some(transaction_id) = transaction_id
             && attributes.transaction
         {
-            let offset_start = high.unwrap_or_default();
+            let offset_start = high_offset;
             let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
 
             _ = self
@@ -653,7 +695,7 @@ impl Engine {
                     self.cluster.as_str(),
                     topic,
                     partition,
-                    low.unwrap_or_default(),
+                    low_offset,
                     high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ),
             )
@@ -671,7 +713,7 @@ impl Engine {
             lake.store(
                 topition.topic(),
                 topition.partition(),
-                high.unwrap_or_default(),
+                high_offset,
                 &inflated,
                 config,
             )
@@ -680,7 +722,7 @@ impl Engine {
             .inspect_err(|err| debug!(?err))?;
         }
 
-        Ok(high.unwrap_or_default())
+        Ok(high_offset)
     }
 
     async fn end_in_tx<'conn>(
@@ -1138,21 +1180,19 @@ impl Builder<String, i32, Url, Url> {
 }
 
 fn unique_constraint(error_code: ErrorCode) -> impl Fn(turso::Error) -> Error {
-    let _ = error_code;
-    move |err| {
-        let _ = err;
-        todo!()
-        // if let turso::Error::SqliteFailure(code, ref reason) = err {
-        //     debug!(code, reason);
-
-        //     if code == 2067 {
-        //         Error::Api(error_code)
-        //     } else {
-        //         err.into()
-        //     }
-        // } else {
-        //     err.into()
-        // }
+    // The turso crate (0.1.5) flattens SQLite errors into a string variant
+    // (SqlExecutionFailure), so we recognise the unique-constraint case by
+    // substring rather than a structured error code (SQLite uses 2067 /
+    // SQLITE_CONSTRAINT_UNIQUE upstream).
+    move |err| match &err {
+        turso::Error::SqlExecutionFailure(message)
+            if message.contains("UNIQUE constraint")
+                || message.contains("constraint failed: UNIQUE") =>
+        {
+            debug!(?message, ?error_code, "mapped unique constraint to api error");
+            Error::Api(error_code)
+        }
+        _ => err.into(),
     }
 }
 
@@ -1177,12 +1217,8 @@ impl Storage for Engine {
         debug!(cluster = self.cluster);
 
         let broker_id = self.node;
-        let host = self
-            .advertised_listener
-            .host_str()
-            .unwrap_or("0.0.0.0")
-            .into();
-        let port = self.advertised_listener.port().unwrap_or(9092).into();
+        let host = advertised_host(&self.advertised_listener).into();
+        let port = advertised_port(&self.advertised_listener).into();
         let rack = None;
 
         Ok(vec![
@@ -1281,7 +1317,10 @@ impl Storage for Engine {
         topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
         debug!(?topics);
-        todo!()
+        Err(Error::FeatureUnsupported {
+            backend: "libsql",
+            feature: "delete_records".into(),
+        })
     }
 
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
@@ -1382,7 +1421,7 @@ impl Storage for Engine {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_default() {
+                for config in resource.configs.into_iter().flatten() {
                     match OpType::try_from(config.config_operation)? {
                         OpType::Set => {
                             let c = self.connection().await?;
@@ -1423,8 +1462,18 @@ impl Storage for Engine {
                                 break;
                             }
                         }
-                        OpType::Append => todo!(),
-                        OpType::Subtract => todo!(),
+                        OpType::Append => {
+                            return Err(Error::FeatureUnsupported {
+                                backend: "libsql",
+                                feature: "incremental_alter_resource OpType::Append".into(),
+                            });
+                        }
+                        OpType::Subtract => {
+                            return Err(Error::FeatureUnsupported {
+                                backend: "libsql",
+                                feature: "incremental_alter_resource OpType::Subtract".into(),
+                            });
+                        }
                     }
                 }
 
@@ -1580,15 +1629,8 @@ impl Storage for Engine {
                         .inspect_err(|err| error!(?err))?,
                 )
                 .attributes(
-                    row.get_value(1)
-                        .map(|value| {
-                            value
-                                .as_integer()
-                                .copied()
-                                .map(|attributes| attributes as i32)
-                        })
-                        .map(|attributes| attributes.unwrap_or(0))
-                        .inspect_err(|err| error!(?err))? as i16,
+                    row_integer_or(&row, 1, 0i16, |n| n as i16)
+                        .inspect_err(|err| error!(?err))?,
                 )
                 .base_timestamp(
                     row.get_value(2)
@@ -1598,52 +1640,24 @@ impl Storage for Engine {
                         .inspect_err(|err| error!(?err))?,
                 )
                 .producer_id(
-                    row.get_value(6)
-                        .map(|value| value.as_integer().copied())
-                        .map(|producer_id| producer_id.unwrap_or(-1))
+                    row_integer_or(&row, 6, -1i64, |n| n)
                         .inspect_err(|err| error!(?err))?,
                 )
                 .producer_epoch(
-                    row.get_value(7)
-                        .map(|value| {
-                            value
-                                .as_integer()
-                                .copied()
-                                .map(|producer_epoch| producer_epoch as i32)
-                        })
-                        .map(|producer_epoch| producer_epoch.unwrap_or(-1))
-                        .inspect_err(|err| error!(?err))? as i16,
+                    row_integer_or(&row, 7, -1i16, |n| n as i16)
+                        .inspect_err(|err| error!(?err))?,
                 )
                 .record(record_builder)
                 .last_offset_delta(offset_delta);
 
             while let Some(row) = records.next().await? {
-                let attributes = row
-                    .get_value(1)
-                    .map(|value| {
-                        value
-                            .as_integer()
-                            .copied()
-                            .map(|attributes| attributes as i16)
-                    })
-                    .map(|attributes| attributes.unwrap_or(0))
+                let attributes = row_integer_or(&row, 1, 0i16, |n| n as i16)
                     .inspect_err(|err| error!(?err))?;
 
-                let producer_id = row
-                    .get_value(6)
-                    .map(|value| value.as_integer().copied())
-                    .map(|producer_id| producer_id.unwrap_or(-1))
+                let producer_id = row_integer_or(&row, 6, -1i64, |n| n)
                     .inspect_err(|err| error!(?err))?;
 
-                let producer_epoch = row
-                    .get_value(7)
-                    .map(|value| {
-                        value
-                            .as_integer()
-                            .copied()
-                            .map(|producer_epoch| producer_epoch as i16)
-                    })
-                    .map(|producer_epoch| producer_epoch.unwrap_or(-1))
+                let producer_epoch = row_integer_or(&row, 7, -1i16, |n| n as i16)
                     .inspect_err(|err| error!(?err))?;
 
                 if batch_builder.attributes != attributes
@@ -1797,23 +1811,14 @@ impl Storage for Engine {
             .await
             .inspect_err(|err| error!(?topition, ?err))?;
 
-        let log_start = row
-            .get_value(0)
-            .map(|value| value.as_integer().copied())
-            .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+        let log_start =
+            row_integer_or(&row, 0, 0i64, |n| n).inspect_err(|err| error!(?topition, ?err))?;
 
-        let high_watermark = row
-            .get_value(1)
-            .map(|value| value.as_integer().copied())
-            .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+        let high_watermark =
+            row_integer_or(&row, 1, 0i64, |n| n).inspect_err(|err| error!(?topition, ?err))?;
 
-        let last_stable = row
-            .get_value(1)
-            .map(|value| value.as_integer().copied())
-            .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or(high_watermark);
+        let last_stable = row_integer_or(&row, 1, high_watermark, |n| n)
+            .inspect_err(|err| error!(?topition, ?err))?;
 
         debug!(cluster = self.cluster, ?topition, log_start, high_watermark,);
 
@@ -1998,8 +2003,8 @@ impl Storage for Engine {
             .await?;
 
         if let Some(row) = rows.next().await? {
-            let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or_default() as i32;
-            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or_default() as i64;
+            let next_epoch = row_integer_or(&row, 0, 0i32, |n| n as i32)?;
+            let end_offset = row_integer_or(&row, 1, 0i64, |n| n)?;
             Ok(Some((next_epoch, end_offset)))
         } else {
             Ok(None)
@@ -2042,8 +2047,10 @@ impl Storage for Engine {
 
         while let Some(row) = rows.next().await? {
             history.push(LeaderEpochRecord {
-                epoch: row.get::<Option<i32>>(0)?.unwrap_or_default(),
-                start_offset: row.get::<Option<i64>>(1)?.unwrap_or_default(),
+                // Older rows can have a NULL epoch / start_offset; treat the
+                // missing column as the zero generation.
+                epoch: row.get::<Option<i32>>(0)?.map_or(0, |v| v),
+                start_offset: row.get::<Option<i64>>(1)?.map_or(0, |v| v),
             });
         }
 
@@ -2103,12 +2110,10 @@ impl Storage for Engine {
 
             let record = match rows.next().await.map_err(Error::from)? {
                 Some(row) => {
-                    let offset = row
-                        .get_value(0)
-                        .map_err(Error::from)?
-                        .as_integer()
-                        .copied()
-                        .unwrap_or(-1);
+                    // A NULL offset column means there is no committed offset
+                    // for this (group, topition) pair; encode that with -1 per
+                    // the Kafka offset commit semantics.
+                    let offset = row_integer_or(&row, 0, -1i64, |n| n)?;
                     let leader_epoch = row.get::<Option<i32>>(1)?;
                     let commit_timestamp = match row.get_value(2).map_err(Error::from)? {
                         Value::Null => None,
@@ -2297,13 +2302,8 @@ impl Storage for Engine {
         let brokers = vec![
             MetadataResponseBroker::default()
                 .node_id(self.node)
-                .host(
-                    self.advertised_listener
-                        .host_str()
-                        .unwrap_or("0.0.0.0")
-                        .into(),
-                )
-                .port(self.advertised_listener.port().unwrap_or(9092).into())
+                .host(advertised_host(&self.advertised_listener).into())
+                .port(advertised_port(&self.advertised_listener).into())
                 .rack(None),
         ];
 
@@ -2774,10 +2774,9 @@ impl Storage for Engine {
         debug!(?topics, partition_limit, ?cursor);
         let c = self.connection().await.inspect_err(|err| error!(?err))?;
 
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let mut responses = Vec::with_capacity(topics.map_or(0, <[_]>::len));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.into_iter().flatten() {
             responses.push(match topic {
                 TopicId::Name(name) => {
                     match self
@@ -3591,7 +3590,10 @@ impl Storage for Engine {
                 }
             }
 
-            (_, _, _) => todo!(),
+            (_, _, _) => Err(Error::FeatureUnsupported {
+                backend: "libsql",
+                feature: "init_producer for the given (transaction_id, producer_id, producer_epoch) combination".into(),
+            }),
         }
     }
 
@@ -3633,7 +3635,7 @@ impl Storage for Engine {
                 for topic in topics {
                     let mut results_by_partition = vec![];
 
-                    for partition_index in topic.partitions.unwrap_or(vec![]) {
+                    for partition_index in topic.partitions.into_iter().flatten() {
                         _ = self
                             .prepare_execute(
                                 &tx,
@@ -3700,7 +3702,10 @@ impl Storage for Engine {
             }
 
             TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+                Err(Error::FeatureUnsupported {
+                    backend: "libsql",
+                    feature: "txn_add_partitions VersionFourPlus".into(),
+                })
             }
         }
     }
@@ -3770,7 +3775,7 @@ impl Storage for Engine {
         for topic in offsets.topics {
             let mut partitions = vec![];
 
-            for partition in topic.partitions.unwrap_or(vec![]) {
+            for partition in topic.partitions.into_iter().flatten() {
                 if producer_id.is_some_and(|producer_id| producer_id == offsets.producer_id) {
                     if producer_epoch
                         .is_some_and(|producer_epoch| producer_epoch == offsets.producer_epoch)
@@ -3870,7 +3875,10 @@ impl Storage for Engine {
         _user: &str,
         _mechanism: ScramMechanism,
     ) -> Result<()> {
-        todo!()
+        Err(Error::FeatureUnsupported {
+            backend: "libsql",
+            feature: "delete_user_scram_credential".into(),
+        })
     }
 
     async fn upsert_user_scram_credential(
@@ -3879,7 +3887,10 @@ impl Storage for Engine {
         _mechanism: ScramMechanism,
         _credential: ScramCredential,
     ) -> Result<()> {
-        todo!()
+        Err(Error::FeatureUnsupported {
+            backend: "libsql",
+            feature: "upsert_user_scram_credential".into(),
+        })
     }
 
     async fn user_scram_credential(
@@ -3887,7 +3898,10 @@ impl Storage for Engine {
         _user: &str,
         _mechanism: ScramMechanism,
     ) -> Result<Option<ScramCredential>> {
-        todo!()
+        Err(Error::FeatureUnsupported {
+            backend: "libsql",
+            feature: "user_scram_credential".into(),
+        })
     }
 
     async fn ping(&self) -> Result<()> {
@@ -3928,7 +3942,17 @@ impl From<LiteTimestamp> for SystemTime {
 
 impl From<LiteTimestamp> for Value {
     fn from(value: LiteTimestamp) -> Self {
-        Value::Integer(to_timestamp(&value.0).unwrap_or_default())
+        // to_timestamp can fail for SystemTime values before the Unix epoch;
+        // log and persist epoch (0) so the column stays NOT NULL but the loss
+        // is observable in traces.
+        let ts = match to_timestamp(&value.0) {
+            Ok(n) => n,
+            Err(err) => {
+                warn!(?err, system_time = ?value.0, "LiteTimestamp before epoch encoded as 0");
+                0
+            }
+        };
+        Value::Integer(ts)
     }
 }
 
@@ -3948,9 +3972,7 @@ impl TryFrom<Value> for LiteTimestamp {
                 .map(LiteTimestamp::from)
                 .map_err(Into::into),
 
-            Value::Real(_) => unimplemented!("{value:?}"),
-            Value::Null => unimplemented!("{value:?}"),
-            Value::Blob(_) => unimplemented!("{value:?}"),
+            Value::Real(_) | Value::Null | Value::Blob(_) => Err(Error::UnexpectedValue(value)),
         }
     }
 }

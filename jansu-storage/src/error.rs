@@ -58,6 +58,11 @@ pub enum Error {
         message: String,
     },
 
+    FeatureUnsupported {
+        backend: &'static str,
+        feature: String,
+    },
+
     Glob(Arc<GlobError>),
     InsufficientCapacity(#[from] InsufficientCapacity),
     Io(Arc<io::Error>),
