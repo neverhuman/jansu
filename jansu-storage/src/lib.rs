@@ -182,6 +182,9 @@ mod dynostore;
 #[cfg(feature = "postgres")]
 mod pg;
 
+mod advertised_listener;
+pub use advertised_listener::AdvertisedListenerStorage;
+
 mod batch;
 mod null;
 mod proxy;
