@@ -768,33 +768,51 @@ mod tests {
             &self,
             _broker_registration: BrokerRegistrationRequest,
         ) -> Result<()> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "register_broker".into(),
+            })
         }
 
         async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "brokers".into(),
+            })
         }
 
         async fn create_topic(&self, _topic: CreatableTopic, _validate_only: bool) -> Result<Uuid> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "create_topic".into(),
+            })
         }
 
         async fn delete_records(
             &self,
             _topics: &[DeleteRecordsTopic],
         ) -> Result<Vec<DeleteRecordsTopicResult>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "delete_records".into(),
+            })
         }
 
         async fn delete_topic(&self, _topic: &TopicId) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "delete_topic".into(),
+            })
         }
 
         async fn incremental_alter_resource(
             &self,
             _resource: AlterConfigsResource,
         ) -> Result<AlterConfigsResourceResponse> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "incremental_alter_resource".into(),
+            })
         }
 
         async fn produce(
@@ -824,11 +842,17 @@ mod tests {
             _max_bytes: u32,
             _isolation_level: IsolationLevel,
         ) -> Result<Vec<deflated::Batch>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "fetch".into(),
+            })
         }
 
         async fn offset_stage(&self, _topition: &Topition) -> Result<OffsetStage> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "offset_stage".into(),
+            })
         }
 
         async fn offset_commit(
@@ -837,14 +861,20 @@ mod tests {
             _retention: Option<Duration>,
             _offsets: &[(Topition, OffsetCommitRequest)],
         ) -> Result<Vec<(Topition, ErrorCode)>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "offset_commit".into(),
+            })
         }
 
         async fn committed_offset_topitions(
             &self,
             _group_id: &str,
         ) -> Result<BTreeMap<Topition, i64>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "committed_offset_topitions".into(),
+            })
         }
 
         async fn offset_for_leader_epoch(
@@ -852,7 +882,10 @@ mod tests {
             _topition: &Topition,
             _leader_epoch: i32,
         ) -> Result<Option<(i32, i64)>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "offset_for_leader_epoch".into(),
+            })
         }
 
         async fn offset_fetch(
@@ -861,7 +894,10 @@ mod tests {
             _topics: &[Topition],
             _require_stable: Option<bool>,
         ) -> Result<BTreeMap<Topition, i64>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "offset_fetch".into(),
+            })
         }
 
         async fn list_offsets(
@@ -869,11 +905,17 @@ mod tests {
             _isolation_level: IsolationLevel,
             _offsets: &[(Topition, ListOffset)],
         ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "list_offsets".into(),
+            })
         }
 
         async fn metadata(&self, _topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "metadata".into(),
+            })
         }
 
         async fn describe_config(
@@ -882,7 +924,10 @@ mod tests {
             _resource: ConfigResource,
             _keys: Option<&[String]>,
         ) -> Result<DescribeConfigsResult> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "describe_config".into(),
+            })
         }
 
         async fn describe_topic_partitions(
@@ -891,18 +936,27 @@ mod tests {
             _partition_limit: i32,
             _cursor: Option<Topition>,
         ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "describe_topic_partitions".into(),
+            })
         }
 
         async fn list_groups(&self, _states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "list_groups".into(),
+            })
         }
 
         async fn delete_groups(
             &self,
             _group_ids: Option<&[String]>,
         ) -> Result<Vec<DeletableGroupResult>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "delete_groups".into(),
+            })
         }
 
         async fn describe_groups(
@@ -910,7 +964,10 @@ mod tests {
             _group_ids: Option<&[String]>,
             _include_authorized_operations: bool,
         ) -> Result<Vec<NamedGroupDetail>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "describe_groups".into(),
+            })
         }
 
         async fn update_group(
@@ -919,7 +976,11 @@ mod tests {
             _detail: GroupDetail,
             _version: Option<Version>,
         ) -> Result<Version, UpdateError<GroupDetail>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "update_group".into(),
+            }
+            .into())
         }
 
         async fn init_producer(
@@ -929,7 +990,10 @@ mod tests {
             _producer_id: Option<i64>,
             _producer_epoch: Option<i16>,
         ) -> Result<ProducerIdResponse> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "init_producer".into(),
+            })
         }
 
         async fn txn_add_offsets(
@@ -939,21 +1003,30 @@ mod tests {
             _producer_epoch: i16,
             _group_id: &str,
         ) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "txn_add_offsets".into(),
+            })
         }
 
         async fn txn_add_partitions(
             &self,
             _partitions: TxnAddPartitionsRequest,
         ) -> Result<TxnAddPartitionsResponse> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "txn_add_partitions".into(),
+            })
         }
 
         async fn txn_offset_commit(
             &self,
             _offsets: TxnOffsetCommitRequest,
         ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "txn_offset_commit".into(),
+            })
         }
 
         async fn txn_end(
@@ -963,27 +1036,45 @@ mod tests {
             _producer_epoch: i16,
             _committed: bool,
         ) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "txn_end".into(),
+            })
         }
 
         async fn maintain(&self, _now: SystemTime) -> Result<()> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "maintain".into(),
+            })
         }
 
         async fn cluster_id(&self) -> Result<String> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "cluster_id".into(),
+            })
         }
 
         async fn node(&self) -> Result<i32> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "node".into(),
+            })
         }
 
         async fn advertised_listener(&self) -> Result<Url> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "advertised_listener".into(),
+            })
         }
 
         async fn ping(&self) -> Result<()> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "ping".into(),
+            })
         }
 
         async fn delete_user_scram_credential(
@@ -991,7 +1082,10 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<()> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "delete_user_scram_credential".into(),
+            })
         }
 
         async fn upsert_user_scram_credential(
@@ -1000,7 +1094,10 @@ mod tests {
             _mechanism: ScramMechanism,
             _credential: ScramCredential,
         ) -> Result<()> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "upsert_user_scram_credential".into(),
+            })
         }
 
         async fn user_scram_credential(
@@ -1008,7 +1105,10 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<Option<ScramCredential>> {
-            unimplemented!()
+            Err(Error::FeatureUnsupported {
+                backend: "flight_recorder",
+                feature: "user_scram_credential".into(),
+            })
         }
     }
 
