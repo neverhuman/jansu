@@ -1542,66 +1542,66 @@ impl<C, N, L, D> Builder<C, N, L, D> {
 
 static DDL: LazyLock<Cache> = LazyLock::new(|| {
     let mapping = [
-        ("010-cluster.sql", include_sql!("ddl/010-cluster.sql")),
+        ("010-cluster.sql", include_sql!("../ddl/010-cluster.sql")),
         (
             "020-consumer-group.sql",
-            include_sql!("ddl/020-consumer-group.sql"),
+            include_sql!("../ddl/020-consumer-group.sql"),
         ),
-        ("020-producer.sql", include_sql!("ddl/020-producer.sql")),
+        ("020-producer.sql", include_sql!("../ddl/020-producer.sql")),
         (
             "020-scram-credential.sql",
-            include_sql!("ddl/020-scram-credential.sql"),
+            include_sql!("../ddl/020-scram-credential.sql"),
         ),
-        ("020-topic.sql", include_sql!("ddl/020-topic.sql")),
+        ("020-topic.sql", include_sql!("../ddl/020-topic.sql")),
         (
             "030-consumer-group-detail.sql",
-            include_sql!("ddl/030-consumer-group-detail.sql"),
+            include_sql!("../ddl/030-consumer-group-detail.sql"),
         ),
         (
             "030-producer-epoch.sql",
-            include_sql!("ddl/030-producer-epoch.sql"),
+            include_sql!("../ddl/030-producer-epoch.sql"),
         ),
         (
             "030-topic-configuration.sql",
-            include_sql!("ddl/030-topic-configuration.sql"),
+            include_sql!("../ddl/030-topic-configuration.sql"),
         ),
-        ("030-topition.sql", include_sql!("ddl/030-topition.sql")),
-        ("030-txn.sql", include_sql!("ddl/030-txn.sql")),
+        ("030-topition.sql", include_sql!("../ddl/030-topition.sql")),
+        ("030-txn.sql", include_sql!("../ddl/030-txn.sql")),
         (
             "030-virtual-topic.sql",
-            include_sql!("ddl/030-virtual-topic.sql"),
+            include_sql!("../ddl/030-virtual-topic.sql"),
         ),
         (
             "040-consumer-offset.sql",
-            include_sql!("ddl/040-consumer-offset.sql"),
+            include_sql!("../ddl/040-consumer-offset.sql"),
         ),
-        ("040-header.sql", include_sql!("ddl/040-header.sql")),
+        ("040-header.sql", include_sql!("../ddl/040-header.sql")),
         (
             "040-producer-detail.sql",
-            include_sql!("ddl/040-producer-detail.sql"),
+            include_sql!("../ddl/040-producer-detail.sql"),
         ),
-        ("040-record.sql", include_sql!("ddl/040-record.sql")),
+        ("040-record.sql", include_sql!("../ddl/040-record.sql")),
         (
             "040-leader-epoch-history.sql",
-            include_sql!("ddl/040-leader-epoch-history.sql"),
+            include_sql!("../ddl/040-leader-epoch-history.sql"),
         ),
-        ("040-txn-detail.sql", include_sql!("ddl/040-txn-detail.sql")),
-        ("040-watermark.sql", include_sql!("ddl/040-watermark.sql")),
+        ("040-txn-detail.sql", include_sql!("../ddl/040-txn-detail.sql")),
+        ("040-watermark.sql", include_sql!("../ddl/040-watermark.sql")),
         (
             "050-txn-offset-commit.sql",
-            include_sql!("ddl/050-txn-offset-commit.sql"),
+            include_sql!("../ddl/050-txn-offset-commit.sql"),
         ),
         (
             "050-txn-topition.sql",
-            include_sql!("ddl/050-txn-topition.sql"),
+            include_sql!("../ddl/050-txn-topition.sql"),
         ),
         (
             "060-txn-offset-commit-tp.sql",
-            include_sql!("ddl/060-txn-offset-commit-tp.sql"),
+            include_sql!("../ddl/060-txn-offset-commit-tp.sql"),
         ),
         (
             "060-txn-produce-offset.sql",
-            include_sql!("ddl/060-txn-produce-offset.sql"),
+            include_sql!("../ddl/060-txn-produce-offset.sql"),
         ),
     ];
 
@@ -5389,14 +5389,14 @@ mod tests {
         assert_eq!(
             0,
             connection
-                .execute(&include_sql!("ddl/010-cluster.sql"), ())
+                .execute(&include_sql!("../ddl/010-cluster.sql"), ())
                 .await?
         );
 
         assert_eq!(
             0,
             connection
-                .execute(&include_sql!("ddl/020-topic.sql"), ())
+                .execute(&include_sql!("../ddl/020-topic.sql"), ())
                 .await?
         );
 
@@ -5406,7 +5406,7 @@ mod tests {
             1,
             connection
                 .execute(
-                    &fix_parameters(&include_sql!("sql/register_broker.sql"))?,
+                    &fix_parameters(&include_sql!("../sql/register_broker.sql"))?,
                     &[cluster]
                 )
                 .await?
@@ -5419,7 +5419,7 @@ mod tests {
 
         let mut rows = connection
             .query(
-                &fix_parameters(&include_sql!("sql/topic_insert.sql"))?,
+                &fix_parameters(&include_sql!("../sql/topic_insert.sql"))?,
                 (
                     cluster,
                     name,
@@ -5447,17 +5447,17 @@ mod tests {
 
         assert_eq!(
             0,
-            tx.execute(&include_sql!("ddl/010-cluster.sql"), ()).await?
+            tx.execute(&include_sql!("../ddl/010-cluster.sql"), ()).await?
         );
 
-        assert_eq!(0, tx.execute(&include_sql!("ddl/020-topic.sql"), ()).await?);
+        assert_eq!(0, tx.execute(&include_sql!("../ddl/020-topic.sql"), ()).await?);
 
         let cluster = "jansu";
 
         assert_eq!(
             1,
             tx.execute(
-                &fix_parameters(&include_sql!("sql/register_broker.sql"))?,
+                &fix_parameters(&include_sql!("../sql/register_broker.sql"))?,
                 &[cluster]
             )
             .await?
@@ -5470,7 +5470,7 @@ mod tests {
 
         let mut rows = tx
             .query(
-                &fix_parameters(&include_sql!("sql/topic_insert.sql"))?,
+                &fix_parameters(&include_sql!("../sql/topic_insert.sql"))?,
                 (
                     cluster,
                     name,
@@ -5499,14 +5499,14 @@ mod tests {
         assert_eq!(
             0,
             connection
-                .execute(&include_sql!("ddl/010-cluster.sql"), ())
+                .execute(&include_sql!("../ddl/010-cluster.sql"), ())
                 .await?
         );
 
         let name = "lite";
 
         _ = connection
-            .execute(&include_sql!("sql/register_broker.sql"), &[name])
+            .execute(&include_sql!("../sql/register_broker.sql"), &[name])
             .await?;
 
         let mut rows = connection
