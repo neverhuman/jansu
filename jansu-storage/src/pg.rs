@@ -1812,8 +1812,18 @@ impl Storage for Postgres {
                                 break;
                             }
                         }
-                        OpType::Append => todo!(),
-                        OpType::Subtract => todo!(),
+                        OpType::Append => {
+                            return Err(Error::FeatureUnsupported {
+                                backend: "postgres",
+                                feature: "incremental config alter: Append operation".into(),
+                            });
+                        }
+                        OpType::Subtract => {
+                            return Err(Error::FeatureUnsupported {
+                                backend: "postgres",
+                                feature: "incremental config alter: Subtract operation".into(),
+                            });
+                        }
                     }
                 }
 
@@ -3581,7 +3591,10 @@ impl Storage for Postgres {
                 })
             }
         } else {
-            todo!()
+            Err(Error::FeatureUnsupported {
+                backend: "postgres",
+                feature: "init_producer with non-sentinel producer_id/epoch".into(),
+            })
         }
     }
 
@@ -3692,7 +3705,10 @@ impl Storage for Postgres {
             }
 
             TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+                Err(Error::FeatureUnsupported {
+                    backend: "postgres",
+                    feature: "txn_add_partitions: VersionFourPlus request format".into(),
+                })
             }
         }
     }
