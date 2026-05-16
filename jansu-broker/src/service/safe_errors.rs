@@ -85,18 +85,17 @@ safe_error_route!(
     req,
     AlterConfigsResponse,
     {
-        let responses = match req.resources {
-            Some(resources) => resources
-                .into_iter()
-                .map(|resource| {
-                    _AlterConfigsResourceResponse::default()
-                        .resource_type(resource.resource_type)
-                        .resource_name(resource.resource_name)
-                        .error_code(unknown_server_error())
-                })
-                .collect(),
-            None => Vec::new(),
-        };
+        let responses = req
+            .resources
+            .into_iter()
+            .flatten()
+            .map(|resource| {
+                _AlterConfigsResourceResponse::default()
+                    .resource_type(resource.resource_type)
+                    .resource_name(resource.resource_name)
+                    .error_code(unknown_server_error())
+            })
+            .collect();
 
         AlterConfigsResponse::default()
             .throttle_time_ms(0)
@@ -110,35 +109,29 @@ safe_error_route!(
     req,
     AlterReplicaLogDirsResponse,
     {
-        let results = match req.dirs {
-            Some(dirs) => dirs
-                .into_iter()
-                .flat_map(|dir| match dir.topics {
-                    Some(topics) => topics
+        let results = req
+            .dirs
+            .into_iter()
+            .flatten()
+            .flat_map(|dir| {
+                dir.topics.into_iter().flatten().map(|topic| {
+                    let partitions = topic
+                        .partitions
                         .into_iter()
-                        .map(|topic| {
-                            let partitions = match topic.partitions {
-                                Some(partitions) => partitions
-                                    .into_iter()
-                                    .map(|partition_index| {
-                                        _AlterReplicaLogDirPartitionResult::default()
-                                            .partition_index(partition_index)
-                                            .error_code(unknown_server_error())
-                                    })
-                                    .collect(),
-                                None => Vec::new(),
-                            };
-
-                            _AlterReplicaLogDirTopicResult::default()
-                                .topic_name(topic.name)
-                                .partitions(Some(partitions))
+                        .flatten()
+                        .map(|partition_index| {
+                            _AlterReplicaLogDirPartitionResult::default()
+                                .partition_index(partition_index)
+                                .error_code(unknown_server_error())
                         })
-                        .collect::<Vec<_>>(),
-                    None => Vec::new(),
+                        .collect();
+
+                    _AlterReplicaLogDirTopicResult::default()
+                        .topic_name(topic.name)
+                        .partitions(Some(partitions))
                 })
-                .collect(),
-            None => Vec::new(),
-        };
+            })
+            .collect();
 
         AlterReplicaLogDirsResponse::default()
             .throttle_time_ms(0)
@@ -152,18 +145,17 @@ safe_error_route!(
     req,
     CreatePartitionsResponse,
     {
-        let results = match req.topics {
-            Some(topics) => topics
-                .into_iter()
-                .map(|topic| {
-                    _CreatePartitionsTopicResult::default()
-                        .name(topic.name)
-                        .error_code(unknown_server_error())
-                        .error_message(Some(unknown_server_error_message()))
-                })
-                .collect(),
-            None => Vec::new(),
-        };
+        let results = req
+            .topics
+            .into_iter()
+            .flatten()
+            .map(|topic| {
+                _CreatePartitionsTopicResult::default()
+                    .name(topic.name)
+                    .error_code(unknown_server_error())
+                    .error_message(Some(unknown_server_error_message()))
+            })
+            .collect();
 
         CreatePartitionsResponse::default()
             .throttle_time_ms(0)
@@ -186,7 +178,7 @@ safe_error_route!(
 safe_error_route!(delete_acls, DeleteAclsRequest, req, DeleteAclsResponse, {
     let filter_results = req
         .filters
-        .iter()
+        .into_iter()
         .flatten()
         .map(|_| {
             _DeleteAclsFilterResult::default()
@@ -209,18 +201,18 @@ safe_error_route!(
     {
         let markers = req
             .markers
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|marker| {
                 let topics = marker
                     .topics
-                    .unwrap_or_default()
                     .into_iter()
+                    .flatten()
                     .map(|topic| {
                         let partitions = topic
                             .partition_indexes
-                            .unwrap_or_default()
                             .into_iter()
+                            .flatten()
                             .map(|partition_index| {
                                 _WritableTxnMarkerPartitionResult::default()
                                     .partition_index(partition_index)
@@ -296,13 +288,13 @@ safe_error_route!(
     {
         let topics = req
             .topics
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|topic| {
                 let partitions = topic
                     .partitions
-                    .unwrap_or_default()
                     .into_iter()
+                    .flatten()
                     .map(|partition| {
                         _OffsetDeleteResponsePartition::default()
                             .partition_index(partition.partition_index)
@@ -343,8 +335,8 @@ safe_error_route!(
     {
         let results = req
             .feature_updates
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|feature| {
                 UpdatableFeatureResult::default()
                     .feature(feature.feature)
