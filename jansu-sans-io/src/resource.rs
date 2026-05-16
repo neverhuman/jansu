@@ -17,7 +17,7 @@
 #[repr(i8)]
 pub enum Pattern {
     #[default]
-    /// Represents any PatternType which this client cannot understand, perhaps because this client is too old.
+    /// Represents any PatternType which this client cannot understand, perhaps because this client predates the relevant protocol revision.
     Unknown = 0,
 
     /// In a filter, matches any resource pattern type.
