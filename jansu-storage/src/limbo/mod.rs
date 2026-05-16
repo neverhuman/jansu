@@ -109,6 +109,7 @@ mod produce;
 mod fetch;
 mod schema;
 mod compaction;
+mod features;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Txn {
@@ -556,40 +557,13 @@ fn unique_constraint(error_code: ErrorCode) -> impl Fn(turso::Error) -> Error {
 #[async_trait]
 impl Storage for Engine {
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
-        debug!(?broker_registration);
-
-        let connection = self.connection().await?;
-
-        self.prepare_execute(
-            &connection,
-            &sql_lookup("register_broker.sql")?,
-            &[broker_registration.cluster_id],
-        )
-        .await
-        .map_err(Into::into)
-        .and(Ok(()))
+        self.impl_register_broker(broker_registration).await
     }
 
     async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-        debug!(cluster = self.cluster);
-
-        let broker_id = self.node;
-        let host = self
-            .advertised_listener
-            .host_str()
-            .unwrap_or("0.0.0.0")
-            .into();
-        let port = self.advertised_listener.port().unwrap_or(9092).into();
-        let rack = None;
-
-        Ok(vec![
-            DescribeClusterBroker::default()
-                .broker_id(broker_id)
-                .host(host)
-                .port(port)
-                .rack(rack),
-        ])
+        self.impl_brokers().await
     }
+
 
     async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
         self.impl_create_topic(topic, validate_only).await
@@ -784,19 +758,19 @@ impl Storage for Engine {
     }
 
     async fn maintain(&self, _now: SystemTime) -> Result<()> {
-        Ok(())
+        self.impl_maintain(_now).await
     }
 
     async fn cluster_id(&self) -> Result<String> {
-        Ok(self.cluster.clone())
+        self.impl_cluster_id().await
     }
 
     async fn node(&self) -> Result<i32> {
-        Ok(self.node)
+        self.impl_node().await
     }
 
     async fn advertised_listener(&self) -> Result<Url> {
-        Ok(self.advertised_listener.clone())
+        self.impl_advertised_listener().await
     }
 
     async fn delete_user_scram_credential(
@@ -804,7 +778,7 @@ impl Storage for Engine {
         _user: &str,
         _mechanism: ScramMechanism,
     ) -> Result<()> {
-        todo!()
+        self.impl_delete_user_scram_credential(_user, _mechanism).await
     }
 
     async fn upsert_user_scram_credential(
@@ -813,7 +787,7 @@ impl Storage for Engine {
         _mechanism: ScramMechanism,
         _credential: ScramCredential,
     ) -> Result<()> {
-        todo!()
+        self.impl_upsert_user_scram_credential(_user, _mechanism, _credential).await
     }
 
     async fn user_scram_credential(
@@ -821,13 +795,11 @@ impl Storage for Engine {
         _user: &str,
         _mechanism: ScramMechanism,
     ) -> Result<Option<ScramCredential>> {
-        todo!()
+        self.impl_user_scram_credential(_user, _mechanism).await
     }
 
     async fn ping(&self) -> Result<()> {
-        let c = self.connection().await?;
-        let _ = c.query("ping.sql", ()).await?;
-        Ok(())
+        self.impl_ping().await
     }
 }
 
