@@ -6,10 +6,7 @@ cargo install jankurai --locked
 jankurai --version
 just tool-adoption-evidence
 mkdir -p target/jankurai/security
-cargo audit --json > target/jankurai/security/cargo-audit.json
-syft . -o json > target/jankurai/security/sbom.json
-gitleaks detect --source . --redact --report-format json --report-path target/jankurai/security/gitleaks.json
-zizmor . > target/jankurai/security/zizmor.txt
+bash tools/security-lane.sh
 jankurai security run . --out target/jankurai/security/evidence.json
 jankurai audit . --mode advisory \
   --json target/jankurai/repo-score.json \

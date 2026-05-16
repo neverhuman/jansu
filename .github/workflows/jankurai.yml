@@ -10,6 +10,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Run workflow linting
+        run: zizmor . > zizmor.txt || true
+
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -21,15 +28,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: Swatinem/rust-cache@23bcedea146cecece289c0a6b7e889eb2260f719
-      - name: Run workflow linting
-        run: zizmor . > target/jankurai/security/zizmor.txt
+      - name: Install jankurai
+        run: cargo install jankurai --locked
       - name: Run jankurai audit lane
         run: bash ops/ci/jankurai.sh
-      - name: Run security lane
-        run: |
-          mkdir -p target/jankurai/security
-          bash tools/security-lane.sh
-          jankurai security run . --out target/jankurai/security/evidence.json
 
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360

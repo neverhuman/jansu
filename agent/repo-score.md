@@ -7,13 +7,13 @@
 - Target stack ID: `rust-ts-vite-react-postgres-bounded-python`
 - Target stack: `Rust core + TypeScript/React/Vite + PostgreSQL + generated contracts + exception-only Python AI/data service`
 - Repo: `.`
-- Run ID: `1778969162`
-- Started at: `1778969162`
-- Elapsed: `12577` ms
+- Run ID: `1778969795`
+- Started at: `1778969795`
+- Elapsed: `9514` ms
 - Scope: `full`
 - Raw score: `82`
 - Final score: `80`
-- Decision: `advisory`
+- Decision: `fail`
 - Minimum score: `85`
 - Caps applied: `release-readiness-gap`
 
@@ -70,15 +70,15 @@
 
 ## Copy-Code Redundancy
 
-- Status: `review` hard=`0` warning=`226` files=`263`
+- Status: `review` hard=`0` warning=`217` files=`269`
 - Policy: min-lines=`10` min-tokens=`100` max-findings=`50` include-tests=`false` strict=`false`
-- Duplicate volume: lines=`1161` tokens=`11733` bytes=`56340`
+- Duplicate volume: lines=`1154` tokens=`11711` bytes=`56151`
 
 - Notes:
   - hard classes are limited to exact active-source file matches and substantial exact same-name units
   - warning classes include same-body different-name units and token/block duplication
   - tests, fixtures, stories, config, Docker, and migrations are omitted unless --include-tests is set
-  - showing the top 50 classes and omitting 176 lower-ranked classes
+  - showing the top 50 classes and omitting 167 lower-ranked classes
 
 | Kind | Severity | Language | Lines | Tokens | Instances | Reason |
 | --- | --- | --- | ---: | ---: | --- | --- |
@@ -141,11 +141,11 @@
 | Contract and boundary integrity | 13 | 98 | 12.74 | contract surface found; generated contract artifacts found |
 | Proof lanes and test routing | 12 | 100 | 12.00 | one-command setup/validation lane found; deterministic fast lane found |
 | Security and supply-chain posture | 12 | 74 | 8.88 | secret or dependency scan tooling found; provenance/SBOM tooling found |
-| Code shape and semantic surface | 12 | 35 | 4.20 | largest authored code file: jansu-model/src/lib.rs (1820 LOC); code file exceeds 500 LOC |
+| Code shape and semantic surface | 12 | 35 | 4.20 | largest authored code file: jansu-sans-io/src/de.rs (1510 LOC); code file exceeds 500 LOC |
 | Data truth and workflow safety | 8 | 95 | 7.60 | database surface present; structured db boundary manifest present |
 | Observability and repair evidence | 8 | 90 | 7.20 | observability libraries or patterns found; diagnostic shaping hints found |
 | Context economy and agent instructions | 7 | 100 | 7.00 | root `AGENTS.md` present; root `AGENTS.md` stays short |
-| Jankurai tool adoption and CI replacement | 7 | 34 | 2.38 | control-plane files present; applicable=16 |
+| Jankurai tool adoption and CI replacement | 7 | 30 | 2.10 | control-plane files present; applicable=16 |
 | Python containment and polyglot hygiene | 4 | 100 | 4.00 | no Python files in scope |
 | Build speed signals | 4 | 70 | 2.80 | build acceleration markers found; targeted test/build commands found |
 
@@ -177,10 +177,10 @@
 - Control plane present: `true`
 - Applicable tools: `16`
 - Configured: `16`
-- CI evidence: `1`
-- Artifact verified: `1`
-- Replaced count: `1`
-- Missing CI evidence: `audit-ci, proof-routing, proofbind, proofmark-rust, copy-code, ci-bad-behavior, git-bad-behavior, release-bad-behavior, contract-drift, rust-witness, authz-matrix, input-boundary, agent-tool-supply, release-readiness, cost-budget`
+- CI evidence: `0`
+- Artifact verified: `0`
+- Replaced count: `0`
+- Missing CI evidence: `audit-ci, proof-routing, proofbind, proofmark-rust, copy-code, security, ci-bad-behavior, git-bad-behavior, release-bad-behavior, contract-drift, rust-witness, authz-matrix, input-boundary, agent-tool-supply, release-readiness, cost-budget`
 
 | Tool | Category | Mode | Status | Replaced | Artifacts |
 | --- | --- | --- | --- | --- | --- |
@@ -189,7 +189,7 @@
 | `proofbind` | `proof` | `auto` | `configured` | `manual changed-surface routing, ad hoc proof obligation lists` | `target/jankurai/proofbind/surface-witness.json, target/jankurai/proofbind/obligations.json` |
 | `proofmark-rust` | `proof` | `auto` | `configured` | `line-only coverage review, manual in-diff mutation review` | `target/jankurai/proofmark/proofmark-receipt.json, target/jankurai/proofmark/proof-receipt.json` |
 | `copy-code` | `audit` | `auto` | `configured` | `ad hoc copy-code review, manual duplication triage` | `target/jankurai/copy-code.json, target/jankurai/copy-code.md` |
-| `security` | `security` | `auto` | `artifact_verified` | `gitleaks, dependency review, SBOM/provenance` | `target/jankurai/security/evidence.json` |
+| `security` | `security` | `auto` | `configured` | `gitleaks, dependency review, SBOM/provenance` | `target/jankurai/security/evidence.json` |
 | `ci-bad-behavior` | `security` | `auto` | `configured` | `mutable workflow refs, secret echo/debug workflow checks, non-blocking security scans` | `target/jankurai/language-bad-behavior.log` |
 | `git-bad-behavior` | `audit` | `auto` | `configured` | `destructive git automation, force-push release scripts, hidden stash-based state` | `target/jankurai/language-bad-behavior.log` |
 | `release-bad-behavior` | `release` | `auto` | `configured` | `manual release checklist, ad hoc tag and artifact review, manual provenance review` | `target/jankurai/language-bad-behavior.log` |
@@ -226,8 +226,8 @@ No audited runtime boundary reclassifications declared.
    Reason: `Code shape and semantic surface` scored 35 below the standard floor of 85
    Fix: split large or ambiguous authored code into smaller semantic modules with focused tests
    Rerun: `just fast`
-   Fingerprint: `sha256:efe4f4158695347e0e5bd3022d6f1601c0645b784a5c3d5cfe047560593ed0a6`
-   Evidence: largest authored code file: jansu-model/src/lib.rs (1820 LOC), code file exceeds 500 LOC, code file exceeds 1000 LOC, copy-code advisory classes found: 226 (advisory only, no score impact)
+   Fingerprint: `sha256:314cff91e999a23d4e7dca4b44a33090029e1025b6faa32b6ba12e4b5e106abe`
+   Evidence: largest authored code file: jansu-sans-io/src/de.rs (1510 LOC), code file exceeds 500 LOC, code file exceeds 1000 LOC, copy-code advisory classes found: 217 (advisory only, no score impact)
 2. `medium` `security` `.github/workflows/jankurai.yml`
    Rule: `HLT-016-SUPPLY-CHAIN-DRIFT`
    Check: `HLT-016-SUPPLY-CHAIN-DRIFT:security` `soft` confidence `0.76`

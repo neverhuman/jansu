@@ -702,7 +702,7 @@ agent-tool-supply-evidence:
 
 release-readiness-evidence:
     mkdir -p target/jankurai/release
-    cp docs/release/release-readiness.md target/jankurai/release/readiness-checklist.md
+    cp docs/launch/launch-checklist.md target/jankurai/release/readiness-checklist.md
 
 release-evidence: release-readiness-evidence
     git describe --tags --abbrev=0 > target/jankurai/release/rollback-evidence.md

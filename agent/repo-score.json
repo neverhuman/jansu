@@ -1,6 +1,6 @@
 {
-  "report_fingerprint": "sha256:85df95021d3cc211acb2bb8d192bb7f202c4249acbd168f68f78b8bc78de0325",
-  "input_fingerprint": "sha256:7e3e43f39dedfc765d2c81eb3231b10b2b521aa467c35d26f0aeea60c33fc7fa",
+  "report_fingerprint": "sha256:ce91693f468abbacd2417a2062f5f15286caae78fcff922c84cf98b13987ca11",
+  "input_fingerprint": "sha256:40775cd8a4a14693313e213a588d0df474281d8626c9f0421c639bff95d76b7d",
   "policy_fingerprint": "sha256:89185f82443cdcd93d0bfc555eb31e9c90b301a30ee2965c6aa16dd7273835f1",
   "manifest_fingerprints": {
     "owner_map": "sha256:906487d7ffca26a6c13cd3f11b39306282389a30e8994a7c1a632b3b0ef93687",
@@ -11,7 +11,7 @@
     "standard_version": "sha256:7453c97b6b9ed3c9535b03655eddbe5cfc52f46ab15339264de93534d2db94c5"
   },
   "dirty_worktree": true,
-  "generated_at": "1778969162",
+  "generated_at": "1778969795",
   "schema_url": "schemas/repo-score.schema.json",
   "standard": "jankurai",
   "standard_version": "0.9.0",
@@ -27,9 +27,9 @@
     "HLT-025-RELEASE-READINESS-GAP on docs/testing.md"
   ],
   "repo": ".",
-  "run_id": "1778969162",
-  "started_at": "1778969162",
-  "elapsed_ms": 12577,
+  "run_id": "1778969795",
+  "started_at": "1778969795",
+  "elapsed_ms": 9514,
   "scope": {
     "mode": "full",
     "paths": []
@@ -37,9 +37,9 @@
   "score": 80,
   "raw_score": 82,
   "decision": {
-    "status": "advisory",
+    "status": "fail",
     "minimum_score": 85,
-    "passed": true,
+    "passed": false,
     "hard_findings": 1,
     "soft_findings": 3,
     "ratchet": {
@@ -56,7 +56,7 @@
     }
   },
   "git": {
-    "head": "fc8b000",
+    "head": "eadb80a",
     "base": null,
     "changed_files": 0,
     "mode": "full",
@@ -73,7 +73,7 @@
       "medium",
       "low"
     ],
-    "mode": "advisory",
+    "mode": "standard",
     "standard_version": "0.9.0",
     "auditor_version": "1.4.1",
     "schema_version": "1.9.0",
@@ -356,7 +356,7 @@
         "security lane present",
         "canonical security lane wrapper present",
         "agent-readiness audit gate found in CI",
-        "rust bad-behavior advisory signals: 1432",
+        "rust bad-behavior advisory signals: 1430",
         "sql bad-behavior advisory signals: 8",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
@@ -370,11 +370,11 @@
       "score": 35,
       "weighted_points": 4.2,
       "evidence": [
-        "largest authored code file: jansu-model/src/lib.rs (1820 LOC)",
+        "largest authored code file: jansu-sans-io/src/de.rs (1510 LOC)",
         "code file exceeds 500 LOC",
         "code file exceeds 1000 LOC",
-        "copy-code advisory classes found: 226 (advisory only, no score impact)",
-        "rust bad-behavior advisory signals: 1432",
+        "copy-code advisory classes found: 217 (advisory only, no score impact)",
+        "rust bad-behavior advisory signals: 1430",
         "sql bad-behavior advisory signals: 8",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
@@ -432,14 +432,14 @@
     {
       "name": "Jankurai tool adoption and CI replacement",
       "weight": 7,
-      "score": 34,
-      "weighted_points": 2.38,
+      "score": 30,
+      "weighted_points": 2.1,
       "evidence": [
         "control-plane files present",
         "applicable=16",
         "configured=16",
-        "ci_evidence=1",
-        "artifact_verified=1"
+        "ci_evidence=0",
+        "artifact_verified=0"
       ],
       "notes": [
         "some applicable tools lack CI evidence",
@@ -512,9 +512,9 @@
     "control_plane_present": true,
     "applicable_count": 16,
     "configured_count": 16,
-    "ci_evidence_count": 1,
-    "artifact_verified_count": 1,
-    "replaced_count": 1,
+    "ci_evidence_count": 0,
+    "artifact_verified_count": 0,
+    "replaced_count": 0,
     "items": [
       {
         "id": "audit-ci",
@@ -642,7 +642,7 @@
         "category": "security",
         "mode": "auto",
         "applicable": true,
-        "status": "artifact_verified",
+        "status": "configured",
         "replaced_tools": [
           "gitleaks",
           "dependency review",
@@ -650,11 +650,11 @@
         ],
         "evidence": [
           "mode=auto",
-          "tool-adoption config entry present",
-          "CI command found in workflow",
-          "artifact uploads found: target/jankurai/security/evidence.json"
+          "tool-adoption config entry present"
         ],
-        "missing": [],
+        "missing": [
+          "CI command evidence"
+        ],
         "local_command": "jankurai security run . --out target/jankurai/security/evidence.json",
         "ci_command": "jankurai security run . --out target/jankurai/security/evidence.json",
         "artifact_paths": [
@@ -996,14 +996,10 @@
         "release-readiness",
         "cost-budget"
       ],
-      "artifact_verified_count": 1,
-      "artifact_verified_tools": [
-        "security"
-      ],
-      "ci_evidence_count": 1,
-      "ci_evidence_tools": [
-        "security"
-      ],
+      "artifact_verified_count": 0,
+      "artifact_verified_tools": [],
+      "ci_evidence_count": 0,
+      "ci_evidence_tools": [],
       "config_present": true,
       "configured_count": 16,
       "configured_tools": [
@@ -1032,6 +1028,7 @@
       "proofbind",
       "proofmark-rust",
       "copy-code",
+      "security",
       "ci-bad-behavior",
       "git-bad-behavior",
       "release-bad-behavior",
@@ -1062,7 +1059,7 @@
   "copy_code": {
     "schema_version": "1.1.0",
     "generated_by": "jankurai copy-code",
-    "generated_at": "2026-05-16T22:05:50.343122+00:00",
+    "generated_at": "2026-05-16T22:16:26.623680+00:00",
     "repo": ".",
     "auditor_version": "1.4.1",
     "status": "review",
@@ -1100,20 +1097,20 @@
       ]
     },
     "summary": {
-      "files_scanned": 974,
-      "files_considered": 263,
-      "active_files": 263,
+      "files_scanned": 981,
+      "files_considered": 269,
+      "active_files": 269,
       "exact_file_classes": 0,
       "hard_classes": 0,
-      "warning_classes": 226,
+      "warning_classes": 217,
       "hard_instances": 0,
-      "warning_instances": 711,
-      "duplicate_lines": 1161,
-      "duplicate_tokens": 11733,
-      "duplicate_bytes": 56340,
-      "total_redundant_lines": 1730,
-      "total_redundant_tokens": 12708,
-      "total_redundant_bytes": 66688
+      "warning_instances": 685,
+      "duplicate_lines": 1154,
+      "duplicate_tokens": 11711,
+      "duplicate_bytes": 56151,
+      "total_redundant_lines": 1715,
+      "total_redundant_tokens": 12665,
+      "total_redundant_bytes": 66275
     },
     "classes": [
       {
@@ -4034,7 +4031,7 @@
       "hard classes are limited to exact active-source file matches and substantial exact same-name units",
       "warning classes include same-body different-name units and token/block duplication",
       "tests, fixtures, stories, config, Docker, and migrations are omitted unless --include-tests is set",
-      "showing the top 50 classes and omitting 176 lower-ranked classes"
+      "showing the top 50 classes and omitting 167 lower-ranked classes"
     ]
   },
   "profile_structure": {
@@ -4333,17 +4330,17 @@
       "problem": "`Code shape and semantic surface` scored 35 below the standard floor of 85",
       "agent_fix": "split large or ambiguous authored code into smaller semantic modules with focused tests",
       "evidence": [
-        "largest authored code file: jansu-model/src/lib.rs (1820 LOC)",
+        "largest authored code file: jansu-sans-io/src/de.rs (1510 LOC)",
         "code file exceeds 500 LOC",
         "code file exceeds 1000 LOC",
-        "copy-code advisory classes found: 226 (advisory only, no score impact)"
+        "copy-code advisory classes found: 217 (advisory only, no score impact)"
       ],
       "check_id": "HLT-001-DEAD-MARKER:shape",
       "hardness": "soft",
       "confidence": 0.76,
       "evidence_kind": "repository-scan",
       "rerun_command": "just fast",
-      "fingerprint": "sha256:efe4f4158695347e0e5bd3022d6f1601c0645b784a5c3d5cfe047560593ed0a6",
+      "fingerprint": "sha256:314cff91e999a23d4e7dca4b44a33090029e1025b6faa32b6ba12e4b5e106abe",
       "rule_id": "HLT-001-DEAD-MARKER",
       "tlr": "Entropy",
       "lane": "fast",
