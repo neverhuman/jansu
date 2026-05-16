@@ -66,6 +66,14 @@ impl Engine {
     }
 }
 
+// NOTE (ws-g.2): An `observe!` macro that would generate every method in the
+// block below from a single declarative invocation was prototyped here. With
+// the trait still declared `#[async_trait]`, the macro_rules expansion emits
+// method signatures whose synthetic lifetimes do not match the desugared trait
+// signatures (E0195: "lifetime parameters or bounds on method do not match the
+// trait declaration"), so the impl is kept explicit until the trait can be
+// switched to native AFIT. The mechanical split in ws-g.1 already lifts the
+// shape cap.
 #[async_trait]
 impl Storage for Engine {
     #[instrument(skip_all)]
