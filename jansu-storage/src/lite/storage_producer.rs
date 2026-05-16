@@ -265,6 +265,83 @@ impl Delegate {
                 }
             }
 
+            (Some(producer_id), Some(producer_epoch), None) => {
+                let pc = self.connection().await?;
+                let tx = pc.transaction().await?;
+
+                let mut rows = pc
+                    .query(
+                        "producer_epoch_max_select.sql",
+                        (self.cluster.as_str(), producer_id),
+                    )
+                    .await?;
+
+                let max_epoch = if let Some(row) = rows.next().await? {
+                    row.get::<i32>(0)
+                        .map(|epoch| epoch as i16)
+                        .unwrap_or(-1)
+                } else {
+                    -1
+                };
+
+                while let Some(row) = rows.next().await? {
+                    debug!(?row)
+                }
+
+                if max_epoch == -1 {
+                    return Ok(ProducerIdResponse {
+                        error: ErrorCode::UnknownProducerId,
+                        id: -1,
+                        epoch: -1,
+                    });
+                } else if max_epoch != producer_epoch {
+                    return Ok(ProducerIdResponse {
+                        error: ErrorCode::ProducerFenced,
+                        id: -1,
+                        epoch: -1,
+                    });
+                }
+
+                let mut rows = pc
+                    .query(
+                        "producer_epoch_insert.sql",
+                        (self.cluster.as_str(), producer_id),
+                    )
+                    .await?;
+
+                if let Some(row) = rows.next().await? {
+                    let new_epoch = row
+                        .get::<i32>(0)
+                        .map(|epoch| epoch as i16)
+                        .inspect(|epoch| debug!(epoch))?;
+
+                    while let Some(row) = rows.next().await? {
+                        debug!(?row)
+                    }
+
+                    let error = match pc
+                        .commit(tx)
+                        .await
+                        .inspect_err(|err| error!(?err, producer_id, new_epoch))
+                    {
+                        Ok(()) => ErrorCode::None,
+                        Err(_) => ErrorCode::UnknownServerError,
+                    };
+
+                    Ok(ProducerIdResponse {
+                        error,
+                        id: producer_id,
+                        epoch: new_epoch,
+                    })
+                } else {
+                    Ok(ProducerIdResponse {
+                        error: ErrorCode::UnknownServerError,
+                        id: -1,
+                        epoch: -1,
+                    })
+                }
+            }
+
             (_, _, _) => Ok(ProducerIdResponse {
                 error: ErrorCode::UnknownServerError,
                 id: -1,

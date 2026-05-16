@@ -237,13 +237,13 @@ pub async fn produce(
     assert!(
         response
             .responses
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .all(|topic| {
                 topic
                     .partition_responses
-                    .unwrap_or_default()
-                    .iter()
+                    .into_iter()
+                    .flatten()
                     .inspect(|partition| debug!(topic = %topic.name, ?partition))
                     .all(|partition| partition.error_code == i16::from(ErrorCode::None))
             })

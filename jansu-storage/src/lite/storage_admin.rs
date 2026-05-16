@@ -439,7 +439,7 @@ impl Delegate {
                             };
 
                             if let Some(del_val) = &config.value {
-                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or_default();
+                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|&s| !s.is_empty() && s != del_val.as_str()).collect()).unwrap_or_default();
                                 
                                 if list.is_empty() {
                                     if c.query(

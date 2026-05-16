@@ -239,6 +239,41 @@ impl Engine {
                     epoch,
                     ..Default::default()
                 }))
+        } else if let (Some(producer_id), Some(producer_epoch)) = (producer_id, producer_epoch) {
+            let tx = self
+                .db
+                .begin(slatedb::IsolationLevel::SerializableSnapshot)
+                .await
+                .inspect_err(|err| debug!(?err))?;
+
+            let mut producers: Producers = self.load_metadata(&tx, Self::PRODUCERS).await?;
+
+            if let Some(pd) = producers.get_mut(&producer_id) {
+                let current_epoch = pd.sequences.last_key_value().map(|(k, _)| *k).unwrap_or(0);
+                if producer_epoch != current_epoch {
+                    Ok(ProducerIdResponse {
+                        id: -1,
+                        epoch: -1,
+                        error: ErrorCode::ProducerFenced,
+                    })
+                } else {
+                    let new_epoch = if current_epoch == i16::MAX { 0 } else { current_epoch + 1 };
+                    _ = pd.sequences.insert(new_epoch, BTreeMap::new());
+                    self.save_metadata(&tx, Self::PRODUCERS, &producers)?;
+                    tx.commit().await.map_err(Error::from)?;
+                    Ok(ProducerIdResponse {
+                        id: producer_id,
+                        epoch: new_epoch,
+                        ..Default::default()
+                    })
+                }
+            } else {
+                Ok(ProducerIdResponse {
+                    id: -1,
+                    epoch: -1,
+                    error: ErrorCode::UnknownProducerId,
+                })
+            }
         } else {
             Ok(ProducerIdResponse {
                 id: -1,

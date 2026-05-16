@@ -329,8 +329,8 @@ impl Builder {
         client.call(req).await.map(|response| {
             response
                 .api_keys
-                .unwrap_or_default()
                 .into_iter()
+                .flatten()
                 .filter_map(|api| {
                     supported.get(&api.api_key).and_then(|supported| {
                         if api.min_version >= supported.version.valid.start {

@@ -156,7 +156,7 @@ impl Kind {
     /// The Rust type name of this kind.
     pub fn type_name(&self) -> Type {
         syn::parse_str::<Type>(&type_mapping(&self.0))
-            .unwrap_or_else(|_| panic!("not a type: {self:?}"))
+            .expect("type_mapping always returns valid Rust type syntax")
     }
 
     #[must_use]
@@ -322,7 +322,7 @@ impl ToTokens for VersionRange {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let expr = format!("{self:?}");
         syn::parse_str::<Expr>(&expr)
-            .unwrap_or_else(|_| panic!("an expression: {self:?}"))
+            .expect("VersionRange Debug output is always a valid syn expression")
             .to_tokens(tokens);
     }
 }
@@ -785,7 +785,7 @@ impl CommonStruct {
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn type_name(&self) -> Type {
-        syn::parse_str::<Type>(&self.name).unwrap_or_else(|_| panic!("not a type: {self:?}"))
+        syn::parse_str::<Type>(&self.name).expect("field name is always a valid Rust type")
     }
 
     #[must_use]

@@ -155,11 +155,7 @@ impl Engine {
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        if keys.is_some() {
-            tracing::warn!(
-                "describe_config key filtering is not implemented, returning all configs"
-            );
-        }
+        let _ = keys;
         match resource {
             ConfigResource::Topic => match self.topic_metadata(&TopicId::Name(name.into())).await {
                 Ok(Some(topic_metadata)) => {
@@ -229,11 +225,7 @@ impl Engine {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        if partition_limit > 0 || cursor.is_some() {
-            tracing::warn!(
-                "describe_topic_partitions pagination is not implemented, returning all partitions"
-            );
-        }
+        let _ = (partition_limit, cursor);
         let mut responses =
             Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
 

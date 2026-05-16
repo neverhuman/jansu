@@ -55,6 +55,29 @@ const VALUE: &str = "Value";
 const NULLABLE: bool = true;
 const SORTED_MAP_KEYS: bool = false;
 
+// input-boundary: topic table names validated by validate_datafusion_table_name before SQL use
+fn validate_datafusion_table_name(name: &str) -> crate::Result<()> {
+    let upper = name.to_uppercase();
+    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
+        .iter()
+        .any(|kw| upper.contains(kw))
+    {
+        Err(crate::Error::Message(format!(
+            "table name contains disallowed keyword: {name}"
+        )))
+    } else {
+        Ok(())
+    }
+}
+
+fn datafusion_table_query(topic: &str) -> crate::Result<String> {
+    validate_datafusion_table_name(topic)?;
+    let mut stmt = String::with_capacity(topic.len() + 15);
+    stmt.push_str("select * from ");
+    stmt.push_str(topic);
+    Ok(stmt)
+}
+
 fn append<'a>(path: &[&'a str], name: &'a str) -> Vec<&'a str> {
     let mut path = Vec::from(path);
     path.push(name);
@@ -1408,7 +1431,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch.clone())?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1577,7 +1600,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1664,7 +1687,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1720,7 +1743,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1776,7 +1799,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty = pretty_format_batches(&results)?.to_string();
@@ -1841,7 +1864,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1908,7 +1931,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1969,7 +1992,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2035,7 +2058,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2079,7 +2102,7 @@ mod tests {
             .await?;
         _ = ctx.register_batch(topic, record_batch)?;
 
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2123,7 +2146,7 @@ mod tests {
             .await?;
         _ = ctx.register_batch(topic, record_batch)?;
 
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql(&datafusion_table_query(topic)?).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();

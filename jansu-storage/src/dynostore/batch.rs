@@ -193,6 +193,32 @@ impl DynoStore {
                             })
                         }
 
+                        (Some(producer_id), Some(producer_epoch)) => {
+                            if let Some(pd) = meta.producers.get_mut(&producer_id) {
+                                let current_epoch = pd.sequences.last_key_value().map(|(k, _)| *k).unwrap_or(0);
+                                if producer_epoch != current_epoch {
+                                    Ok(ProducerIdResponse {
+                                        id: -1,
+                                        epoch: -1,
+                                        error: ErrorCode::ProducerFenced,
+                                    })
+                                } else {
+                                    let new_epoch = if current_epoch == i16::MAX { 0 } else { current_epoch + 1 };
+                                    assert_eq!(None, pd.sequences.insert(new_epoch, BTreeMap::new()));
+                                    Ok(ProducerIdResponse {
+                                        id: producer_id,
+                                        epoch: new_epoch,
+                                        ..Default::default()
+                                    })
+                                }
+                            } else {
+                                Ok(ProducerIdResponse {
+                                    id: -1,
+                                    epoch: -1,
+                                    error: ErrorCode::UnknownProducerId,
+                                })
+                            }
+                        }
                         (producer, epoch) => {
                             error!(?producer, ?epoch);
                             Ok(ProducerIdResponse {

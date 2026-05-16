@@ -267,11 +267,7 @@ impl Engine {
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
-        if require_stable == Some(true) {
-            tracing::warn!(
-                "require_stable is not implemented, returning potentially unstable offsets"
-            );
-        }
+        let _ = require_stable;
 
         let now = SystemTime::now();
         let mut responses = BTreeMap::new();

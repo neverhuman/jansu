@@ -909,9 +909,10 @@ where
             let now = SystemTime::now();
 
             let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                match wrappers.remove(group_id) {
+                    Some(existing) => existing,
+                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                }
             })?;
 
             debug!(?group_id, ?original, ?version, ?iteration);
@@ -1019,9 +1020,10 @@ where
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "leave_loop")]);
 
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                match wrappers.remove(group_id) {
+                    Some(existing) => existing,
+                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                }
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
@@ -1091,9 +1093,10 @@ where
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "offset_commit_loop")]);
 
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                match wrappers.remove(group_id) {
+                    Some(existing) => existing,
+                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                }
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
@@ -1188,9 +1191,10 @@ where
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "heartbeat_loop")]);
 
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                match wrappers.remove(group_id) {
+                    Some(existing) => existing,
+                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                }
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);

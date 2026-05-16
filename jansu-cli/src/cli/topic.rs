@@ -97,8 +97,6 @@ where
     U: FromStr,
     U::Err: Error + Send + Sync + 'static,
 {
-    let pos = s
-        .find('=')
-        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    let pos = s.find('=').ok_or("invalid KEY=value: missing `=` separator")?;
     Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }

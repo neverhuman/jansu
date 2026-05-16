@@ -215,10 +215,67 @@ impl Postgres {
                     epoch,
                 })
             }
+        } else if let (Some(producer_id), Some(producer_epoch)) = (producer_id, producer_epoch) {
+            let mut c = self.connection().await?;
+            let tx = c.transaction().await?;
+
+            let row = self
+                .tx_prepare_query_one(
+                    &tx,
+                    "producer_epoch_max_select.sql",
+                    &[&self.cluster, &producer_id],
+                )
+                .await
+                .inspect_err(|err| error!(self.cluster, producer_id, ?err))?;
+
+            let max_epoch: i16 = row.try_get(0)?;
+
+            if max_epoch == -1 {
+                // Producer not found
+                return Ok(ProducerIdResponse {
+                    error: ErrorCode::UnknownProducerId,
+                    id: -1,
+                    epoch: -1,
+                });
+            } else if max_epoch != producer_epoch {
+                return Ok(ProducerIdResponse {
+                    error: ErrorCode::ProducerFenced,
+                    id: -1,
+                    epoch: -1,
+                });
+            }
+
+            // Valid, so we bump the epoch. The producer_epoch_insert.sql bumps automatically!
+            let row = self
+                .tx_prepare_query_one(
+                    &tx,
+                    "producer_epoch_insert.sql",
+                    &[&self.cluster, &producer_id],
+                )
+                .await
+                .inspect_err(|err| error!(self.cluster, producer_id, ?err))?;
+
+            let new_epoch: i16 = row.try_get(0)?;
+
+            let error = match tx
+                .commit()
+                .await
+                .inspect_err(|err| error!(?err, producer_id, new_epoch))
+            {
+                Ok(()) => ErrorCode::None,
+                Err(_) => ErrorCode::UnknownServerError,
+            };
+
+            Ok(ProducerIdResponse {
+                error,
+                id: producer_id,
+                epoch: new_epoch,
+            })
         } else {
-            Err(Error::FeatureUnsupported {
-                backend: "postgres",
-                feature: "init_producer with non-sentinel producer_id/epoch".into(),
+            Ok(ProducerIdResponse {
+                error: ErrorCode::UnknownServerError,
+                id: -1,
+                epoch: -1,
             })
         }
     }

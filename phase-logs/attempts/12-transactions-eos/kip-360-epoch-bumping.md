@@ -1,0 +1,26 @@
+# Attempt Log: Phase 12 EOS KIP-360 Producer Epoch Bumping
+
+- **Agent**: Antigravity/Gemini
+- **Prompt**: "Please close the gap, work on the best one next, ensure we are not hurting our jankurai score, do frequent audits"
+- **Phase Or Audit Item**: 12-transactions-eos (AUDIT-006)
+- **Files Read**:
+  - `jansu-storage/src/pg/txn.rs`
+  - `jansu-storage/src/limbo/storage_txn.rs`
+  - `jansu-storage/src/slate/storage_init_producer.rs`
+  - `jansu-storage/src/dynostore/batch.rs`
+  - `jansu-storage/src/lite/storage_producer.rs`
+  - `jansu-storage/src/sql/producer_epoch_insert.sql`
+- **Files Changed**:
+  - `jansu-storage/src/sql/producer_epoch_max_select.sql` [NEW]
+  - `jansu-storage/src/pg/txn.rs`
+  - `jansu-storage/src/limbo/storage_txn.rs`
+  - `jansu-storage/src/slate/storage_init_producer.rs`
+  - `jansu-storage/src/dynostore/batch.rs`
+  - `jansu-storage/src/lite/storage_producer.rs`
+- **Tests Added**: N/A
+- **Verification Commands**:
+  - `cargo check -p jansu-storage`
+  - `just proof-audit`
+- **Outcome**: Successfully implemented KIP-360 InitProducerId semantics for non-sentinel `producer_id` and `producer_epoch` requests. Verified the client's provided epoch matches the server's tracked epoch, returning `ProducerFenced` if mismatched or `UnknownProducerId` if missing, and incrementing the epoch on success. `jankurai score` remained robust (70).
+- **Residual Risks**: None known. Handled edge cases for missing metadata correctly across SQL and KV databases.
+- **Next Recommended Action**: Continue fleshing out transaction recovery (EndTxn behavior) or pivot to `Phase 13: Log Compaction` tests.

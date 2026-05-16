@@ -99,8 +99,22 @@ just jansu-down
 
 - Any paid or externally metered job needs a written budget before it starts.
 - Stop when the budget, timebox, or retry ceiling is reached.
-- Do not continue a release or migration if rollback evidence, backup evidence, or security evidence is missing.
-- Use `just security` and `docker compose down --remove-orphans --volumes` as the kill switch for bad local release candidates.
+- Do not proceed if rollback evidence, backup evidence, or security evidence is missing.
+- Use `just security` and `docker compose down --remove-orphans --volumes` as the kill switch for bad local candidates.
+
+## 6a. Launch-gate checklist
+
+All gates must pass before tagging a release. Evidence artifacts listed below are produced by CI.
+
+| Gate | Evidence artifact | CI step |
+|---|---|---|
+| Security scan | `target/jankurai/security/evidence.json` | `bash ops/ci/jankurai.sh` |
+| Audit score ≥ 85 | `target/jankurai/repo-score.json` | `bash ops/ci/jankurai.sh` |
+| Tests pass | `target/nextest/default/junit.xml` | `bash ops/ci/test.sh` |
+| Rollback plan | `docs/exceptions/README.md` | manual review |
+| Monitoring live | `compose.yaml` (Grafana + Prometheus) | `just ci` |
+| Abuse controls | `jansu-auth/src/handshake.rs` (SASL) | code review |
+| Cost budget documented | `docs/testing.md` §6 | this doc |
 
 ## 7. Publish (CI only)
 

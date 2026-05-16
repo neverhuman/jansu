@@ -324,6 +324,97 @@ pub(super) async fn init_producer(
             }
         }
 
+        (Some(producer_id), Some(producer_epoch), None) => {
+            let mut connection = this.connection().await.inspect_err(|err| error!(?err))?;
+            let tx = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .await?;
+
+            let mut rows = tx
+                .query(
+                    &sql_lookup("producer_epoch_max_select.sql")?,
+                    (this.cluster.as_str(), producer_id),
+                )
+                .await?;
+
+            let max_epoch = if let Some(row) = rows.next().await? {
+                row.get_value(0)
+                    .map_err(Into::into)
+                    .and_then(|value| {
+                        value
+                            .as_integer()
+                            .map(|i| *i as i16)
+                            .ok_or(Error::UnexpectedValue(value))
+                    })?
+            } else {
+                -1
+            };
+
+            while let Some(row) = rows.next().await? {
+                debug!(?row)
+            }
+
+            if max_epoch == -1 {
+                return Ok(ProducerIdResponse {
+                    error: ErrorCode::UnknownProducerId,
+                    id: -1,
+                    epoch: -1,
+                });
+            } else if max_epoch != producer_epoch {
+                return Ok(ProducerIdResponse {
+                    error: ErrorCode::ProducerFenced,
+                    id: -1,
+                    epoch: -1,
+                });
+            }
+
+            let mut rows = tx
+                .query(
+                    &sql_lookup("producer_epoch_insert.sql")?,
+                    (this.cluster.as_str(), producer_id),
+                )
+                .await
+                .inspect_err(|err| error!(?err, cluster = this.cluster, producer_id))?;
+
+            if let Some(row) = rows.next().await? {
+                let new_epoch = row
+                    .get_value(0)
+                    .map_err(Into::into)
+                    .and_then(|value| {
+                        value
+                            .as_integer()
+                            .map(|i| *i as i16)
+                            .ok_or(Error::UnexpectedValue(value))
+                    })
+                    .inspect(|epoch| debug!(epoch))?;
+
+                while let Some(row) = rows.next().await? {
+                    debug!(?row)
+                }
+
+                let error = match tx
+                    .commit()
+                    .await
+                    .inspect_err(|err| error!(?err, producer_id, new_epoch))
+                {
+                    Ok(()) => ErrorCode::None,
+                    Err(_) => ErrorCode::UnknownServerError,
+                };
+
+                Ok(ProducerIdResponse {
+                    error,
+                    id: producer_id,
+                    epoch: new_epoch,
+                })
+            } else {
+                Ok(ProducerIdResponse {
+                    error: ErrorCode::UnknownServerError,
+                    id: -1,
+                    epoch: -1,
+                })
+            }
+        }
+
         (_, _, _) => Ok(ProducerIdResponse {
             error: ErrorCode::UnknownServerError,
             id: -1,
