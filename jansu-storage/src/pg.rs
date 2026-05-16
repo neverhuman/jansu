@@ -918,7 +918,7 @@ impl Postgres {
 
                 for (delta, record) in inflated.records.iter().enumerate() {
                     let delta = i64::try_from(delta)?;
-                    let offset = high.unwrap_or_default() + delta;
+                    let offset = append_start_offset + delta;
                     let attributes = inflated.attributes;
                     let key = record.key.as_deref();
                     let value = record.value.as_deref();
@@ -963,7 +963,7 @@ impl Postgres {
 
                 for (delta, record) in inflated.records.iter().enumerate() {
                     let delta = i64::try_from(delta)?;
-                    let offset = high.unwrap_or_default() + delta;
+                    let offset = append_start_offset + delta;
 
                     for header in record.headers.iter().as_ref() {
                         let key = header.key.as_deref();
@@ -997,8 +997,8 @@ impl Postgres {
             if let Some(transaction_id) = transaction_id
                 && attributes.transaction
             {
-                let offset_start = high.unwrap_or_default();
-                let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
+                let offset_start = append_start_offset;
+                let offset_end = append_start_offset + last_offset_delta;
 
                 _ = self
                 .tx_prepare_execute(tx,
@@ -1036,10 +1036,10 @@ impl Postgres {
             .inspect(|n| debug!(?n))
             .inspect_err(|err| error!(?err))?;
 
-        self.lake_store(&attributes, topition, high, &inflated)
+        self.lake_store(&attributes, topition, append_start_offset, &inflated)
             .await?;
 
-        Ok(high.unwrap_or_default())
+        Ok(append_start_offset)
     }
 
     #[instrument(skip_all)]
@@ -1303,7 +1303,7 @@ impl Postgres {
         &self,
         attributes: &BatchAttribute,
         topition: &Topition,
-        high: Option<i64>,
+        high: i64,
         inflated: &Batch,
     ) -> Result<()> {
         if !attributes.control
@@ -1316,7 +1316,7 @@ impl Postgres {
             lake.store(
                 topition.topic(),
                 topition.partition(),
-                high.unwrap_or_default(),
+                high,
                 inflated,
                 config,
             )
@@ -1771,7 +1771,7 @@ impl Storage for Postgres {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_default() {
+                for config in resource.configs.into_iter().flatten() {
                     match OpType::try_from(config.config_operation)? {
                         OpType::Set => {
                             let c = self.connection().await?;
@@ -2937,11 +2937,10 @@ impl Storage for Postgres {
                 let name = row
                     .try_get::<_, String>(0)
                     .inspect_err(|err| error!(?err))?;
-                let value = row
+                let value: Option<String> = row
                     .try_get::<_, Option<String>>(1)
-                    .map(|value| value.unwrap_or_default())
-                    .map(Some)
-                    .inspect_err(|err| error!(?err))?;
+                    .inspect_err(|err| error!(?err))?
+                    .or(Some(String::new()));
 
                 configs.push(
                     DescribeConfigsResourceResult::default()
@@ -2988,10 +2987,10 @@ impl Storage for Postgres {
 
         let c = self.connection().await.inspect_err(|err| error!(?err))?;
 
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let topics = topics.unwrap_or_default();
+        let mut responses = Vec::with_capacity(topics.len());
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics {
             debug!(?topic);
 
             responses.push(match topic {
@@ -3638,7 +3637,7 @@ impl Storage for Postgres {
                 for topic in topics {
                     let mut results_by_partition = vec![];
 
-                    for partition_index in topic.partitions.unwrap_or(vec![]) {
+                    for partition_index in topic.partitions.into_iter().flatten() {
                         _ = self
                             .tx_prepare_execute(
                                 &tx,
@@ -3779,7 +3778,7 @@ impl Storage for Postgres {
         for topic in offsets.topics {
             let mut partitions = vec![];
 
-            for partition in topic.partitions.unwrap_or(vec![]) {
+            for partition in topic.partitions.into_iter().flatten() {
                 if producer_id.is_some_and(|producer_id| producer_id == offsets.producer_id) {
                     if producer_epoch
                         .is_some_and(|producer_epoch| producer_epoch == offsets.producer_epoch)
