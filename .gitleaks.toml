@@ -1,16 +1,15 @@
 title = "gitleaks config"
 
-[[rules]]
-  description = "Ignore default PostgreSQL URL with placeholder credentials"
-  regex = "postgresql://[^:]+:postgres@"
-  tags = ["allowlist"]
-
-[[rules]]
-  description = "Ignore default minio credentials"
-  regex = "minioadmin"
-  tags = ["allowlist"]
-
-[[rules]]
-  description = "Ignore placeholder encryption key"
-  regex = "This-is-NOT-Secure!"
-  tags = ["allowlist"]
+[allowlist]
+  description = "project-level allowlist: placeholder credentials, dev defaults, and content-integrity fingerprints"
+  regexTarget = "line"
+  regexes = [
+    # Default PostgreSQL URL with placeholder credentials
+    '''postgresql://[^:]+:postgres@''',
+    # Default minio credentials used in compose.yaml / example.env
+    '''minioadmin''',
+    # Placeholder encryption key in example.env / docs
+    '''This-is-NOT-Secure!''',
+    # Content-integrity fingerprints in generated audit artefacts (agent/repo-score.*)
+    '''sha256:[0-9a-f]{64}''',
+  ]
