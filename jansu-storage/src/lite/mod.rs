@@ -14,12 +14,10 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env,
     fmt::Debug,
     path::PathBuf,
-    result,
     str::FromStr,
-    sync::{Arc, LazyLock, Mutex},
+    sync::Arc,
     time::{Duration, SystemTime},
 };
 
