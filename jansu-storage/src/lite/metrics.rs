@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::LazyLock, time::SystemTime};
-
-use opentelemetry::metrics::{Counter, Histogram};
-
-use crate::METER;
+use super::*;
 
 pub(super) static SQL_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
     METER
@@ -72,8 +68,8 @@ pub(super) static DELEGATE_REQUEST_DURATION: LazyLock<Histogram<u64>> = LazyLock
         .u64_histogram("jansu_sqlite_delegate_request_duration")
         .with_boundaries(
             [
-                0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0,
-                1000.0,
+                0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0,
+                750.0, 1000.0,
             ]
             .into(),
         )

@@ -12,38 +12,88 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    collections::BTreeMap,
-    env,
-    path::PathBuf,
-    result,
-    str::FromStr,
-    sync::{Arc, LazyLock, Mutex},
-    time::Duration,
-};
+use super::*;
 
-use rama::{Context, Layer as _, Service as _};
-use regex::Regex;
-use tokio::{sync::Semaphore, task::JoinSet};
-use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, warn};
-use url::Url;
+#[derive(Clone, Default, Debug)]
+pub struct Builder<C, N, L, D> {
+    pub(super) cluster: C,
+    pub(super) node: N,
+    pub(super) advertised_listener: L,
+    pub(super) storage: D,
+    pub(super) schemas: Option<Registry>,
+    pub(super) lake: Option<House>,
+    pub(super) cancellation: CancellationToken,
+}
 
-use jansu_schema::{Registry, lake::House};
+impl<C, N, L, D> Builder<C, N, L, D> {
+    pub(crate) fn cluster<T>(self, cluster: T) -> Builder<String, N, L, D>
+    where
+        T: Into<String>,
+    {
+        Builder {
+            cluster: cluster.into(),
+            node: self.node,
+            advertised_listener: self.advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
 
-use crate::{
-    ChannelRequestLayer, Error, RequestChannelService, RequestStorageService, Result, Storage,
-    bounded_channel,
-    proxy::SemaphoreProxy,
-    sql::{Cache, remove_comments},
-};
+    pub(crate) fn node(self, node: i32) -> Builder<C, i32, L, D> {
+        debug!(node);
+        Builder {
+            cluster: self.cluster,
+            node,
+            advertised_listener: self.advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
 
-use super::{ConnectionManager, Delegate, Engine, Pool};
+    pub(crate) fn advertised_listener(self, advertised_listener: Url) -> Builder<C, N, Url, D> {
+        debug!(%advertised_listener);
+        Builder {
+            cluster: self.cluster,
+            node: self.node,
+            advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
 
-macro_rules! include_sql {
-    ($e: expr) => {
-        remove_comments(include_str!($e))
-    };
+    pub(crate) fn storage(self, storage: Url) -> Builder<C, N, L, Url> {
+        debug!(%storage);
+        Builder {
+            cluster: self.cluster,
+            node: self.node,
+            advertised_listener: self.advertised_listener,
+            storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
+
+    pub(crate) fn schemas(self, schemas: Option<Registry>) -> Builder<C, N, L, D> {
+        Self { schemas, ..self }
+    }
+
+    pub(crate) fn lake(self, lake: Option<House>) -> Self {
+        Self { lake, ..self }
+    }
+
+    pub(crate) fn cancellation(self, cancellation: CancellationToken) -> Self {
+        Self {
+            cancellation,
+            ..self
+        }
+    }
 }
 
 pub(super) static DDL: LazyLock<Cache> = LazyLock::new(|| {
@@ -130,90 +180,8 @@ pub(super) fn fix_parameters(sql: &str) -> Result<String> {
         .map_err(Into::into)
 }
 
-#[derive(Clone, Default, Debug)]
-pub struct Builder<C, N, L, D> {
-    cluster: C,
-    node: N,
-    advertised_listener: L,
-    storage: D,
-    schemas: Option<Registry>,
-    lake: Option<House>,
-    cancellation: CancellationToken,
-}
-
-impl<C, N, L, D> Builder<C, N, L, D> {
-    pub(crate) fn cluster<T>(self, cluster: T) -> Builder<String, N, L, D>
-    where
-        T: Into<String>,
-    {
-        Builder {
-            cluster: cluster.into(),
-            node: self.node,
-            advertised_listener: self.advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn node(self, node: i32) -> Builder<C, i32, L, D> {
-        debug!(node);
-        Builder {
-            cluster: self.cluster,
-            node,
-            advertised_listener: self.advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn advertised_listener(self, advertised_listener: Url) -> Builder<C, N, Url, D> {
-        debug!(%advertised_listener);
-        Builder {
-            cluster: self.cluster,
-            node: self.node,
-            advertised_listener,
-            storage: self.storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn storage(self, storage: Url) -> Builder<C, N, L, Url> {
-        debug!(%storage);
-        Builder {
-            cluster: self.cluster,
-            node: self.node,
-            advertised_listener: self.advertised_listener,
-            storage,
-            schemas: self.schemas,
-            lake: self.lake,
-            cancellation: self.cancellation,
-        }
-    }
-
-    pub(crate) fn schemas(self, schemas: Option<Registry>) -> Builder<C, N, L, D> {
-        Self { schemas, ..self }
-    }
-
-    pub(crate) fn lake(self, lake: Option<House>) -> Self {
-        Self { lake, ..self }
-    }
-
-    pub(crate) fn cancellation(self, cancellation: CancellationToken) -> Self {
-        Self {
-            cancellation,
-            ..self
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum CompactionMode {
+pub(super) enum CompactionMode {
     Single,
     #[default]
     Multi,
@@ -401,6 +369,22 @@ impl Builder<String, i32, Url, Url> {
                 maintenance: Arc::new(Semaphore::new(1)),
                 compaction,
             })) as Box<dyn Storage>)),
+        }
+    }
+}
+
+pub(super) fn unique_constraint(error_code: ErrorCode) -> impl Fn(libsql::Error) -> Error {
+    move |err| {
+        if let libsql::Error::SqliteFailure(code, ref reason) = err {
+            debug!(code, reason);
+
+            if code == SQLITE_CONSTRAINT_UNIQUE {
+                Error::Api(error_code)
+            } else {
+                err.into()
+            }
+        } else {
+            err.into()
         }
     }
 }
