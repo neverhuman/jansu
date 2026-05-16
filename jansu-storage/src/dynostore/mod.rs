@@ -72,8 +72,10 @@ use url::Url;
 use uuid::Uuid;
 
 mod batch;
+mod describe;
 mod features;
 mod fetch;
+mod groups;
 mod helpers;
 mod metadata;
 mod metron;
@@ -81,6 +83,7 @@ mod opticon;
 mod produce;
 mod queries;
 mod storage_impl;
+mod txn;
 
 use metron::Metron;
 pub(crate) use metron::object_store_error_name;
