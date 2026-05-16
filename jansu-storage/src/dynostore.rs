@@ -224,9 +224,8 @@ impl Meta {
             let mut configuration = metadata
                 .topic
                 .configs
-                .as_deref()
-                .unwrap_or_default()
                 .iter()
+                .flat_map(|configs| configs.iter())
                 .fold(BTreeMap::new(), |mut acc, item| {
                     _ = acc.insert(item.name.as_str(), item.value.as_deref());
                     acc
@@ -557,10 +556,13 @@ impl Storage for DynoStore {
             ConfigResource::Topic => self
                 .meta
                 .with_mut(&self.object_store, |meta| {
-                    meta.alter_topic(
-                        resource.resource_name.as_str(),
-                        resource.configs.as_deref().unwrap_or_default(),
-                    )
+                    let configs: Vec<_> = resource
+                        .configs
+                        .iter()
+                        .flat_map(|v| v.iter())
+                        .cloned()
+                        .collect();
+                    meta.alter_topic(resource.resource_name.as_str(), &configs)
                 })
                 .await
                 .map(|()| {
@@ -729,9 +731,9 @@ impl Storage for DynoStore {
         let host = self
             .advertised_listener
             .host_str()
-            .unwrap_or("0.0.0.0")
+            .map_or("0.0.0.0", |h| h)
             .into();
-        let port = self.advertised_listener.port().unwrap_or(9092).into();
+        let port = self.advertised_listener.port().map_or(9092, |p| p).into();
         let rack = None;
 
         Ok(vec![
@@ -755,23 +757,19 @@ impl Storage for DynoStore {
             .inspect_err(|err| debug!(?err))?;
 
         if self.lake.is_some()
-            && config
-                .configs
-                .as_ref()
-                .map(|configs| {
-                    configs
-                        .iter()
-                        .inspect(|config| debug!(?config))
-                        .any(|config| {
-                            config.name.as_str() == "jansu.lake.sink"
-                                && config
-                                    .value
-                                    .as_deref()
-                                    .and_then(|value| bool::from_str(value).ok())
-                                    .unwrap_or(false)
-                        })
-                })
-                .unwrap_or(false)
+            && config.configs.as_ref().is_some_and(|configs| {
+                configs
+                    .iter()
+                    .inspect(|config| debug!(?config))
+                    .any(|config| {
+                        config.name.as_str() == "jansu.lake.sink"
+                            && config
+                                .value
+                                .as_deref()
+                                .and_then(|value| bool::from_str(value).ok())
+                                .is_some_and(|v| v)
+                    })
+            })
         {
             // Get watermark to calculate proper offset for lake sink
             let watermark = self.watermarks.lock().map(|mut locked| {
@@ -785,7 +783,7 @@ impl Storage for DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = watermark.high.unwrap_or_default();
+                    let offset = watermark.high.map_or(0, |h| h);
                     watermark.high = watermark.high.map_or_else(
                         || Some(deflated.last_offset_delta as i64 + 1i64),
                         |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
@@ -923,7 +921,7 @@ impl Storage for DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = watermark.high.unwrap_or_default();
+                    let offset = watermark.high.map_or(0, |h| h);
                     watermark.high = watermark.high.map_or_else(
                         || Some(deflated.last_offset_delta as i64 + 1i64),
                         |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
@@ -1150,7 +1148,7 @@ impl Storage for DynoStore {
                             .map(BTreeMap::<Topition, Offset>::from)
                             .collect::<Vec<_>>()
                     })
-                    .reduce(|mut acc, e| {
+                    .fold(BTreeMap::new(), |mut acc, e| {
                         debug!(?acc, ?e);
 
                         for (topition, offset_start) in e.iter() {
@@ -1165,8 +1163,7 @@ impl Storage for DynoStore {
                         }
 
                         acc
-                    })
-                    .unwrap_or(BTreeMap::new()))
+                    }))
             })
             .await?;
 
@@ -1182,9 +1179,9 @@ impl Storage for DynoStore {
         watermark
             .with(&self.object_store, |watermark| {
                 debug!(?watermark);
-                let high_watermark = watermark.high.unwrap_or(0);
-                let log_start = watermark.low.unwrap_or(0);
-                let last_stable = stable.get(topition).copied().unwrap_or(high_watermark);
+                let high_watermark = watermark.high.map_or(0, |h| h);
+                let log_start = watermark.low.map_or(0, |l| l);
+                let last_stable = stable.get(topition).map_or(high_watermark, |v| *v);
 
                 Ok(OffsetStage {
                     last_stable,
@@ -1217,7 +1214,7 @@ impl Storage for DynoStore {
                                 .map(BTreeMap::<Topition, Offset>::from)
                                 .collect::<Vec<_>>()
                         })
-                        .reduce(|mut acc, e| {
+                        .fold(BTreeMap::new(), |mut acc, e| {
                             debug!(?acc, ?e);
                             for (topition, offset_start) in e.iter() {
                                 _ = acc
@@ -1231,8 +1228,7 @@ impl Storage for DynoStore {
                             }
 
                             acc
-                        })
-                        .unwrap_or(BTreeMap::new()))
+                        }))
                 })
                 .await?
         } else {
@@ -1549,19 +1545,17 @@ impl Storage for DynoStore {
                     return Err(Error::Api(ErrorCode::UnknownTopicOrPartition));
                 }
 
-                let mut history = meta
+                let mut history: Vec<LeaderEpochRecord> = meta
                     .leader_epoch_history
                     .get(&key)
-                    .map(|epochs| {
-                        epochs
-                            .iter()
-                            .map(|(epoch, start_offset)| LeaderEpochRecord {
-                                epoch: *epoch,
-                                start_offset: *start_offset,
-                            })
-                            .collect::<Vec<_>>()
+                    .into_iter()
+                    .flat_map(|epochs| {
+                        epochs.iter().map(|(epoch, start_offset)| LeaderEpochRecord {
+                            epoch: *epoch,
+                            start_offset: *start_offset,
+                        })
                     })
-                    .unwrap_or_default();
+                    .collect();
 
                 history.sort_unstable();
                 Ok(history)
@@ -1592,10 +1586,10 @@ impl Storage for DynoStore {
                 .host(
                     self.advertised_listener
                         .host_str()
-                        .unwrap_or("0.0.0.0")
+                        .map_or("0.0.0.0", |h| h)
                         .into(),
                 )
-                .port(self.advertised_listener.port().unwrap_or(9092).into())
+                .port(self.advertised_listener.port().map_or(9092, |p| p).into())
                 .rack(None),
         ];
 
@@ -1842,10 +1836,9 @@ impl Storage for DynoStore {
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
         let _ = (partition_limit, cursor);
 
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let mut responses = Vec::with_capacity(topics.map_or(0, |t| t.len()));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.into_iter().flatten() {
             match self
                 .topic_metadata(topic)
                 .await
@@ -2300,7 +2293,7 @@ impl Storage for DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.as_deref().unwrap_or(&[]) {
+                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -2326,7 +2319,7 @@ impl Storage for DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.as_deref().unwrap_or(&[]) {
+                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -2352,7 +2345,7 @@ impl Storage for DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.as_deref().unwrap_or(&[]) {
+                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -2376,7 +2369,7 @@ impl Storage for DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.as_deref().unwrap_or(&[]) {
+                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -2401,7 +2394,7 @@ impl Storage for DynoStore {
                         for topic in topics {
                             let mut results_by_partition = vec![];
 
-                            for partition_index in topic.partitions.as_deref().unwrap_or(&[]) {
+                            for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
                                 _ = txn_detail
                                     .produces
                                     .entry(topic.name.clone())
