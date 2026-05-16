@@ -71,6 +71,7 @@ uuid.workspace = true
 object_store = { workspace = true }
 pretty_assertions.workspace = true
 slatedb = { workspace = true }
+jansu-client.workspace = true
 jansu-schema = { workspace = true }
 jansu-storage = { workspace = true }
 rdkafka = "0.39.0"

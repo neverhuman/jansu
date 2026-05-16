@@ -106,9 +106,7 @@ impl Authentication {
     pub fn is_authenticated(&self) -> bool {
         self.stage
             .lock()
-            .map(|guard| matches!(guard.as_ref(), Some(Stage::Finished(_))))
-            .ok()
-            .unwrap_or_default()
+            .map_or(false, |guard| matches!(guard.as_ref(), Some(Stage::Finished(_))))
     }
 
     /// Build a fresh `Stage::Server` from the stored config. Used by

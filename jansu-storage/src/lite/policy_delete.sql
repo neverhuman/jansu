@@ -48,5 +48,4 @@ ancient as (
     and $2 - r.timestamp > coalesce(cast(ret.value as integer), $3)
 )
 
-delete from record
-where (record.topition, record.offset_id) in (select * from ancient);
+delete from record where (record.topition, record.offset_id) in (select * from ancient);

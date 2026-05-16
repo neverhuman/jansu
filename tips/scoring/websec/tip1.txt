@@ -1,0 +1,529 @@
+I’m assuming **“TypeScrypt” = TypeScript** and **“cross cite scripting” = cross-site scripting, or XSS**. “Exhaustive” in web security can never mean every future variant, but the taxonomy below is the comprehensive audit map I would use for a **Vite + TypeScript + React** app.
+
+OWASP’s current Top 10:2025 groups the major web risk families as broken access control, misconfiguration, supply-chain failures, cryptographic failures, injection, insecure design, authentication failures, software/data integrity failures, logging/alerting failures, and mishandled exceptions. That maps well to a Vite/React/TypeScript SPA plus API architecture. ([OWASP Foundation][1])
+
+## 1. Stack-specific security model
+
+**React** helps with one important XSS class: values rendered in normal JSX are escaped before insertion into the DOM. That protection does **not** cover raw HTML sinks such as `dangerouslySetInnerHTML`, direct DOM APIs, unsafe Markdown/HTML renderers, unsafe URL assignment, or third-party scripts. React’s own docs warn that `dangerouslySetInnerHTML` must be used with extreme caution because untrusted HTML creates XSS risk. ([React][2])
+
+**TypeScript** improves correctness but is not a runtime security boundary. It can prevent many unsafe coding patterns, especially under strict settings, but external data from APIs, URLs, storage, form inputs, and messages must still be validated at runtime. The TypeScript docs describe it as typed JavaScript, and `strictNullChecks` is one example of a compiler option that changes whether unsafe null/undefined assumptions are caught. ([typescriptlang.org][3])
+
+**Vite** is primarily a build tool and development server, not a production security boundary. Its docs explicitly warn against dangerous dev-server exposure patterns such as `allowedHosts: true`, which can enable DNS rebinding attacks, and its env docs state that only `VITE_*` variables are exposed to client code and should not contain secrets. Vite’s `preview` command is intended for local production-preview testing, not as a production server. ([vitejs][4])
+
+---
+
+# 2. Comprehensive exploit catalog for Vite + TypeScript + React
+
+| Exploit class                                     | How it appears in Vite / TypeScript / React                                                                                                                                                    | Reliable detection / audit                                                                                                                                              | Best practices                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stored, reflected, and DOM XSS**                | `dangerouslySetInnerHTML`, Markdown/HTML rendering, rich-text editors, CMS content, user comments, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, unsafe SVG/HTML previews. | AST/SAST rules for dangerous sinks; grep for raw HTML APIs; CodeQL/Semgrep; CSP and Trusted Types violation reports; manual review of all user-controlled render paths. | Default to JSX text rendering; centralize all raw HTML through a reviewed sanitizer wrapper; sanitize Markdown/HTML; enforce CSP; consider Trusted Types. React escapes normal JSX, but raw HTML is explicitly dangerous. ([React][2])                                                                                                                                                       |
+| **Unsafe URL injection**                          | `<a href={userUrl}>`, `<iframe src={url}>`, `window.location = redirect`, `window.open(url)`, route query redirects, `javascript:`/`data:` URLs.                                               | Source-to-sink analysis from `URLSearchParams`, `location`, API fields, CMS fields into `href`, `src`, navigation APIs. E2E redirect tests.                             | Parse URLs with `new URL`; allowlist protocols and hosts; block `javascript:`, unsafe `data:`, and open redirects; use same-origin redirect allowlists.                                                                                                                                                                                                                                      |
+| **HTML/SVG/script asset injection**               | User-uploaded SVG rendered as image or inline markup; files placed in Vite `public/`; generated HTML templates; icon libraries that inline SVG.                                                | Review `public/`, upload flows, SVG rendering, raw imports, and file-preview components. Test content-type and download behavior.                                       | Treat user SVG/HTML as active content; sanitize or serve from an isolated domain; use `Content-Disposition: attachment` for untrusted files; avoid inline user SVG. Vite serves `public` assets at root in dev and copies them as-is to build output. ([vitejs][5])                                                                                                                          |
+| **DOM clobbering**                                | Untrusted HTML creates named elements or IDs that override expected DOM/global properties; can affect code using `document.forms.foo`, global IDs, or loose DOM lookups.                       | Scan for raw HTML plus global DOM property access; SAST; sanitizer configuration review.                                                                                | Use DOMPurify or equivalent; avoid relying on global DOM-named properties; query elements by scoped refs; enable sanitizer protections. OWASP specifically recommends DOMPurify/Sanitizer API for DOM clobbering defenses. ([OWASP Cheat Sheet Series][6])                                                                                                                                   |
+| **CSS/style injection**                           | User-controlled style objects, CSS variables, `style={{ backgroundImage: userInput }}`, dynamic class generation, CSS-in-JS template strings.                                                  | Search style sinks; review any user data used in style, class, animation, or URL-bearing CSS properties.                                                                | Allowlist CSS values; never pass arbitrary user CSS; avoid URL-bearing style properties from user input; prefer design-token enums. React’s style prop uses an object and helps avoid some string-CSS injection holes, but it does not make arbitrary values safe. ([React][7])                                                                                                              |
+| **Client-side template/code injection**           | `eval`, `new Function`, string-based `setTimeout`, JSONP-like patterns, dynamic plugin execution, template engines in browser.                                                                 | ESLint `no-eval`, `no-implied-eval`, `no-new-func`; CodeQL/Semgrep; dependency review.                                                                                  | Ban dynamic code execution; use safe parsers/interpreters for expressions; prefer configuration data over executable strings. ESLint and TypeScript-ESLint both flag implied eval patterns because of security risk. ([ESLint][8])                                                                                                                                                           |
+| **SQL / NoSQL / ORM injection**                   | Usually in the API/backend called by React forms. TypeScript interfaces can create false confidence if runtime validation is missing.                                                          | Backend SAST; query-construction review; API fuzzing; test every form/filter/sort/search endpoint.                                                                      | Parameterized queries; ORM safe APIs; schema validation; reject unknown fields; avoid concatenating query fragments.                                                                                                                                                                                                                                                                         |
+| **GraphQL injection / abuse**                     | React clients send arbitrary GraphQL queries, filters, fragments, aliases, introspection, expensive nested queries.                                                                            | Query depth/complexity tests; auth tests per resolver; schema review; introspection settings; rate-limit tests.                                                         | Validate inputs; enforce resolver-level authorization; depth/complexity limits; persisted queries for public clients; disable insecure defaults where appropriate. OWASP’s GraphQL cheat sheet calls out input validation, expensive-query limits, access control, and insecure defaults. ([OWASP Cheat Sheet Series][9])                                                                    |
+| **Command injection**                             | Backend endpoints invoked by React pass user input to shell, image/video processors, PDF tools, package managers, Git, or OS commands.                                                         | Backend SAST; grep for `exec`, `spawn`, shell usage; integration tests with benign metacharacter probes.                                                                | Avoid shell; use argument-array APIs; allowlist commands and arguments; sandbox processing; run as non-root.                                                                                                                                                                                                                                                                                 |
+| **Server-side request forgery, SSRF**             | React submits avatar/import/webhook/feed URLs; backend fetches them. Vite dev proxy can mask backend/internal-resource exposure during development.                                            | Test URL-fetch endpoints; inspect proxies; check whether internal IPs, metadata addresses, localhost, private networks are blocked.                                     | Do not fetch arbitrary URLs; use hostname/IP allowlists; block private/link-local/internal networks; enforce egress controls; resolve and re-check DNS. OWASP defines SSRF as abusing a server to read or update internal resources when user-supplied URLs are mishandled. ([OWASP Foundation][10])                                                                                         |
+| **CSRF**                                          | SPA uses cookie-authenticated API; attacker site causes browser to send authenticated state-changing requests. CORS does not by itself stop CSRF.                                              | State-changing endpoint inventory; tests from foreign origin; verify CSRF token, SameSite, Origin/Referer/Fetch Metadata behavior.                                      | SameSite cookies; CSRF tokens for state-changing requests; Origin/Referer validation; no state changes via GET. OWASP recommends framework CSRF defenses and server-side token validation. ([OWASP Cheat Sheet Series][11])                                                                                                                                                                  |
+| **CORS misconfiguration**                         | API reflects arbitrary `Origin`; wildcard origin with credentials; dev CORS copied into prod; Vite dev server exposed broadly.                                                                 | `curl`/Playwright tests with untrusted `Origin`; verify `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`, and `Vary: Origin`.                          | Explicit origin allowlists; no wildcard with credentials; separate dev/prod CORS; avoid exposing Vite dev server. Browsers block wildcard origins with credentialed CORS requests; explicit origins are required. ([MDN Web Docs][12])                                                                                                                                                       |
+| **Broken access control / IDOR / BOLA**           | React hides buttons or routes, but API trusts IDs in route params, query params, GraphQL variables, or JSON bodies. Multi-tenant bugs are common.                                              | Authorization matrix tests; swap tenant/user/object IDs in API tests; negative tests for every role/object/action.                                                      | Server-side authorization on every object and action; deny by default; tenant scoping in data layer; never trust UI state. OWASP API Top 10 describes BOLA as a wide attack surface requiring authorization checks for every object access. ([OWASP Foundation][13])                                                                                                                         |
+| **Authentication/session flaws**                  | JWT stored in `localStorage`; refresh tokens exposed to JS; weak logout; no rotation; accepting bad JWT algorithms; weak OAuth flow.                                                           | Review storage usage; JWT validation tests; cookie flag tests; OAuth/OIDC config review; session fixation tests.                                                        | Prefer HttpOnly, Secure, SameSite cookies or a backend-for-frontend pattern; short-lived access tokens; refresh rotation; validate issuer/audience/expiry/algorithm; use OAuth Authorization Code + PKCE. OWASP’s HTML5 guidance warns against storing session identifiers in `localStorage`; MDN recommends `HttpOnly` and `Secure` for sensitive cookies. ([OWASP Cheat Sheet Series][14]) |
+| **Secrets exposure**                              | `VITE_*` env variables bundled into frontend; `.env` committed; API keys in source maps, public assets, JS bundles, build logs, screenshots, config JSON.                                      | Secret scanning; inspect built `dist`; search source maps and artifacts; grep `import.meta.env`; Git history scan.                                                      | No secrets in frontend; use backend/serverless/edge token exchange; commit only `.env.example`; add `.env.*.local` to `.gitignore`; rotate exposed secrets. Vite warns that `VITE_*` values are exposed to client code and should not contain sensitive values. ([vitejs][15])                                                                                                               |
+| **Vite dev-server exposure**                      | `server.host: true` or `0.0.0.0`, `allowedHosts: true`, permissive dev CORS, exposed HMR WebSocket, dev proxy to internal APIs.                                                                | Audit `vite.config.*`; scan listening interfaces; check Docker/remote-dev configs; verify dev server is not internet-accessible.                                        | Bind to localhost unless needed; explicit `allowedHosts`; restrict CORS; do not expose dev server; do not use Vite preview as production. Vite’s advisory documents risks around permissive CORS, WebSocket origin validation, and Host-header/DNS-rebinding exposure in dev server contexts. ([vitejs][4])                                                                                  |
+| **Supply-chain compromise**                       | Malicious npm packages, typosquatting, compromised maintainers, risky Vite plugins, postinstall scripts, outdated packages with known CVEs.                                                    | `npm audit`/SCA; Dependabot/Renovate; lockfile diff review; SBOM generation; secret scanning; review install scripts and Vite plugins.                                  | Pin lockfiles; use `npm ci`/frozen installs; minimize dependencies; avoid untrusted plugins; generate SBOM; monitor advisories; require MFA for package publishing. npm audit is designed to assess dependency vulnerabilities; OWASP also maintains software supply-chain guidance and SBOM guidance. ([npm Docs][16])                                                                      |
+| **Prototype pollution / object injection**        | Deep-merging API/query/localStorage data into config, state, theme, router metadata, or Vite/plugin options; unsafe dynamic object keys like `__proto__`.                                      | SAST for deep merge and dynamic keys; dependency scanning; tests with reserved-property keys.                                                                           | Runtime schemas; reject unknown keys; use allowlists; avoid unsafe recursive merge; use `Object.create(null)` for dictionaries; patch libraries. OWASP describes prototype pollution as a critical JavaScript vulnerability that can lead to unauthorized access, privilege escalation, or worse. ([OWASP Cheat Sheet Series][17])                                                           |
+| **ReDoS / algorithmic DoS**                       | Complex regex validators in forms/API; client-side filters over huge data; GraphQL expensive queries; huge JSON/file uploads.                                                                  | Regex linting; fuzz long inputs; performance tests; body-size tests; dependency scan.                                                                                   | Bound input length; use simple regex; timeouts; rate limits; query complexity limits; pagination; streaming parsers. OWASP notes vulnerable regexes can degrade into extreme slowdowns under crafted input. ([OWASP Foundation][18])                                                                                                                                                         |
+| **File upload abuse**                             | React upload component allows arbitrary files; previews user HTML/SVG/PDF; backend stores executable or oversized files; public bucket misconfig.                                              | Upload negative tests; content-type/magic-byte checks; malware scanning; storage permission audit.                                                                      | Validate extension, MIME, magic bytes, and size; randomize names; store outside app root; serve untrusted files from isolated domain; scan files; use download disposition. OWASP warns unrestricted upload can lead to takeover, storage exhaustion, forwarding attacks, or client-side defacement. ([OWASP Foundation][19])                                                                |
+| **Clickjacking / UI redress**                     | SPA can be embedded in attacker iframe; sensitive buttons can be trick-clicked.                                                                                                                | Header scan; iframe embedding test; browser integration test.                                                                                                           | `Content-Security-Policy: frame-ancestors`; legacy `X-Frame-Options`; SameSite cookies; re-auth for sensitive actions. OWASP documents frame protections as clickjacking defenses. ([OWASP Cheat Sheet Series][20])                                                                                                                                                                          |
+| **postMessage / cross-window bugs**               | `window.addEventListener('message')` trusts any origin; iframe integrations; OAuth popup handlers; payment widgets.                                                                            | Grep message listeners; verify `event.origin`, `event.source`, and message schema; negative tests from untrusted origin.                                                | Strict origin allowlist; schema-validate message data; never execute message data; avoid `*` target origins except where genuinely public and harmless.                                                                                                                                                                                                                                      |
+| **Service worker / cache poisoning / stale auth** | PWA caches authenticated API responses; logout does not clear cache; old service worker keeps vulnerable JS; CDN caches private data.                                                          | Audit service worker, Workbox config, CDN headers; logged-out cache tests; offline-mode tests.                                                                          | `Cache-Control: no-store` for sensitive data; versioned SW; clear caches on logout; avoid caching authenticated API responses; careful CDN `Vary` headers.                                                                                                                                                                                                                                   |
+| **Open redirect / tabnabbing / phishing helpers** | `?redirect=/...` or external return URLs; `target="_blank"` links; untrusted `window.open`.                                                                                                    | Route tests with external redirect candidates; SAST for redirect sinks; link audit.                                                                                     | Same-origin redirect allowlist; map redirect IDs to known paths; use `rel="noopener noreferrer"` for new tabs.                                                                                                                                                                                                                                                                               |
+| **Security-header gaps**                          | Missing CSP, HSTS, frame protections, content sniffing protection, referrer policy, permissions policy.                                                                                        | `curl -I`; browser tests; security-header scanners; CI assertions.                                                                                                      | Enforce CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`. CSP is a strong second layer against XSS, HSTS forces HTTPS, and SRI verifies third-party resource integrity. ([OWASP Cheat Sheet Series][21])                                                                                                                                      |
+| **XS-Leaks / cross-origin information leaks**     | Timing, image dimensions, error behavior, iframe behavior, cache state, or resource loads reveal private state.                                                                                | Review sensitive endpoints as cross-origin resources; test embedding/loading from another origin; check cache and frame headers.                                        | `SameSite`; `frame-ancestors`; `Cross-Origin-Resource-Policy`; `Cross-Origin-Opener-Policy`; `Referrer-Policy`; no-cache for sensitive responses.                                                                                                                                                                                                                                            |
+| **Cryptographic failures**                        | Client-side “encryption” with exposed keys; hardcoded keys in `VITE_*`; weak randomness; custom crypto; accepting invalid JWTs.                                                                | Grep for crypto libraries, `Math.random` token generation, hardcoded keys, JWT verification code; config review.                                                        | Do crypto on server where possible; use WebCrypto only for appropriate browser-side use cases; never expose private keys; use TLS/HSTS; vetted libraries; key rotation.                                                                                                                                                                                                                      |
+| **Mass assignment / over-posting**                | React forms submit extra fields; TypeScript types mirror database models; API accepts fields like `role`, `tenantId`, `isAdmin`.                                                               | API tests with extra properties; DTO/schema review; response schema checks.                                                                                             | Request DTO allowlists; strip unknown fields; separate public input types from database types; server computes privileged fields.                                                                                                                                                                                                                                                            |
+| **Excessive data exposure**                       | API returns entire user/account records and React hides fields in UI; GraphQL resolvers expose fields unintentionally.                                                                         | Response snapshot review; API contract tests; GraphQL schema review.                                                                                                    | Return only needed fields; field-level authorization; avoid sending secrets/PII to browser; privacy review.                                                                                                                                                                                                                                                                                  |
+| **Error and debug information leaks**             | Stack traces in API responses; Vite error overlay exposed; source maps public; console logs contain tokens/PII; verbose build artifacts.                                                       | Production smoke tests; grep logs; inspect `dist`; verify source-map access; error response tests.                                                                      | Generic user errors; structured secure logs; no secrets/PII in logs; restrict source maps; disable debug overlays in production.                                                                                                                                                                                                                                                             |
+| **WebSocket / subscription abuse**                | Cookie-authenticated WebSockets without origin checks; tenant data leaked through subscriptions; no message-level auth; no rate limits.                                                        | WS handshake tests with foreign `Origin`; authz tests per channel; message fuzzing.                                                                                     | Authenticate handshake; validate Origin; authorize each subscription/message; rate limit; close idle connections. Vite’s own advisory shows why WebSocket origin validation can matter in dev tooling too. ([GitHub][22])                                                                                                                                                                    |
+| **Third-party script compromise**                 | Analytics, tag managers, chat widgets, CDNs, A/B testing scripts run with full page privileges.                                                                                                | Inventory all external scripts; CSP reports; SRI checks; vendor risk review.                                                                                            | Minimize third-party scripts; self-host where possible; use CSP nonces/hashes; SRI for static CDN assets; isolate risky vendors in sandboxed iframes. MDN describes SRI as a way to verify fetched resources were not unexpectedly manipulated. ([MDN Web Docs][23])                                                                                                                         |
+| **Insecure design / missing threat model**        | Security added after implementation; unclear trust boundaries between browser, API, storage, CDN, dev server, third-party services.                                                            | Architecture review; abuse cases; OWASP ASVS mapping; WSTG-based testing.                                                                                               | Threat model before major features; define assets, actors, trust boundaries, abuse cases, and security requirements. OWASP ASVS provides a basis for testing technical controls, and WSTG is a comprehensive web testing guide. ([OWASP Foundation][24])                                                                                                                                     |
+
+---
+
+# 3. What can be detected reliably?
+
+No single scanner can prove a Vite/React/TypeScript app is secure. Reliable detection comes from combining **deterministic checks**, **source-to-sink analysis**, **runtime tests**, and **manual authorization/design review**.
+
+| Detection layer                   | Reliably detects                                                                                                             | Weaknesses                                                                                                                                                                                       |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **TypeScript strict compile**     | Null/undefined mistakes, unsafe assumptions, many bad refactors, some unsafe `any` usage when paired with TypeScript-ESLint. | Does not validate runtime input; does not stop XSS, CSRF, authz, or CORS bugs by itself.                                                                                                         |
+| **ESLint + TypeScript-ESLint**    | `eval`, implied eval, unsafe `any`, unsafe member access, suspicious regex, dangerous DOM APIs, forbidden storage APIs.      | Needs tuned rules; may produce false positives; cannot prove runtime authorization.                                                                                                              |
+| **SAST: CodeQL / Semgrep**        | Source-to-sink paths: user input into HTML, URL, SQL, command, redirect, filesystem, fetch, postMessage, crypto misuse.      | Requires framework-aware rules and triage. CodeQL is a code-analysis engine for automated security checks, and Semgrep supports JavaScript/TypeScript SAST. ([GitHub Docs][25])                  |
+| **Dependency/SCA scanning**       | Known CVEs in npm packages and transitive dependencies.                                                                      | Cannot detect unknown malicious packages or all supply-chain compromise. npm audit assesses dependency vulnerabilities. ([npm Docs][16])                                                         |
+| **Secret scanning**               | Known token formats, private keys, provider credentials, leaked env values in Git history and artifacts.                     | Needs custom patterns for internal secrets; cannot know whether every string is sensitive. GitHub secret scanning checks repositories and history for hardcoded credentials. ([GitHub Docs][26]) |
+| **Build artifact inspection**     | Secrets, source maps, internal URLs, debug code, accidental `VITE_*` leaks in `dist`.                                        | Must be run after production build; patterns need upkeep.                                                                                                                                        |
+| **DAST / browser testing**        | Reachable runtime bugs: headers, CORS, CSRF behavior, authz, redirects, cache, cookie flags.                                 | Cannot cover unreachable code or all roles/data permutations.                                                                                                                                    |
+| **Authorization matrix tests**    | IDOR/BOLA, tenant isolation, role/action enforcement.                                                                        | Must be designed from business rules; generic scanners are weak here.                                                                                                                            |
+| **CSP / Trusted Types reporting** | Real browser attempts to use dangerous DOM sinks or violate policy.                                                          | Best as defense-in-depth; report-only first, then enforce. Trusted Types is specifically designed to restrict dangerous DOM XSS sinks. ([MDN Web Docs][27])                                      |
+| **Manual threat modeling**        | Insecure design, trust-boundary mistakes, business-logic abuse, misuse of third-party services.                              | Requires experienced reviewers and explicit documentation.                                                                                                                                       |
+
+---
+
+# 4. Vite / React / TypeScript audit checklist
+
+## A. Repository and dependency audit
+
+Check these files first:
+
+```text
+package.json
+package-lock.json / pnpm-lock.yaml / yarn.lock
+vite.config.ts / vite.config.js
+tsconfig.json
+eslint.config.* / .eslintrc.*
+.env*
+.env.*.local
+index.html
+src/**
+public/**
+server/** or api/**
+Dockerfile / docker-compose.yml
+CI workflows
+```
+
+Minimum automated gates:
+
+```bash
+npm ci
+npm audit --audit-level=moderate
+npx tsc --noEmit
+npx eslint . --max-warnings=0
+npm run build
+```
+
+Add SAST and secrets scanning in CI:
+
+```bash
+# Examples; exact commands depend on your tooling
+semgrep ci
+gitleaks detect --source .
+trufflehog git file://. --only-verified
+```
+
+For supply chain, generate and store an SBOM for each release. OWASP’s SBOM guidance recommends generating SBOMs during builds using formats such as CycloneDX or SPDX, and Dependency-Track is designed for continuous SBOM analysis and supply-chain risk reduction. ([OWASP Cheat Sheet Series][28])
+
+---
+
+## B. High-signal code search patterns
+
+These should trigger review, not automatic panic:
+
+```text
+dangerouslySetInnerHTML
+innerHTML
+outerHTML
+insertAdjacentHTML
+document.write
+eval(
+new Function
+setTimeout("
+setInterval("
+window.location
+location.href
+location.assign
+window.open
+URLSearchParams
+postMessage
+addEventListener("message"
+localStorage
+sessionStorage
+document.cookie
+import.meta.env
+VITE_
+process.env
+__proto__
+constructor
+prototype
+Object.assign
+lodash.merge
+merge(
+server.host
+allowedHosts
+cors:
+proxy:
+sourcemap
+target="_blank"
+```
+
+For React specifically, every `dangerouslySetInnerHTML` occurrence should have a written justification, a sanitizer, tests, and an owner. React’s docs recommend creating the `{ __html }` object close to where the HTML is generated so raw HTML use is explicit. ([React][29])
+
+---
+
+## C. Vite-specific audit
+
+Review `vite.config.ts` for these issues:
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+
+  server: {
+    host: '127.0.0.1',
+    strictPort: true,
+
+    // Use explicit hosts you control.
+    // Do not use allowedHosts: true.
+    allowedHosts: ['localhost', '127.0.0.1'],
+
+    // Keep dev CORS narrow.
+    cors: {
+      origin: /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+    },
+  },
+
+  preview: {
+    host: '127.0.0.1',
+  },
+
+  build: {
+    sourcemap: false,
+    manifest: true,
+  },
+});
+```
+
+Audit questions:
+
+| Area         | Questions                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------- |
+| Dev server   | Is Vite bound only to localhost or a controlled hostname? Is `allowedHosts: true` banned?          |
+| CORS         | Is dev CORS narrow? Did any dev CORS config get copied into production API config?                 |
+| Proxy        | Does `server.proxy` expose internal services, admin APIs, cloud metadata, or auth-bypassing paths? |
+| HMR          | Is HMR only accessible in trusted dev networks?                                                    |
+| Env vars     | Are any secrets prefixed with `VITE_`?                                                             |
+| Build output | Does `dist` contain source maps, secrets, internal URLs, or debug-only code?                       |
+| Preview      | Is `vite preview` prohibited as a production server?                                               |
+
+Vite’s docs warn that `allowedHosts: true` allows any host and can permit DNS-rebinding-based source/content access, and Vite’s own security advisory documents how permissive dev-server CORS, WebSockets, and Host-header validation issues can expose source code or unintended functionality. ([vitejs][4])
+
+---
+
+## D. TypeScript hardening
+
+Use strict compiler options:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+Recommended TypeScript security posture:
+
+```text
+External input type: unknown
+Validate with runtime schema
+Only then convert to trusted domain type
+Never use TypeScript interfaces as runtime validation
+Avoid any
+Avoid type assertions on untrusted data
+```
+
+TypeScript-ESLint’s `no-unsafe-*` rules are valuable because `any` disables much of TypeScript’s checking and can let unsafe values flow through the application. ([TypeScript ESLint][30])
+
+Example boundary pattern:
+
+```ts
+// Treat external data as unknown.
+async function loadProfile(): Promise<unknown> {
+  const res = await fetch('/api/profile');
+  return res.json();
+}
+
+// Validate unknown data before using it.
+// Use your preferred schema library: Zod, Valibot, io-ts, TypeBox, etc.
+```
+
+---
+
+## E. React rendering hardening
+
+Avoid raw HTML. When unavoidable, centralize it:
+
+```tsx
+import DOMPurify from 'dompurify';
+
+type SafeHtmlProps = {
+  html: string;
+};
+
+export function SafeHtml({ html }: SafeHtmlProps) {
+  const clean = DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+  });
+
+  return <div dangerouslySetInnerHTML={{ __html: clean }} />;
+}
+```
+
+Rules:
+
+```text
+No direct dangerouslySetInnerHTML outside SafeHtml
+No direct innerHTML / outerHTML / insertAdjacentHTML
+No user-controlled href/src without URL allowlist
+No user-controlled style URLs
+No tokens in localStorage/sessionStorage
+No trusting React route guards as authorization
+No unsafe message event handlers
+No raw Markdown HTML unless sanitized
+```
+
+OWASP recommends HTML sanitization for cases where users need to author HTML, and DOMPurify is a commonly recommended sanitizer. CSP is still recommended as a second layer, not as a replacement for output encoding/sanitization. ([OWASP Cheat Sheet Series][31])
+
+---
+
+# 5. Browser and server best-practice baseline
+
+## Security headers
+
+A strong baseline for a production SPA served over HTTPS:
+
+```http
+Content-Security-Policy:
+  default-src 'self';
+  script-src 'self' 'nonce-{RANDOM_PER_RESPONSE}';
+  object-src 'none';
+  base-uri 'self';
+  frame-ancestors 'none';
+  form-action 'self';
+  upgrade-insecure-requests;
+  require-trusted-types-for 'script'
+
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+```
+
+Notes:
+
+* For static Vite hosting, CSP nonces require server/template support. If your app is entirely static, use hashes or a strict `script-src 'self'` policy where possible.
+* Roll out CSP and Trusted Types in `Report-Only` mode first, fix violations, then enforce.
+* HSTS should only be enabled once HTTPS is correctly deployed for the domain and subdomains.
+
+MDN documents HSTS as a way to force HTTPS, SRI as a way to verify fetched resources have not been manipulated, and cookie attributes such as `Secure`, `HttpOnly`, and `SameSite` as important protections for session cookies. ([MDN Web Docs][32])
+
+## Cookie baseline
+
+```http
+Set-Cookie: __Host-session=<opaque-random-id>;
+  Path=/;
+  Secure;
+  HttpOnly;
+  SameSite=Lax;
+  Max-Age=3600
+```
+
+Use `SameSite=Strict` for highly sensitive apps where cross-site login/navigation flows do not require cookies. Use `SameSite=None; Secure` only when cross-site cookies are genuinely required.
+
+## CORS baseline
+
+```text
+Do:
+  Access-Control-Allow-Origin: https://app.example.com
+  Access-Control-Allow-Credentials: true
+  Vary: Origin
+
+Do not:
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Credentials: true
+```
+
+Browsers require an explicit origin, not `*`, for credentialed CORS requests. ([MDN Web Docs][12])
+
+---
+
+# 6. Practical audit program
+
+## Phase 1: Inventory
+
+Create a table of:
+
+```text
+Routes/pages
+API endpoints
+Auth mechanisms
+Roles and permissions
+Data objects and ownership rules
+External scripts
+npm packages and Vite plugins
+Env variables
+Cookies/storage keys
+Service workers/caches
+File upload/download paths
+WebSocket/subscription channels
+Third-party integrations
+```
+
+## Phase 2: Trust-boundary review
+
+For every boundary, document validation and authorization:
+
+```text
+Browser → API
+Browser → third-party script
+Browser → iframe/popup
+URL/query/hash → React state
+localStorage/sessionStorage → app state
+API response → rendered UI
+Form upload → storage/CDN
+API → database
+API → internal service
+API → external URL
+Build system → npm registry
+CI → deployment credentials
+```
+
+## Phase 3: Role/object authorization matrix
+
+For each sensitive object:
+
+```text
+Object: invoice
+Actions: create, read, update, delete, export
+Roles: anonymous, user, manager, admin
+Ownership: own tenant, other tenant, same org, external org
+Expected result: allow / deny
+Automated test: yes / no
+```
+
+This is the most reliable way to detect IDOR/BOLA. Generic scanners rarely understand business authorization rules.
+
+## Phase 4: CI gates
+
+Minimum release gates:
+
+```bash
+npm ci
+npm audit --audit-level=moderate
+npx tsc --noEmit
+npx eslint . --max-warnings=0
+npm run build
+```
+
+Add:
+
+```text
+SAST: CodeQL or Semgrep
+Secrets: GitHub secret scanning, Gitleaks, or TruffleHog
+SCA: Dependabot/Renovate/Snyk/OSV/npm audit
+SBOM: CycloneDX or SPDX
+DAST: OWASP ZAP or Burp in staging
+E2E: Playwright security regression tests
+```
+
+Playwright is useful for browser-level regression checks because it automates real browser flows with isolation and assertions. ([Playwright][33])
+
+## Phase 5: Security regression tests
+
+Add tests for:
+
+```text
+Unauthenticated users cannot access protected API endpoints
+Users cannot access another user’s objects
+Users cannot access another tenant’s objects
+Role downgrade removes permissions immediately
+State-changing requests fail without CSRF protection
+Credentialed CORS fails from untrusted origins
+Session cookie has Secure, HttpOnly, SameSite
+Sensitive pages cannot be framed
+Sensitive API responses use no-store
+Logout clears client state and service-worker caches
+No auth token is present in localStorage/sessionStorage
+No production build artifact contains known secret patterns
+No VITE_* variable contains secrets
+No public source maps are exposed unless intentionally protected
+External redirects reject untrusted hosts
+postMessage handlers reject untrusted origins
+File uploads reject unsafe types and oversize files
+```
+
+---
+
+# 7. Best-known practices summary
+
+Use this as the release standard:
+
+1. **No secrets in the frontend.** Anything bundled by Vite is public. Never put private API keys, database passwords, signing secrets, or privileged tokens in `VITE_*` variables. ([vitejs][15])
+
+2. **React raw HTML is exceptional, not normal.** Normal JSX text rendering is preferred. Every raw HTML path must use a reviewed sanitizer and have tests. ([React][2])
+
+3. **Validate all external data at runtime.** TypeScript types are not enough. Validate URL params, query params, form data, API responses, localStorage values, postMessage payloads, and uploaded file metadata.
+
+4. **Authorization belongs on the server.** React route guards and hidden buttons are UX only. Every API object/action needs server-side authorization.
+
+5. **Prefer HttpOnly Secure SameSite cookies for sessions.** Avoid storing session tokens in `localStorage`; OWASP warns against storing session identifiers there. ([OWASP Cheat Sheet Series][14])
+
+6. **Use strict TypeScript and security lint rules.** Ban `any` where possible; enforce `no-unsafe-*`, `no-eval`, `no-implied-eval`, and dangerous DOM sink rules. ([TypeScript ESLint][30])
+
+7. **Harden Vite dev usage.** Do not expose the dev server publicly; do not use `allowedHosts: true`; restrict dev CORS; keep proxies local and explicit; never use `vite preview` as production infrastructure. ([vitejs][4])
+
+8. **Use CSP, HSTS, secure cookies, and frame protections.** Treat headers as a baseline control, not an optional hardening step. ([OWASP Cheat Sheet Series][21])
+
+9. **Control supply-chain risk.** Use lockfiles, frozen installs, dependency scanning, SBOMs, minimal Vite plugins, and secret scanning. Review lockfile changes like code. ([npm Docs][16])
+
+10. **Audit by OWASP ASVS and test by OWASP WSTG.** ASVS gives control requirements; WSTG gives testing methodology. ([OWASP Foundation][24])
+
+The highest-risk items for a typical Vite + React + TypeScript app are usually **XSS through raw HTML/Markdown**, **broken API authorization**, **token storage mistakes**, **`VITE_*` secret leaks**, **CORS/CSRF confusion**, **dependency/plugin supply-chain risk**, and **exposed Vite dev-server configuration**.
+
+[1]: https://owasp.org/www-project-top-ten/ "OWASP Top Ten Web Application Security Risks | OWASP Foundation"
+[2]: https://legacy.reactjs.org/docs/introducing-jsx.html "Introducing JSX – React"
+[3]: https://www.typescriptlang.org/?utm_source=chatgpt.com "TypeScript: JavaScript With Syntax For Types."
+[4]: https://vite.dev/config/server-options "Server Options | Vite"
+[5]: https://vite.dev/guide/assets.html "Static Asset Handling | Vite"
+[6]: https://cheatsheetseries.owasp.org/cheatsheets/DOM_Clobbering_Prevention_Cheat_Sheet.html?utm_source=chatgpt.com "DOM Clobbering Prevention - OWASP Cheat Sheet Series"
+[7]: https://legacy.reactjs.org/docs/dom-elements.html "DOM Elements – React"
+[8]: https://eslint.org/docs/latest/rules/no-eval?utm_source=chatgpt.com "no-eval - ESLint - Pluggable JavaScript Linter"
+[9]: https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html?utm_source=chatgpt.com "GraphQL - OWASP Cheat Sheet Series"
+[10]: https://owasp.org/www-community/attacks/Server_Side_Request_Forgery?utm_source=chatgpt.com "Server Side Request Forgery"
+[11]: https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html?utm_source=chatgpt.com "Cross-Site Request Forgery Prevention Cheat Sheet"
+[12]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS "Cross-Origin Resource Sharing (CORS) - HTTP | MDN"
+[13]: https://owasp.org/API-Security/editions/2023/en/0x11-t10/?utm_source=chatgpt.com "OWASP Top 10 API Security Risks – 2023"
+[14]: https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html?utm_source=chatgpt.com "HTML5 Security Cheat Sheet"
+[15]: https://vite.dev/guide/env-and-mode "Env Variables and Modes | Vite"
+[16]: https://docs.npmjs.com/auditing-package-dependencies-for-security-vulnerabilities/?utm_source=chatgpt.com "Auditing package dependencies for security vulnerabilities"
+[17]: https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html?utm_source=chatgpt.com "Prototype Pollution Prevention - OWASP Cheat Sheet Series"
+[18]: https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS?utm_source=chatgpt.com "Regular expression Denial of Service - ReDoS"
+[19]: https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload?utm_source=chatgpt.com "Unrestricted File Upload"
+[20]: https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html?utm_source=chatgpt.com "Clickjacking Defense - OWASP Cheat Sheet Series"
+[21]: https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html?utm_source=chatgpt.com "Content Security Policy Cheat Sheet"
+[22]: https://github.com/vitejs/vite/security/advisories/GHSA-vg6x-rcgg-rjx6 "Any websites were able to send any requests to the development server and read the response · Advisory · vitejs/vite · GitHub"
+[23]: https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Subresource_Integrity "Subresource Integrity - Security | MDN"
+[24]: https://owasp.org/www-project-application-security-verification-standard/?utm_source=chatgpt.com "OWASP Application Security Verification Standard (ASVS)"
+[25]: https://docs.github.com/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql?utm_source=chatgpt.com "About code scanning with CodeQL"
+[26]: https://docs.github.com/code-security/secret-scanning/about-secret-scanning?utm_source=chatgpt.com "About secret scanning"
+[27]: https://developer.mozilla.org/en-US/docs/Web/API/Trusted_Types_API?utm_source=chatgpt.com "Trusted Types API - MDN Web Docs"
+[28]: https://cheatsheetseries.owasp.org/cheatsheets/Dependency_Graph_SBOM_Cheat_Sheet.html?utm_source=chatgpt.com "Dependency Graph SBOM - OWASP Cheat Sheet Series"
+[29]: https://react.dev/reference/react-dom/components/common "Common components (e.g. <div>) – React"
+[30]: https://typescript-eslint.io/rules/no-unsafe-member-access/?utm_source=chatgpt.com "no-unsafe-member-access"
+[31]: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html?utm_source=chatgpt.com "Cross Site Scripting Prevention Cheat Sheet"
+[32]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security "Strict-Transport-Security header - HTTP | MDN"
+[33]: https://playwright.dev/?utm_source=chatgpt.com "Playwright: Fast and reliable end-to-end testing for modern ..."
+

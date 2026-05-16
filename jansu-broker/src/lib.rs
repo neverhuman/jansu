@@ -38,6 +38,7 @@ use tracing_subscriber::filter::ParseError;
 use url::Url;
 
 pub mod broker;
+pub use broker::BrokerHandle;
 pub mod coordinator;
 pub mod otel;
 pub mod service;

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::Result;
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use clap::{Subcommand, ValueEnum};
 use jansu_client::{Client, ConnectionManager};
 use jansu_sans_io::{
@@ -80,14 +80,12 @@ impl Mechanism {
     fn salted_password(&self, password: &[u8], iterations: u32, salt: &[u8]) -> Result<Bytes> {
         match self {
             Mechanism::Scram256 => {
-                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
-                let mut buf = BytesMut::zeroed(32);
+                let mut buf = vec![0u8; 32];
                 pbkdf2::<Hmac<Sha256>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
             }
             Mechanism::Scram512 => {
-                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
-                let mut buf = BytesMut::zeroed(64);
+                let mut buf = vec![0u8; 64];
                 pbkdf2::<Hmac<Sha512>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
             }
@@ -124,8 +122,7 @@ impl Command {
                 mechanism,
                 ..
             } => {
-                // SAFETY: BytesMut::zeroed allocates heap memory via the bytes crate; no mem::zeroed on uninitialized types.
-                let mut salt = BytesMut::zeroed(Self::DEFAULT_SALT_LEN);
+                let mut salt = vec![0u8; Self::DEFAULT_SALT_LEN];
                 rng().fill_bytes(&mut salt);
 
                 let iterations = iterations.unwrap_or(Self::DEFAULT_ITERATIONS);

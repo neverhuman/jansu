@@ -31,5 +31,12 @@ workspace = true
 
 
 [dev-dependencies]
+bytes.workspace = true
 clap.workspace = true
 dotenv.workspace = true
+jansu-broker.workspace = true
+jansu-sans-io.workspace = true
+jansu-storage.workspace = true
+tokio-util.workspace = true
+url.workspace = true
+uuid.workspace = true

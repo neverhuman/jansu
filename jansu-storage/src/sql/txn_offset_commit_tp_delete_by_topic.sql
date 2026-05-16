@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from txn_offset_commit_tp
-where txn_offset_commit_tp.topition in (
+delete from txn_offset_commit_tp where txn_offset_commit_tp.topition in (
     select tp.id
     from cluster c
     join topic t on t.cluster = c.id

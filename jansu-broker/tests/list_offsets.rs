@@ -860,13 +860,13 @@ async fn request_frame_service_uses_latest_list_offsets_version() -> Result<()> 
     let seen_api_version_capture = seen_api_version.clone();
 
     let service = RequestFrameLayer.into_layer(FrameService::new::<(), Error>(
-        move |_ctx: Context<()>, req: jansu_sans_io::Frame| {
+        move |_ctx: Context<()>, req: Frame| {
             let api_version = req.api_version()?;
             *seen_api_version_capture.lock().unwrap() = Some(api_version);
 
-            Ok(jansu_sans_io::Frame {
+            Ok(Frame {
                 size: 0,
-                header: jansu_sans_io::Header::Response {
+                header: Header::Response {
                     correlation_id: req.correlation_id()?,
                 },
                 body: jansu_sans_io::Body::ListOffsetsResponse(
@@ -915,13 +915,13 @@ async fn full_stack_round_trips_list_offsets_v9() -> Result<()> {
         BytesFrameLayer::default(),
     )
         .into_layer(FrameService::new::<(), Error>(
-            move |_, req: jansu_sans_io::Frame| {
+            move |_, req: Frame| {
                 assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
                 assert_eq!(9, req.api_version()?);
 
-                Ok(jansu_sans_io::Frame {
+                Ok(Frame {
                     size: 0,
-                    header: jansu_sans_io::Header::Response {
+                    header: Header::Response {
                         correlation_id: req.correlation_id()?,
                     },
                     body: jansu_sans_io::Body::ListOffsetsResponse(

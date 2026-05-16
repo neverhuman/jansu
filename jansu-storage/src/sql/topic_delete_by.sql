@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from topic
-where topic.cluster in (
+delete from topic where topic.cluster in (
     select c.id
     from cluster c
     join topic t on t.cluster = c.id

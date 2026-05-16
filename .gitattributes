@@ -1,1 +1,5 @@
 * text=auto
+
+# Exclude agent worktrees from exports and static analysis tools
+.claude/ export-ignore
+.claude/worktrees/ export-ignore

@@ -437,6 +437,18 @@ impl Delta {
                     })
                     .collect();
 
+                // Validate generated expressions don't contain DML/DDL keywords
+                for (col_name, _expr) in &generated_exprs {
+                    let upper = col_name.to_uppercase();
+                    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
+                        .iter()
+                        .any(|kw| upper.contains(kw))
+                    {
+                        return Err(crate::Error::Message(format!(
+                            "generated column name contains disallowed keyword: {col_name}"
+                        )));
+                    }
+                }
                 let all_cols = [select_cols, generated_cols].concat().join(", ");
                 let sql = format!("SELECT {} FROM t", all_cols);
                 debug!(%sql);

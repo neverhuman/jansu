@@ -1,0 +1,1201 @@
+I inspected the uploaded archive statically, inventoried the repo, and read the core audit engine, caps, rule registry, detectors, schemas, workflows, action, security lane, Justfile, package config, conformance suite, docs, and policy files. I could not execute `cargo` in this environment because the container does not have Cargo installed, so the build/test comments below are static findings rather than runtime test results.
+
+## Overall verdict
+
+Jankurai is already aiming at the right meta-problem: **make AI-assisted code merges evidence-carrying, reproducible, repairable, and hostile to “vibe-coded” shortcuts.** The existing design has strong foundations: HLT rule families, hard caps, agent routes, proof lanes, generated-zone policy, security evidence, UX evidence, score history, repair queues, and a conformance suite.
+
+The biggest missing best practices are not simply “add more detectors.” The biggest gaps are:
+
+1. **Score trustworthiness:** the score needs evidence maturity, calibration, and confidence limits.
+2. **CI integrity:** the current ratchet baseline can compare the candidate run to itself.
+3. **Build integrity:** full Rust/TypeScript quality gates are not clearly enforced in CI.
+4. **Supply-chain enforcement:** security tools exist, but many are advisory rather than blocking.
+5. **Workflow hardening:** actions are tag-pinned, not SHA-pinned; no explicit workflow permissions, timeouts, or concurrency.
+6. **Detector calibration:** the conformance suite is intentionally small; the audit engine needs a real false-positive/false-negative benchmark.
+7. **Policy drift detection:** docs, policy TOML, cap specs, security script, and CI do not fully agree.
+8. **Schema rigor:** many evidence schemas allow extra top-level properties, and the in-repo schema validator supports only a subset of JSON Schema.
+9. **Release provenance:** SBOM generation exists as an advisory script step, but release signing, attestations, provenance verification, and SARIF upload are not first-class gates.
+10. **Repository hygiene:** the uploaded archive contains 973 AppleDouble `._*` files, which should be ignored and treated as packaging/release contamination if they ever appear in source or artifacts.
+
+For a world-class standard, I would shift Jankurai from a single “100/100 posture score” to a **multi-axis evidence score**: posture, enforcement, detector confidence, calibration, supply-chain integrity, and release readiness.
+
+---
+
+## Immediate concrete findings from the uploaded code
+
+| Priority | Finding                                                                      | Evidence in uploaded archive                                                                                                                                                                                                    | Why it matters                                                                                                                         | Recommended audit/scoring change                                                                                                                                        |
+| -------: | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|       P0 | **Archive contains 973 AppleDouble sidecar files**                           | `find . -name '._*'` returned 973 files; `file ._README.md` reports AppleDouble encoded Macintosh file. `.gitignore` ignores `.DS_Store` but not `._*` at `.gitignore:1`.                                                       | These files pollute packaged source, distort file counts, can confuse scanners, and are a sign of non-reproducible release packaging.  | Add `archive-hygiene-gap`; ignore by default during scan, but block release artifacts containing `._*`, `.DS_Store`, editor swap files, temp files, or hidden metadata. |
+|       P0 | **Static compile blocker: missing `audit/prose` module in uploaded archive** | `crates/jankurai/src/audit/mod.rs:15` declares `pub mod prose;`; no `crates/jankurai/src/audit/prose.rs` or `audit/prose/mod.rs` exists; `prose::fingerprint_text` is used at `audit/mod.rs:474`.                               | The uploaded archive appears not to compile as-is. Even if upstream differs, the archive itself is incomplete.                         | Add `source-package-buildability-gap`: every release/source archive must pass `cargo check --workspace --locked` from clean extraction.                                 |
+|       P0 | **Ratchet baseline is self-generated in CI**                                 | `.github/workflows/jankurai.yml:32-38` runs audit, copies `agent/repo-score.json` to `target/jankurai/baseline-score.json`, then uses that as ratchet baseline.                                                                 | A candidate PR can compare against itself; this weakens regression detection.                                                          | Add `score-integrity-gap`; hard cap at 70 or fail when ratchet baseline is generated in the same job from candidate contents.                                           |
+|       P0 | **Tool adoption catalog normalizes the self-baseline pattern**               | `crates/jankurai/src/audit/helpers.rs:147-154`, `158-163`, `251-256`, `278-319` use `--baseline target/jankurai/baseline-score.json`.                                                                                           | The weak pattern is embedded as “expected CI evidence.”                                                                                | Tool adoption should require a committed accepted baseline, base-branch artifact, or signed baseline receipt.                                                           |
+|       P0 | **Security lane is non-strict in CI**                                        | `.github/workflows/jankurai.yml:86-87` runs `jankurai security run . --out ...` without `--strict`.                                                                                                                             | Missing/failing advisory tools can pass.                                                                                               | CI security lane should use `--strict` for protected branches and PRs.                                                                                                  |
+|       P1 | **Only `gitleaks` is required; SCA/SBOM/workflow lint are advisory**         | `agent/security-policy.toml:3-16`; `tools/security-lane.sh:104-115`.                                                                                                                                                            | Dependency, SBOM, and workflow-hardening failures do not reliably block merges.                                                        | Make `cargo audit`, `cargo deny`, `npm audit`/OSV, `zizmor`, Syft, Grype/Trivy, and dependency review blocking according to repo risk.                                  |
+|       P1 | **GitHub Actions lack explicit least-privilege permissions**                 | `.github/workflows/jankurai.yml` has no top-level `permissions:`; README example has `permissions: contents: read` at `README.md:162-163`, but repo CI does not.                                                                | GitHub recommends granting the `GITHUB_TOKEN` only the minimum permissions needed. ([GitHub Docs][1])                                  | Add `ci-token-permission-gap`; cap at 82 or fail for missing explicit permissions on workflows/jobs.                                                                    |
+|       P1 | **Third-party actions are not pinned to immutable SHAs**                     | `.github/workflows/jankurai.yml:12`, `15`, `16`, `114`, `150`, `151`, `163`; `action.yml:20-21`.                                                                                                                                | GitHub says full-length commit SHA pinning is the only way to use an action as an immutable release; tags can move. ([GitHub Docs][1]) | Add `ci-action-sha-pinning-gap`; cap at 78 for release/security workflows, advisory elsewhere.                                                                          |
+|       P1 | **No explicit job timeouts or concurrency**                                  | `.github/workflows/jankurai.yml` jobs lack `timeout-minutes` and workflow lacks `concurrency`.                                                                                                                                  | Prevents hung jobs, queue storms, and resource waste.                                                                                  | Add `ci-timeout-gap` and `ci-concurrency-gap`; start advisory, become blocking for release/security jobs.                                                               |
+|       P1 | **SARIF is generated but not uploaded to code scanning**                     | SARIF artifact is uploaded at `.github/workflows/jankurai.yml:120`; no `github/codeql-action/upload-sarif` step.                                                                                                                | GitHub code scanning can consume SARIF 2.1.0 to show alerts in the repository security UI. ([GitHub Docs][2])                          | Add `sarif-upload-gap`; cap at 84 when SARIF exists but is artifact-only.                                                                                               |
+|       P1 | **Full Rust/TS quality gates are not the visible CI base gate**              | `Justfile:19-22` runs versions, audit, paper; workflow runs focused tests only at `.github/workflows/jankurai.yml:90-94`.                                                                                                       | Audit score should not pass while `fmt`, `clippy`, full workspace tests, and TS typecheck are absent.                                  | Add `full-build-proof-gap`; block high scores without format/lint/test/typecheck gates.                                                                                 |
+|       P1 | **Policy-code-docs drift**                                                   | `crates/jankurai/src/audit/caps.rs` defines 42 cap specs; `agent/audit-policy.toml` defines 27 cap values. Missing 15 include authz, input-boundary, release-readiness, language bad-behavior, and required-tool evidence gaps. | Different policy surfaces disagree, so scoring becomes hard to trust.                                                                  | Add `policy-drift-gap`; generate caps from one registry or verify drift in CI.                                                                                          |
+|       P2 | **CI mutable-ref detector misses version tags and stable tags**              | `crates/jankurai/src/audit/language_rules/ci.rs:67-78` only matches `@main`, `@master`, `@latest`; `mutable_ref_hit` at `ci.rs:386-388` checks only those.                                                                      | The current repo uses `@v6`, `@v7`, and `@stable`, which are not immutable.                                                            | Update rule to distinguish full SHA, trusted tag, mutable branch, floating tag, and local action.                                                                       |
+|       P2 | **Tool adoption CI evidence uses substring matching**                        | `crates/jankurai/src/audit/analyzers/tool_adoption.rs:70-78`.                                                                                                                                                                   | An `echo "jankurai audit..."` or changed whitespace can fool evidence detection.                                                       | Parse workflow YAML and inspect actual `run`/`uses` steps, artifacts, permissions, and exit behavior.                                                                   |
+|       P2 | **Report fingerprint includes non-deterministic fields**                     | `audit/mod.rs:167-190` includes `generated_at`, `repo`, `run_id`, `started_at`, `elapsed_ms`; `report_fingerprint` only normalizes `report_fingerprint` at `audit/mod.rs:482-491`.                                              | Identical inputs can produce different report fingerprints.                                                                            | Add separate stable `decision_fingerprint` that excludes time, path, run ID, and elapsed values.                                                                        |
+|       P2 | **Config parser accepts a TOML subset silently**                             | `packages/ux-qa/src/config.ts:69-108`; unmatched lines are skipped at `config.ts:82-83`.                                                                                                                                        | Config drift can silently disable UX checks.                                                                                           | Use a real TOML parser or require JSON generated from Rust-side schema; unknown/unsupported syntax should fail.                                                         |
+|       P2 | **Schema validator is intentionally partial**                                | `validation.rs:703-729` supports limited keywords; 21 top-level object schemas lack `additionalProperties: false`.                                                                                                              | Evidence files can carry undeclared data; invalid formats may pass.                                                                    | Strengthen schemas and validator; add `schema-rigor-gap`.                                                                                                               |
+|       P2 | **Large audit functions concentrate risk**                                   | Examples: `build_findings` ~623 LOC at `audit/mod.rs:494`, `main` ~526 LOC at `main.rs:1228`, `render_markdown` ~426 LOC at `render.rs:34`.                                                                                     | Large functions make scoring behavior harder to test, review, and safely patch.                                                        | Add maintainability scoring for audit-engine hot paths; refactor into table-driven rule emitters.                                                                       |
+
+---
+
+## What Jankurai is trying to do, and the right “world-class” framing
+
+The goal is not just “lint code.” It is:
+
+> **Prevent AI-generated or rushed code from looking complete unless it has ownership, boundaries, tests, security evidence, data safety, release proof, and repairability.**
+
+That means the score must answer five questions:
+
+1. **Can an agent find the right code?**
+2. **Can a human trust the proof evidence?**
+3. **Can the system detect common vibe-coded shortcuts?**
+4. **Can the release be traced back to source, tests, SBOM, and provenance?**
+5. **Can defects be repaired safely without widening blast radius?**
+
+NIST SSDF frames secure software development as practices to reduce vulnerabilities, reduce impact of missed vulnerabilities, and address root causes to prevent recurrence. ([NIST Computer Security Resource Center][3]) OWASP SAMM similarly treats software assurance as a measurable maturity model across the SDLC. ([OWASP Developer Guide][4]) Jankurai should map to that maturity model: not just “does a repo have scanners,” but “are scanners enforced, calibrated, and tied to repair evidence.”
+
+---
+
+# 1. Scoring model gaps
+
+## Current gap: a single score overstates confidence
+
+The README shows a `100/100` badge at `README.md:1-2` and a public advisory score table where Jankurai is `100` with `0` issues at `README.md:203-210`. The README also correctly says this is “advisory posture evidence, not certification or defect attribution” at `README.md:203-205`.
+
+That caveat is important, but the single badge still creates a trust problem. A flat 100 implies near-perfect audit quality, but:
+
+* The conformance suite says it is **not a broad benchmark** at `conformance/README.md:3-5`.
+* It is intentionally small, with 10 fixtures at `conformance/README.md:12-23`.
+* Many vibe coverage rows are control-family or partial evidence rather than detector-backed.
+* CI currently generates its own ratchet baseline.
+* Full build/lint/test/security enforcement is not complete.
+
+## Recommended scoring architecture
+
+Split the score into multiple visible dimensions:
+
+| Dimension                      | Meaning                                                                                   | Should cap total score?    |
+| ------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------- |
+| **Posture score**              | Existing Jankurai score: docs, owner maps, proof lanes, UX/security artifacts, hard caps. | Yes, but not alone.        |
+| **Evidence enforcement score** | Whether evidence is produced by blocking CI, not local/advisory config.                   | Yes.                       |
+| **Detector maturity score**    | Whether findings are deterministic, fixture-backed, and calibrated.                       | Yes.                       |
+| **Calibration score**          | Precision/recall/false-negative metrics against benchmark fixtures.                       | Yes for public claims.     |
+| **Supply-chain score**         | Dependency review, SBOM, signatures, provenance, release immutability.                    | Yes for release readiness. |
+| **Build quality score**        | fmt, clippy, tests, typecheck, lint, coverage, mutation/fuzz/property testing.            | Yes.                       |
+| **Governance score**           | CODEOWNERS, branch protection evidence, signed releases, waiver expiry, review receipts.  | Yes.                       |
+
+A repository should not be able to show a simple `100/100` unless the evidence maturity and calibration scores are also high.
+
+## New rule: score ceiling by evidence maturity
+
+Add a score ceiling like this:
+
+| Lowest maturity among applicable critical/high rules | Max public score |
+| ---------------------------------------------------- | ---------------: |
+| Policy-only / docs-only                              |               70 |
+| Control-family mapping only                          |               76 |
+| Detector exists, no fixture                          |               82 |
+| Detector + positive fixture only                     |               86 |
+| Detector + positive + negative fixtures              |               90 |
+| Detector + fixtures + CI artifact                    |               94 |
+| Detector + CI + precision/recall benchmark           |               98 |
+| Detector + CI + benchmark + external provenance      |              100 |
+
+This prevents “we mapped 260 risks” from becoming “we can reliably detect 260 risks.”
+
+---
+
+# 2. Critical scoring integrity gaps
+
+## 2.1 Self-referential ratchet baseline
+
+The current workflow generates a baseline from the candidate contents:
+
+```yaml
+# .github/workflows/jankurai.yml
+32  - name: Generate CI ratchet baseline
+34    jankurai . --json agent/repo-score.json --md agent/repo-score.md
+35    cp agent/repo-score.json target/jankurai/baseline-score.json
+38  jankurai audit . --mode ratchet --baseline target/jankurai/baseline-score.json ...
+```
+
+This defeats the purpose of ratcheting. The README says ratchet enforcement should be baseline-backed at `README.md:346-348`. The workflow should use one of:
+
+* committed `agent/baseline-score.json` from protected main,
+* artifact from the last accepted main build,
+* signed baseline receipt,
+* or explicit `git show origin/main:agent/repo-score.json`.
+
+### Recommended cap
+
+```toml
+self_referential_ratchet_baseline = 70
+```
+
+### Detector
+
+Detect when:
+
+* `--mode ratchet` appears in CI,
+* `--baseline` points under `target/`, `/tmp/`, or a file generated earlier in same workflow,
+* same job runs `jankurai` and copies candidate `agent/repo-score.json` to baseline,
+* tool catalog itself recommends target-generated baseline.
+
+### Repair
+
+Use:
+
+```bash
+git fetch origin main
+git show origin/main:agent/repo-score.json > target/jankurai/accepted-baseline.json
+jankurai audit . \
+  --mode ratchet \
+  --baseline target/jankurai/accepted-baseline.json \
+  --json agent/repo-score.json \
+  --md agent/repo-score.md
+```
+
+For a release-grade baseline, sign or attest the accepted baseline.
+
+---
+
+## 2.2 Tool adoption should not count substring matches as CI evidence
+
+`tool_adoption.rs:70-78` checks whether the lowercased workflow text contains command substrings and uploaded artifact paths. That is fragile.
+
+### Missing audit coverage
+
+Add a `ci-evidence-semantic-gap` rule that requires:
+
+* YAML parsing, not substring search.
+* Evidence command appears in `run`, not comments or echo strings.
+* Job has no `continue-on-error`.
+* Step is not guarded by `if: false`, `if: always() && false`, or branch filters that skip PRs.
+* Required artifact is uploaded by an artifact step that runs after the command.
+* Job has explicit permissions and timeout.
+* Security lane uses strict mode when expected.
+* Evidence step exit status is reflected in a receipt.
+
+### Suggested cap
+
+```toml
+ci_evidence_is_textual_not_semantic = 84
+```
+
+---
+
+## 2.3 Stable decision fingerprints
+
+`report_fingerprint` currently hashes the full report except the `report_fingerprint` field. The report includes `generated_at`, `run_id`, `started_at`, `elapsed_ms`, and the local `repo` path at `audit/mod.rs:167-190`. That makes `report_fingerprint` unstable across identical reruns.
+
+### Fix
+
+Keep the current fingerprint if useful, but add:
+
+```json
+{
+  "decision_fingerprint": "sha256:...",
+  "evidence_fingerprint": "sha256:...",
+  "volatile_fields": ["generated_at", "run_id", "started_at", "elapsed_ms", "repo"]
+}
+```
+
+The stable decision fingerprint should include:
+
+* standard version,
+* auditor version,
+* policy fingerprint,
+* manifest fingerprints,
+* input fingerprint,
+* scope,
+* caps applied,
+* normalized findings,
+* score,
+* decision.
+
+It should exclude:
+
+* wall-clock time,
+* local filesystem path,
+* elapsed milliseconds,
+* run ID,
+* ordering noise,
+* absolute paths.
+
+---
+
+# 3. CI/CD audit gaps
+
+GitHub’s current guidance is clear: grant `GITHUB_TOKEN` the minimum permissions needed, pin third-party actions to full-length commit SHAs for immutable releases, use CODEOWNERS to govern workflow changes, and use Scorecard/code scanning for risky workflow patterns. ([GitHub Docs][1])
+
+## Current repo gaps
+
+| Gap                                | Evidence                                                                                      | Fix                                                                                                        |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| No explicit workflow permissions   | `.github/workflows/jankurai.yml` has no top-level `permissions:`                              | Add `permissions: contents: read` by default; elevate per job only when required.                          |
+| Third-party actions are tag-pinned | `actions/checkout@v6`, `setup-node@v6`, `upload-artifact@v7`, `dtolnay/rust-toolchain@stable` | Pin to full SHA for protected/release/security workflows; optionally allow tags only with explicit waiver. |
+| No timeout                         | No `timeout-minutes` in jobs                                                                  | Add job-level timeouts.                                                                                    |
+| No concurrency                     | No workflow-level `concurrency`                                                               | Cancel superseded PR runs.                                                                                 |
+| SARIF artifact-only                | SARIF path uploaded as artifact, not code scanning                                            | Add `github/codeql-action/upload-sarif`.                                                                   |
+| Security lane non-strict           | `jankurai security run` without `--strict`                                                    | Use strict in CI.                                                                                          |
+| No dependency review               | No `.github/dependabot.yml` or dependency-review workflow                                     | Add dependency review action for PR dependency diffs.                                                      |
+| No CodeQL/Semgrep workflow         | No code scanning workflow                                                                     | Add CodeQL or Semgrep SARIF upload.                                                                        |
+| No branch-protection evidence      | Not represented in repo evidence                                                              | Add governance evidence import/API receipt.                                                                |
+
+## New CI hard caps
+
+```toml
+ci_missing_explicit_permissions = 82
+ci_third_party_actions_not_sha_pinned = 78
+ci_missing_timeout_minutes = 86
+ci_missing_concurrency = 90
+ci_security_lane_not_strict = 76
+ci_sarif_generated_not_uploaded = 84
+ci_dependency_review_missing = 82
+ci_code_scanning_missing = 84
+ci_workflow_change_without_codeowner_evidence = 80
+ci_uses_textual_evidence_matching_only = 84
+```
+
+## Make CI rules nuanced to avoid noise
+
+Do not hard-fail every tag reference immediately. Use tiers:
+
+| Reference type                                   | Severity                                   |
+| ------------------------------------------------ | ------------------------------------------ |
+| Full 40-char SHA                                 | Pass                                       |
+| Local action `./path`                            | Pass if path is CODEOWNED and tested       |
+| Immutable internal tag with verification receipt | Low/advisory                               |
+| Marketplace version tag like `@v4`, `@v6`        | Medium; high in release/security workflows |
+| `@main`, `@master`, `@stable`, `@latest`         | High                                       |
+| Untrusted action in privileged job               | Critical                                   |
+
+Current `ci.action.mutable-ref` only detects `@main`, `@master`, and `@latest` at `ci.rs:386-388`, and its fix text allows “stable release tag” at `ci.rs:77` and `ci.rs:296`. For “best available standard,” full SHA should be the high-assurance path; tags can be allowed only with an explicit risk acceptance.
+
+---
+
+# 4. Security and supply-chain gaps
+
+## 4.1 Security lane is too advisory
+
+`tools/security-lane.sh` has required and advisory lanes:
+
+```bash
+104 required_tool_names=(gitleaks)
+109 advisory_tool_names=(cargo-audit npm syft zizmor)
+```
+
+That means cargo audit, npm audit, SBOM generation, and workflow lint can be skipped or fail outside strict mode.
+
+### Fix
+
+Create two explicit profiles:
+
+| Profile      | Use                 | Behavior                                                              |
+| ------------ | ------------------- | --------------------------------------------------------------------- |
+| `local-fast` | developer loop      | gitleaks required; others advisory                                    |
+| `ci-strict`  | PR/protected branch | all required tools blocking                                           |
+| `release`    | release artifacts   | SCA, SBOM, provenance, signing, image scan, license gate all blocking |
+
+### Required CI tools for this stack
+
+| Area                       | Tooling                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Secrets                    | gitleaks or detect-secrets, plus GitHub secret scanning/push protection where available                     |
+| Rust advisories            | cargo-audit or OSV scanner                                                                                  |
+| Rust dependencies/licenses | cargo-deny                                                                                                  |
+| Rust dependency trust      | cargo-vet for high-assurance mode                                                                           |
+| npm advisories             | npm audit or OSV scanner                                                                                    |
+| PR dependency diff         | dependency-review-action; it can fail PRs that introduce vulnerabilities or invalid licenses. ([GitHub][5]) |
+| SAST                       | CodeQL or Semgrep                                                                                           |
+| Workflow lint              | zizmor                                                                                                      |
+| SBOM                       | Syft                                                                                                        |
+| Vulnerability scan         | Grype or Trivy                                                                                              |
+| Open-source posture        | OpenSSF Scorecard; it assesses projects for security risks using automated checks. ([OpenSSF][6])           |
+| Release signing            | Cosign/Sigstore                                                                                             |
+| Build provenance           | GitHub artifact attestations or SLSA provenance                                                             |
+
+OpenSSF’s S2C2F specifically focuses on secure consumption of open-source dependencies in developer workflows, so Jankurai should treat dependency governance as a first-class audit category, not only a security-lane detail. ([OpenSSF][7])
+
+## 4.2 Missing dependency-update automation
+
+I did not find `.github/dependabot.yml`, `renovate.json`, or equivalent. Jankurai should score:
+
+* dependency updates configured for Cargo, npm, GitHub Actions, Docker, Python, and Git submodules,
+* grouping policy,
+* minimum review requirements,
+* lockfile updates,
+* security-update auto PRs,
+* dependency review gate,
+* stale dependency SLA.
+
+### New caps
+
+```toml
+dependency_update_automation_missing = 84
+dependency_review_gate_missing = 82
+license_policy_missing = 84
+dependency_allowlist_or_source_policy_missing = 86
+```
+
+## 4.3 Missing license/IP contamination checks
+
+The repo has `LICENSE`, but audit coverage should include:
+
+* all dependencies license-scanned,
+* no forbidden/copyleft licenses if project policy disallows,
+* npm package `files` allowlist checked,
+* crate package include/exclude checked,
+* vendored code has provenance,
+* generated code license headers preserved,
+* no copied snippets from unknown sources,
+* NOTICE file if needed.
+
+Use `cargo deny` for Rust, dependency review license rules for PRs, and a package manifest audit for npm/crates release contents.
+
+## 4.4 Missing slopsquatting / dependency confusion coverage
+
+For “vibe coding,” this matters a lot. AI tools hallucinate package names or pick plausible typos.
+
+Add detectors for:
+
+* new dependency name not present in official registry at PR time,
+* package with low age/downloads/maintainer reputation,
+* unscoped internal package name resolved from public registry,
+* npm install scripts in new dependencies,
+* dependency name similarity to popular packages,
+* Rust crates with yanked versions,
+* git dependencies pinned to branch instead of SHA,
+* path dependencies escaping workspace,
+* registry source not allowlisted.
+
+---
+
+# 5. SLSA, SBOM, release provenance, and artifact integrity
+
+SLSA Build v1.2 defines increasing build assurance levels: Build L1 has provenance showing how a package was built, L2 adds signed provenance from a hosted build platform, and L3 uses a hardened build platform. ([SLSA][8])
+
+Jankurai has a good local evidence philosophy, but world-class release auditing should require tamper-resistant release evidence.
+
+## Missing release audit controls
+
+| Control                          | Missing/weak signal                                           | Recommended audit                                                                        |
+| -------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Release artifact digest manifest | No visible release workflow producing digest manifest         | Require SHA256 manifest for every release artifact.                                      |
+| SBOM attached to release         | Syft exists as advisory in `tools/security-lane.sh:113`       | Block release if SBOM absent or not uploaded.                                            |
+| SBOM vulnerability scan          | No Grype/Trivy required                                       | Require scan result and threshold.                                                       |
+| Artifact signing                 | No Cosign/Sigstore release signing detected                   | Require signatures for release binaries/packages/images.                                 |
+| Provenance attestation           | No SLSA/GitHub artifact attestation workflow detected         | Require provenance and verification receipt.                                             |
+| Immutable tags/assets            | Release bad-behavior exists, but no release workflow evidence | Require protected tag evidence and no mutable latest-only asset policy.                  |
+| Reproducible package contents    | AppleDouble archive files show packaging issue                | Add release archive hygiene gate.                                                        |
+| Crates/npm dry-run package audit | Not visible                                                   | Require `cargo package --list`, `npm pack --dry-run --json`, and package file allowlist. |
+
+## New release caps
+
+```toml
+release_without_sbom = 78
+release_without_signed_artifacts = 75
+release_without_provenance_attestation = 75
+release_without_artifact_digest_manifest = 80
+release_package_contains_sidecar_or_junk_files = 72
+release_mutable_tag_or_latest_only_asset = 70
+release_without_rollback_or_revocation_plan = 82
+```
+
+---
+
+# 6. Full build and test proof gaps
+
+## Current state
+
+The PR template asks humans to check:
+
+```text
+cargo fmt --all
+cargo test -p jankurai --test command_surface_smoke
+cargo test -p jankurai
+just fast
+just score
+git diff --check
+```
+
+Evidence: `.github/PULL_REQUEST_TEMPLATE.md:9-16`.
+
+But the enforced CI workflow does not clearly run:
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+cargo check --workspace --all-targets --all-features --locked
+npm --workspaces run build
+npm --workspaces run test
+npx tsc --noEmit
+```
+
+The Justfile `check` target runs versions, audit, and paper build only at `Justfile:19-22`.
+
+## Missing audit coverage
+
+Add a rule that distinguishes:
+
+| Gate                                                                   | Required for                  |
+| ---------------------------------------------------------------------- | ----------------------------- |
+| `cargo fmt --all --check`                                              | all Rust repos                |
+| `cargo clippy --workspace --all-targets --all-features -- -D warnings` | Rust product/audit tool repos |
+| `cargo test --workspace --all-targets --all-features --locked`         | merge gate                    |
+| `cargo check --workspace --locked`                                     | fast lane                     |
+| `cargo test --doc`                                                     | public library crates         |
+| `cargo package --list`                                                 | release gate                  |
+| `npm ci`                                                               | TS/npm workspaces             |
+| `tsc --noEmit` or build with declarations                              | TS packages                   |
+| ESLint                                                                 | TS/React surface              |
+| Prettier/check formatting                                              | TS/React docs/config          |
+| Playwright/Vitest/Jest                                                 | web packages                  |
+| `npm pack --dry-run --json`                                            | npm release                   |
+
+### New cap
+
+```toml
+full_workspace_build_test_gate_missing = 82
+format_lint_gate_missing = 84
+release_package_dry_run_missing = 84
+```
+
+---
+
+# 7. Detector calibration and benchmark gaps
+
+The conformance suite is valuable, but it is explicitly not a broad benchmark (`conformance/README.md:3-5`) and intentionally small (`conformance/README.md:12-23`).
+
+## Missing benchmark structure
+
+Add a `benchmarks/` suite separate from conformance:
+
+```text
+benchmarks/
+  corpus/
+    rust/
+    typescript/
+    python/
+    sql/
+    docker/
+    ci/
+    git/
+    release/
+    agent-policy/
+    contracts/
+  expected/
+    findings.json
+    non_findings.json
+    score_caps.json
+  metrics/
+    precision.json
+    recall.json
+    false_positive_rate.json
+    false_negative_rate.json
+```
+
+## Required per-rule metrics
+
+Every high/critical rule should report:
+
+```json
+{
+  "rule_id": "HLT-023-INPUT-BOUNDARY-GAP",
+  "detector_status": "detector-backed",
+  "positive_fixtures": 42,
+  "negative_fixtures": 36,
+  "true_positives": 40,
+  "false_positives": 2,
+  "false_negatives": 2,
+  "precision": 0.952,
+  "recall": 0.952,
+  "confidence_ceiling": 94
+}
+```
+
+## New caps
+
+```toml
+no_detector_calibration_corpus = 76
+high_rule_without_negative_fixtures = 84
+high_rule_without_false_negative_tests = 82
+partial_coverage_claimed_as_detector_backed = 72
+detector_precision_below_threshold = 88
+detector_recall_below_threshold = 86
+```
+
+## Make false negatives first-class
+
+A “kill vibe coding” standard must track misses, not only findings. Add:
+
+* seeded bypass tests,
+* mutation tests for detectors,
+* adversarial examples,
+* fixture minimization,
+* expected non-finding cases,
+* rule deprecation when too noisy,
+* confidence downgrades when detectors are too lexical.
+
+---
+
+# 8. Rust audit coverage gaps
+
+Existing Rust language rules cover many unsafe and bad-behavior patterns, which is good. The missing pieces are more about **proof quality, API boundaries, and audit-engine correctness**.
+
+## Missing Rust project controls
+
+| Area                      | Missing audit check                                                                                     | Recommended rule                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Toolchain reproducibility | No `rust-toolchain.toml` found                                                                          | `rust-toolchain-missing` advisory or cap for release repos.                               |
+| Formatting policy         | No `rustfmt.toml` found                                                                                 | Advisory; require if project has custom style expectations.                               |
+| Clippy policy             | No `clippy.toml`; no CI clippy gate                                                                     | `rust-clippy-gate-missing`.                                                               |
+| Unsafe policy             | No top-level unsafe policy detected                                                                     | `rust-unsafe-policy-gap`: require `#![forbid(unsafe_code)]` or explicit unsafe inventory. |
+| Property tests            | `crates/jankurai/Cargo.toml` dev-deps only `tempfile` at lines 38-39                                    | Add `proptest`/`quickcheck` for caps, scoring, path classification, parser behavior.      |
+| Fuzz tests                | No fuzz harness detected                                                                                | Add `cargo-fuzz` for schema parsing, TOML parsing, path globbing, SARIF generation.       |
+| Mutation tests            | No mutation lane detected                                                                               | Add `cargo-mutants` or equivalent for detectors.                                          |
+| Panic policy              | Need detector for `unwrap`, `expect`, `panic!` in library/product paths with context exceptions         | Rule should be severity-by-context, not blanket ban.                                      |
+| Error taxonomy            | Agent-friendly errors exist conceptually, but audit should verify stable error codes in CLI/API outputs | `rust-error-contract-gap`.                                                                |
+| Semver/API compatibility  | Public crates should run `cargo-semver-checks`                                                          | `rust-public-api-semver-gap`.                                                             |
+| MSRV                      | No visible MSRV policy                                                                                  | `rust-msrv-policy-gap`.                                                                   |
+| Feature matrix            | No all-features/no-default-features CI matrix                                                           | `rust-feature-matrix-gap`.                                                                |
+| Dependency bans           | No `deny.toml`                                                                                          | `rust-dependency-policy-gap`.                                                             |
+| Vetting                   | No `cargo-vet` audits                                                                                   | advisory/high-assurance mode.                                                             |
+
+## Audit engine correctness
+
+The audit engine itself should be held to a higher standard than product repos:
+
+* scoring functions must be unit-tested with stable fixtures,
+* cap application must be property-tested,
+* rule registry must be generated or verified against docs and schemas,
+* SARIF output must be schema-tested,
+* Markdown output must be snapshot-tested with stable deterministic output,
+* repair queue ordering must be stable,
+* changed-fast mode must be tested not to miss required global control files,
+* suppressions must be tested for narrowness and expiry.
+
+## Large function refactoring
+
+The following should be refactored because they are core trust surfaces:
+
+| Function                                      | Approx size | Why refactor                                                |
+| --------------------------------------------- | ----------: | ----------------------------------------------------------- |
+| `audit/mod.rs:494 build_findings`             |    ~623 LOC | Central finding emitter; too easy to miss rule consistency. |
+| `main.rs:1228 main`                           |    ~526 LOC | CLI dispatch should be declarative/subcommand modules.      |
+| `render.rs:34 render_markdown`                |    ~426 LOC | Output contract should be table-driven and snapshot-tested. |
+| `publish.rs:149 build_public_evidence_bundle` |    ~292 LOC | Release/public evidence should be small, auditable stages.  |
+| `commands/proof.rs` large proof functions     | 160–200 LOC | Proof execution and verification are security-sensitive.    |
+
+Add `audit-engine-complexity-gap` as advisory first, then cap only for core trust files over threshold.
+
+---
+
+# 9. TypeScript/Vite/React audit gaps
+
+The repo’s TypeScript surface is mostly `@jankurai/ux-qa`. It has strict TypeScript (`packages/ux-qa/tsconfig.json:9-11`), which is good. But world-class TS/React/Vite auditing should include more.
+
+## Current gaps
+
+| Gap                        | Evidence                                                     | Recommendation                                                          |
+| -------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| No root `typecheck` script | `package.json:8-10` only has UX build/test scripts           | Add `typecheck`, `lint`, `format:check`, `test`, `build`, `verify`.     |
+| No ESLint config detected  | no obvious ESLint files                                      | Add ESLint with security/react/a11y rules where applicable.             |
+| `skipLibCheck: true`       | `packages/ux-qa/tsconfig.json:15`                            | Keep if intentional, but score as advisory.                             |
+| Custom TOML subset parser  | `packages/ux-qa/src/config.ts:69-126`                        | Use real TOML parser or schema-generated JSON; fail unknown syntax.     |
+| Peer dependency broadness  | `playwright >=1.59.0` at `packages/ux-qa/package.json:22-24` | Fine for library peer, but CI should test a pinned supported range.     |
+| Caret dependency           | `axe-core ^4.11.4` at line 26                                | OK with lockfile, but release should use provenance and npm pack audit. |
+
+## Missing TS/React/Vite rules
+
+| Rule                        | Why it matters                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `ts-strict-required`        | strict false, `noImplicitAny` false, or relaxed indexed access should reduce score.                 |
+| `ts-nocheck-ban`            | Already partly covered; ensure generated/vendor exceptions only.                                    |
+| `dangerous-html-sink`       | Detect `dangerouslySetInnerHTML`, `innerHTML`, unsafe markdown rendering without sanitizer.         |
+| `unsafe-url-navigation`     | Detect user-controlled `window.location`, open redirects, `target="_blank"` without `rel`.          |
+| `client-secret-exposure`    | Detect `VITE_`, `NEXT_PUBLIC_`, frontend env leaks.                                                 |
+| `handwritten-api-client`    | Strengthen generated contract/client rules.                                                         |
+| `state-truth-in-ui`         | Detect durable authz/pricing/quota decisions in UI-only code.                                       |
+| `vite-proxy-open`           | Detect dev server host/proxy settings that expose internals.                                        |
+| `bundle-secret-scan`        | Scan built JS bundles for secret-like values.                                                       |
+| `a11y-interactive-gap`      | ESLint jsx-a11y, Playwright keyboard flows, axe reports.                                            |
+| `visual-state-coverage-gap` | Every user-visible state: loading, empty, error, success, permission denied, offline, slow network. |
+| `msw-contract-mock-gap`     | Mocks generated from contracts, not handwritten drift.                                              |
+
+---
+
+# 10. Python audit gaps
+
+Jankurai’s standard says Python should only be a rare advanced ML/data exception, not product truth. That is a good anti-vibe rule. For world-class Python coverage, the audit should distinguish **Python product code**, **Python fixture code**, **Python tooling**, and **approved exception-only AI/data services**.
+
+## Missing Python controls
+
+| Rule                            | Recommendation                                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `python-exception-contract-gap` | Approved Python services must expose typed API errors, not raw provider errors.                   |
+| `python-typecheck-gap`          | Require `pyright --strict` or `mypy --strict` for real Python code.                               |
+| `python-ruff-gap`               | Require Ruff formatting/linting.                                                                  |
+| `python-bandit-gap`             | Require Bandit or Semgrep for Python security-sensitive code.                                     |
+| `python-lockfile-gap`           | Require uv/pip-tools/poetry lockfile for Python packages.                                         |
+| `python-prod-db-gap`            | Already conceptually covered; add detector for SQLAlchemy/psycopg/asyncpg in non-exception paths. |
+| `python-secret-env-gap`         | Detect broad env dumps, `.env` loading in production paths.                                       |
+| `python-model-drift-gap`        | Version prompts, models, embeddings, eval data.                                                   |
+| `python-notebook-gap`           | Ban notebooks from product truth; allow only research/docs with output stripped.                  |
+| `python-pickle-yaml-gap`        | Detect unsafe pickle/yaml/dill/joblib loading.                                                    |
+| `python-subprocess-gap`         | `shell=True`, unbounded subprocess, unsanitized filenames.                                        |
+| `python-data-retention-gap`     | AI/data service must declare PII retention, redaction, transcript policy.                         |
+
+## Avoid noise
+
+Do not block every Python file. Use path and purpose:
+
+* `conformance/fixtures/**`: fixture.
+* `docs/**`: documentation.
+* `python/ai-service/**` with dated exception: allowed but audited.
+* any other runtime Python: high severity.
+
+---
+
+# 11. Docker/container/IaC gaps
+
+The Docker detector pack covers several dangerous patterns, but world-class coverage should include build reproducibility, runtime least privilege, supply chain, and container scanning.
+
+## Missing Docker checks
+
+| Rule                             | Description                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `docker-base-image-digest-gap`   | Require base images pinned by digest for release images.                                              |
+| `docker-root-user-gap`           | Hard for production images; advisory for dev containers.                                              |
+| `docker-no-healthcheck`          | Production services should have healthchecks.                                                         |
+| `docker-secret-in-build-arg`     | Detect secrets in `ARG`, `ENV`, labels, layers.                                                       |
+| `docker-unverified-curl-install` | Already partly covered; require checksum/signature.                                                   |
+| `docker-multi-stage-gap`         | Encourage smaller release images.                                                                     |
+| `docker-cache-poisoning-gap`     | Validate package manager cache and lockfile use.                                                      |
+| `docker-sbom-scan-gap`           | Require image SBOM and Grype/Trivy scan.                                                              |
+| `docker-compose-public-port-gap` | Detect `0.0.0.0` admin/database ports.                                                                |
+| `k8s-security-context-gap`       | If Kubernetes appears, require non-root, read-only root FS, no privilege escalation, resource limits. |
+| `iac-open-security-group-gap`    | If Terraform/OpenTofu appears, detect `0.0.0.0/0` admin ingress.                                      |
+| `iac-secret-state-gap`           | Detect secrets in state/config.                                                                       |
+
+## Scoring
+
+Containers should not cap non-container repos. Make these applicable only when Dockerfile, compose, Helm, K8s, Terraform, or image build workflow exists.
+
+---
+
+# 12. SQL/Postgres/data safety gaps
+
+Existing destructive migration and direct DB-layer checks are good. For world-class Postgres/code audit coverage, add **data invariants, tenant isolation, migration deployment safety, and operational proof**.
+
+## Missing SQL/Postgres checks
+
+| Area                | Rule                                                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration safety    | Expand/contract pattern, lock timeout, statement timeout, advisory lock, rollback/down migration, backfill plan, index concurrently, no long transactions. |
+| Destructive changes | Require staged deploy evidence for drop column/table, enum changes, non-null additions, type changes.                                                      |
+| Tenant isolation    | RLS enabled for tenant tables; deny-by-default policy; owner/non-owner tests.                                                                              |
+| Authorization       | API/service tests for user A cannot read/update/delete user B records.                                                                                     |
+| Constraints         | Durable invariants must be DB constraints, not app-only checks.                                                                                            |
+| Indexes             | Foreign keys and query paths need indexes; detect missing FK indexes.                                                                                      |
+| Seed data           | No production secrets or PII in seeds.                                                                                                                     |
+| SQL injection       | Parameterization; no string-built SQL.                                                                                                                     |
+| Audit logging       | Sensitive tables have update/delete audit trail when domain requires.                                                                                      |
+| Data retention      | PII deletion, retention, anonymization, backup policy.                                                                                                     |
+| Backup/restore      | Release readiness should include backup and restore rehearsal evidence.                                                                                    |
+| Migration rehearsal | CI should apply migrations to empty DB and representative existing DB.                                                                                     |
+| Rollback proof      | Rollback command or compensating forward fix must be documented.                                                                                           |
+
+## New caps
+
+```toml
+db_no_migration_rehearsal = 80
+db_no_rls_or_authz_matrix_for_tenant_data = 78
+db_durable_invariant_app_only = 76
+db_no_backup_restore_evidence_for_release = 82
+db_destructive_migration_without_staged_plan = 70
+```
+
+---
+
+# 13. API/contracts/generation gaps
+
+The standard already strongly dislikes handwritten DTOs and generated drift. Add sharper coverage:
+
+| Rule                               | Description                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `contract-source-of-truth-missing` | Every generated client/server/schema must point to source contract and generation command.      |
+| `contract-backward-compat-gap`     | OpenAPI/protobuf/JSON Schema compatibility check required.                                      |
+| `contract-negative-tests-gap`      | Invalid inputs must be tested, not only happy paths.                                            |
+| `contract-error-schema-gap`        | Errors should have stable code, purpose, reason, docs URL, correlation ID.                      |
+| `contract-authz-annotations-gap`   | Endpoints declare auth/role/tenant requirements.                                                |
+| `contract-versioning-gap`          | Public APIs need versioning and deprecation policy.                                             |
+| `contract-mock-drift-gap`          | MSW/fakes generated from contracts.                                                             |
+| `contract-client-handwritten-gap`  | Detect fetch/axios wrappers duplicating generated client behavior.                              |
+| `contract-schema-strictness-gap`   | Schemas closed by default with `additionalProperties: false`, except explicit extension points. |
+
+OWASP ASVS provides a requirements-based basis for testing web application security controls, including technical controls used to prevent issues such as XSS and SQL injection; mapping Jankurai API/auth/input rules to ASVS IDs would make security coverage more externally understandable. ([OWASP Foundation][9])
+
+---
+
+# 14. Authentication, authorization, and data isolation
+
+Jankurai has HLT-022, but world-class coverage should be more explicit and artifact-backed.
+
+## Missing auth/authz coverage
+
+| Rule                                | Evidence required                                               |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `auth-role-matrix-missing`          | Role/action/resource matrix.                                    |
+| `auth-owner-nonowner-tests-missing` | Tests proving owner allowed and non-owner denied.               |
+| `auth-admin-bypass-tests-missing`   | Admin/superuser paths explicitly tested.                        |
+| `auth-session-cookie-hardening-gap` | Secure, HttpOnly, SameSite, expiration.                         |
+| `auth-csrf-gap`                     | Required for cookie-auth state-changing requests.               |
+| `auth-password-reset-gap`           | Token expiration, single-use, enumeration resistance.           |
+| `auth-mfa-admin-gap`                | Admin or high-risk actions require MFA or compensating control. |
+| `auth-service-role-leak-gap`        | Service keys never in frontend, logs, fixtures, docs.           |
+| `auth-tenant-context-gap`           | Tenant ID derived server-side, not trusted from client.         |
+| `auth-policy-drift-gap`             | Code, docs, contracts, and DB/RLS policies agree.               |
+
+## Scoring
+
+For any repo with users, tenants, roles, payments, admin routes, or private data:
+
+```toml
+authz_matrix_missing = 78
+owner_nonowner_tests_missing = 76
+tenant_isolation_not_db_backed = 74
+frontend_owns_trust_decision = 70
+```
+
+---
+
+# 15. Input/output boundary coverage
+
+Existing `input_boundary_hits` is extensive, but it is a very large function beginning at `scan.rs:557`. It should be broken into source/sink families.
+
+## Missing source/sink model
+
+Add a structured model:
+
+```text
+Sources:
+  HTTP params, headers, cookies, body
+  CLI args
+  env vars
+  files
+  database fields
+  AI/tool output
+  webhooks
+  message queues
+
+Sinks:
+  SQL
+  shell
+  filesystem paths
+  URLs/fetch/SSRF
+  HTML/DOM
+  markdown rendering
+  regex
+  YAML/TOML/JSON parsers
+  deserialization
+  logging
+  eval/dynamic import
+  redirects
+  cryptography
+```
+
+## Missing rules
+
+| Rule                         | Notes                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `ssrf-egress-policy-gap`     | User-provided URLs require allowlist, private IP block, metadata endpoint block. |
+| `path-traversal-gap`         | File paths must be normalized, rooted, and deny traversal/symlink escapes.       |
+| `log-injection-gap`          | Untrusted text in logs must be structured/escaped/redacted.                      |
+| `markdown-xss-gap`           | Sanitizer required for rendered markdown/HTML.                                   |
+| `regex-dos-gap`              | User-controlled regex or catastrophic patterns.                                  |
+| `yaml-toml-unsafe-parse-gap` | Unsafe deserialization and silent parser fallbacks.                              |
+| `webhook-signature-gap`      | Incoming webhooks need signature verification and replay window.                 |
+| `ai-output-trust-gap`        | Model/tool output treated as untrusted data, never commands/policy.              |
+
+## Avoid noise
+
+Make lexical hits advisory until:
+
+* source and sink appear in same function/module,
+* no sanitizer/parameterization evidence exists,
+* file is runtime, not test/fixture/docs,
+* detector has positive and negative fixtures.
+
+---
+
+# 16. UX, accessibility, and product quality gaps
+
+Jankurai’s UX QA direction is strong. It should expand from geometry smoke to **critical route/state evidence**.
+
+## Current concern
+
+The main CI workflow creates a small inline HTML smoke server at `.github/workflows/jankurai.yml:47-85`. That is useful for testing the UX QA tool itself, but it is not evidence that a product UI is good. For this repo, that may be fine because `@jankurai/ux-qa` is the product surface, but the audit standard should distinguish:
+
+* **tool smoke**: verifies UX auditor runs,
+* **product UX proof**: verifies actual app routes/stories.
+
+## Missing UX rules
+
+| Rule                           | Required evidence                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `ux-critical-route-matrix-gap` | List of critical routes/stories and states.                                     |
+| `ux-state-coverage-gap`        | loading, success, empty, error, permission denied, slow network.                |
+| `ux-keyboard-proof-gap`        | Keyboard-only flow for critical actions.                                        |
+| `ux-screen-reader-proof-gap`   | ARIA snapshots plus selected manual/screen-reader evidence for critical flows.  |
+| `ux-motion-reduction-gap`      | `prefers-reduced-motion` honored.                                               |
+| `ux-localization-overflow-gap` | Long strings and RTL/locale expansion tests.                                    |
+| `ux-responsive-breakpoint-gap` | Mobile/tablet/desktop viewports.                                                |
+| `ux-performance-budget-gap`    | Lighthouse/Web Vitals or bundle budget for web apps.                            |
+| `ux-design-token-drift-gap`    | Components use tokens; no hard-coded inconsistent colors/spacing in product UI. |
+| `ux-flake-baseline-gap`        | Visual baseline updates require owner approval and reason.                      |
+
+Automated accessibility tools catch only part of accessibility. Keep axe/ARIA deterministic checks, but do not claim complete inclusive design without keyboard, screen-reader, cognitive, localization, and motion evidence.
+
+---
+
+# 17. Agent/tool/prompt-injection coverage
+
+Jankurai already recognizes prompt injection and overbroad agency. For “kill vibe coding,” this is a core differentiator.
+
+## Missing agent/tool rules
+
+| Rule                                  | Why it matters                                                                               |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `mcp-tool-manifest-gap`               | Every MCP/tool server should be listed with owner, version, permissions, network/file scope. |
+| `agent-rule-file-pin-gap`             | Agent rules and hooks must be CODEOWNED and hashed.                                          |
+| `untrusted-context-policy-mixing-gap` | Issues/docs/web pages/tool output cannot modify trusted instructions.                        |
+| `agent-network-egress-gap`            | Tools need allowlisted network access.                                                       |
+| `agent-filesystem-scope-gap`          | Tool write scopes must be narrow.                                                            |
+| `agent-approval-gate-gap`             | Destructive operations require approval profile.                                             |
+| `agent-transcript-secret-scan-gap`    | Prompt transcripts, screenshots, logs, and vector stores scanned/redacted.                   |
+| `agent-tool-output-schema-gap`        | Tool output parsed through schemas, not free text.                                           |
+| `agent-repair-without-proof-gap`      | Auto-repair cannot merge without rerun receipts.                                             |
+| `agent-model-prompt-version-gap`      | Prompts/models/evals versioned for AI-backed product features.                               |
+
+## Scoring idea
+
+Add an “agency budget”:
+
+```toml
+max_files_touched_without_owner_route = 20
+max_tool_calls_without_receipt = 0
+max_network_tools_in_fast_lane = 0
+max_destructive_tools_without_approval = 0
+```
+
+---
+
+# 18. Privacy, secrets, data retention, and logs
+
+The security policy and README cover private vulnerability reporting, which is good. Missing audit coverage should focus on data classification and evidence artifacts.
+
+## Missing rules
+
+| Rule                              | Evidence                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------- |
+| `data-inventory-missing`          | Tables, logs, prompts, screenshots, telemetry, vectors, backups classified. |
+| `pii-log-redaction-gap`           | Structured redaction tests for logs and errors.                             |
+| `prompt-transcript-retention-gap` | AI prompts/transcripts retention and sharing policy.                        |
+| `screenshot-pii-gap`              | UX artifacts redacted or use synthetic data.                                |
+| `backup-retention-gap`            | Backup retention and deletion policy.                                       |
+| `customer-data-in-fixtures-gap`   | Fixtures/seeds cannot contain real PII.                                     |
+| `analytics-consent-gap`           | Product web apps need consent/privacy evidence where applicable.            |
+| `right-to-delete-gap`             | PII systems need deletion/anonymization path.                               |
+| `secrets-rotation-receipt-gap`    | Secret findings require rotation evidence, not only removal.                |
+
+---
+
+# 19. Observability and operability gaps
+
+Jankurai emphasizes agent-friendly exceptions. Expand that into production operability.
+
+## Missing checks
+
+| Rule                            | Required evidence                                             |
+| ------------------------------- | ------------------------------------------------------------- |
+| `structured-logging-gap`        | Logs structured with levels, request IDs, no secrets.         |
+| `correlation-id-gap`            | API/jobs/errors carry trace/request/job IDs.                  |
+| `metrics-slo-gap`               | Service has basic RED/USE metrics or product-specific SLOs.   |
+| `alerting-gap`                  | Release readiness includes alert routes.                      |
+| `runbook-gap`                   | Operational runbooks for deploy, rollback, incident, restore. |
+| `error-code-registry-gap`       | Stable error codes documented.                                |
+| `panic-boundary-gap`            | Panics caught at process/request/job boundaries.              |
+| `retry-policy-gap`              | Bounded retries with idempotency and jitter.                  |
+| `dead-letter-gap`               | Queues/jobs have DLQ or failure receipt.                      |
+| `cost-budget-observability-gap` | Tool/model/API budgets and kill switches.                     |
+
+---
+
+# 20. Schema and evidence contract gaps
+
+## Current gaps
+
+The in-repo validator supports only a subset of JSON Schema keywords at `validation.rs:703-729`. That is not wrong if intentional, but the audit must make the limitation explicit.
+
+Also, 21 top-level object schemas in the uploaded archive do not set `additionalProperties: false`, including `repo-score.schema.json`, `security-evidence.schema.json`, `ux-qa.schema.json`, and others.
+
+## Recommended controls
+
+| Rule                            | Meaning                                                                                |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| `schema-closed-by-default-gap`  | Evidence schemas should disallow unknown properties unless extension points are named. |
+| `schema-format-validation-gap`  | Validate date-time, URI, semver, SHA256, paths.                                        |
+| `schema-conditional-gap`        | Use `if/then/else` or equivalent code checks for mode-specific requirements.           |
+| `schema-compat-test-gap`        | Schema changes need backward/forward compatibility tests.                              |
+| `schema-fixture-gap`            | Every schema has valid and invalid examples.                                           |
+| `schema-codegen-gap`            | TypeScript/Rust types generated from same schema where feasible.                       |
+| `schema-semantic-validator-gap` | JSON Schema plus semantic validator; both reported in evidence.                        |
+
+## Avoid breaking users
+
+Do not immediately close every schema. Add:
+
+```json
+"extensions": {
+  "x-team": {}
+}
+```
+
+Then set `additionalProperties: false` elsewhere.
+
+---
+
+# 21. Repo hygiene and Git governance gaps
+
+## Existing good signs
+
+* `CODEOWNERS` exists and covers important surfaces at `.github/CODEOWNERS:1-18`.
+* Security policy exists.
+* PR template asks for validation and receipts.
+
+## Missing controls
+
+| Rule                              | Recommendation                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `branch-protection-evidence-gap`  | Import branch protection rules via GitHub API or require signed governance receipt.       |
+| `two-party-review-gap`            | For control-plane changes, require non-author review.                                     |
+| `signed-commit-or-tag-policy-gap` | Release tags should be signed/protected.                                                  |
+| `CODEOWNERS-single-owner-risk`    | Single owner is okay early, but high-assurance mode should require backup/security owner. |
+| `generated-artifact-commit-gap`   | Generated artifacts either committed with manifest or regenerated in CI; no mixed mode.   |
+| `large-binary-gap`                | No unexpected binary assets.                                                              |
+| `archive-sidecar-gap`             | Block `._*`, `.DS_Store`, editor backups, temp files in release archives.                 |
+| `submodule-pin-gap`               | Submodules pinned and reviewed.                                                           |
+| `git-lfs-policy-gap`              | If LFS used, ensure release reproducibility.                                              |
+
+---
+
+# 22. New HLT rule families I would add
+
+| New rule ID                              | Name                                                               | Cap | Why                                   |
+| ---------------------------------------- | ------------------------------------------------------------------ | --: | ------------------------------------- |
+| `HLT-038-SCORE-INTEGRITY-GAP`            | Score baseline, fingerprint, ratchet, and report determinism flaws |  70 | The audit score must not be gameable. |
+| `HLT-039-POLICY-DRIFT-GAP`               | Code/docs/policy/schema/workflow disagreement                      |  78 | Prevents invisible scoring drift.     |
+| `HLT-040-CI-IMMUTABILITY-GAP`            | Actions/images not pinned immutably                                |  78 | Supply-chain hardening.               |
+| `HLT-041-CI-LEAST-PRIVILEGE-GAP`         | Missing explicit permissions/token scope                           |  82 | Reduces token blast radius.           |
+| `HLT-042-FULL-BUILD-PROOF-GAP`           | fmt/lint/test/typecheck missing from CI                            |  82 | Audit cannot replace build proof.     |
+| `HLT-043-DETECTOR-CALIBRATION-GAP`       | No precision/recall/negative-fixture evidence                      |  76 | Prevents false confidence.            |
+| `HLT-044-SUPPLY-PROVENANCE-GAP`          | Missing SBOM/signing/SLSA provenance                               |  75 | Release trust.                        |
+| `HLT-045-DEPENDENCY-GOVERNANCE-GAP`      | No dependency review/update/license/source policy                  |  82 | OSS supply-chain risk.                |
+| `HLT-046-SCHEMA-RIGOR-GAP`               | Weak evidence schemas/validators                                   |  84 | Evidence contract trust.              |
+| `HLT-047-ARCHIVE-HYGIENE-GAP`            | Sidecar/junk/release package contamination                         |  72 | Reproducible source packages.         |
+| `HLT-048-TOOL-EVIDENCE-SEMANTIC-GAP`     | CI evidence detected by text, not workflow semantics               |  84 | Avoids fake evidence.                 |
+| `HLT-049-AUDIT-ENGINE-COMPLEXITY-GAP`    | Trust-critical functions too large/untested                        |  86 | Maintainable scoring engine.          |
+| `HLT-050-BRANCH-PROTECTION-EVIDENCE-GAP` | No protected-branch/review/status evidence                         |  78 | Git governance.                       |
+| `HLT-051-PRIVACY-DATA-LIFECYCLE-GAP`     | PII/log/prompt/vector retention missing                            |  82 | Modern AI/product risk.               |
+| `HLT-052-OPERABILITY-READINESS-GAP`      | No runbooks, alerts, rollback, restore evidence                    |  82 | Release readiness.                    |
+| `HLT-053-PACKAGE-PUBLISHING-GAP`         | npm/crate/package contents not audited                             |  80 | Prevents leaking junk/secrets.        |
+| `HLT-054-SEMVER-API-COMPAT-GAP`          | Public APIs/crates lack compatibility checks                       |  84 | Prevents accidental breaking changes. |
+| `HLT-055-ADVERSARIAL-TEST-GAP`           | No fuzz/property/mutation/bypass tests                             |  82 | Critical for audit tools.             |
+
+---
+
+# 23. Recommended hard caps
+
+```toml
+[caps]
+# Score integrity
+self_referential_ratchet_baseline = 70
+unstable_decision_fingerprint = 84
+textual_ci_evidence_only = 84
+policy_code_docs_schema_drift = 78
+score_claim_exceeds_evidence_maturity = 72
+
+# Build proof
+missing_full_workspace_test_gate = 82
+missing_format_lint_gate = 84
+missing_rust_clippy_gate = 84
+missing_typescript_typecheck_gate = 84
+missing_release_package_dry_run = 84
+
+# CI hardening
+missing_explicit_github_token_permissions = 82
+third_party_actions_not_sha_pinned = 78
+missing_ci_timeout = 86
+missing_ci_concurrency = 90
+sarif_not_uploaded_to_code_scanning = 84
+security_lane_not_strict_in_ci = 76
+
+# Security/supply chain
+missing_dependency_review_gate = 82
+missing_dependency_update_automation = 84
+missing_license_policy_gate = 84
+missing_cargo_deny_or_equivalent = 84
+missing_codeql_or_semgrep = 84
+missing_openssf_scorecard = 86
+missing_sbom_for_release = 78
+missing_release_vulnerability_scan = 78
+missing_signed_release_artifacts = 75
+missing_provenance_attestation = 75
+
+# Detector trust
+missing_detector_calibration_corpus = 76
+high_rule_without_negative_fixtures = 84
+high_rule_without_false_negative_tests = 82
+partial_coverage_claimed_as_detector_backed = 72
+detector_precision_below_threshold = 88
+detector_recall_below_threshold = 86
+
+# Schema/evidence
+evidence_schema_not_closed = 86
+schema_validator_keyword_gap = 88
+missing_schema_negative_fixtures = 84
+
+# Git/release hygiene
+source_archive_contains_sidecar_files = 72
+branch_protection_evidence_missing = 78
+control_plane_codeowners_single_point = 88
+release_tag_not_protected_or_signed = 76
+```
+
+---
+
+# 24. Safe rollout plan to avoid causing issues
+
+## Phase 0 — Fix correctness and packaging
+
+1. Add or restore `crates/jankurai/src/audit/prose.rs`.
+2. Add `._*` to `.gitignore`.
+3. Ensure release/source packaging excludes AppleDouble files.
+4. Add CI check:
+
+```bash
+find . -name '._*' -o -name '.DS_Store' -o -name '*~' -o -name '*.swp'
+```
+
+5. Add clean archive test:
+
+```bash
+tar -tzf release.tar.gz | grep -E '(^|/)\._|(^|/)\.DS_Store' && exit 1
+```
+
+## Phase 1 — Make existing gates real
+
+1. Fix ratchet baseline to use protected main accepted baseline.
+2. Change CI security lane to `--strict`.
+3. Add top-level workflow permissions:
+
+```yaml
+permissions:
+  contents: read
+```
+
+4. Add `timeout-minutes` to every job.
+5. Add workflow `concurrency`.
+6. Upload SARIF to code scanning.
+7. Add full Rust and TS gates.
+
+## Phase 2 — Align policy/code/docs
+
+1. Generate `agent/audit-policy.toml` cap defaults from `CAP_SPECS`.
+2. Add a test that every cap exists in:
+
+   * cap registry,
+   * policy schema,
+   * audit rubric,
+   * rule registry where applicable,
+   * JSON report schema.
+3. Add `jankurai rules verify` as blocking CI.
+
+## Phase 3 — Add evidence maturity
+
+1. Add fixture-positive and fixture-negative counts to rule registry.
+2. Add detector confidence ceiling.
+3. Add calibration benchmark.
+4. Add false-positive/false-negative trend history.
+
+## Phase 4 — Supply-chain/release hardening
+
+1. Add dependency-review-action.
+2. Add CodeQL/Semgrep.
+3. Add cargo-deny.
+4. Add Syft + Grype/Trivy.
+5. Add OpenSSF Scorecard.
+6. Add SLSA/GitHub artifact attestations.
+7. Add Cosign/Sigstore for release artifacts.
+
+## Phase 5 — Advanced product-quality rules
+
+Add Rust property/fuzz/mutation lanes, TS/Vite/React UX state coverage, DB/RLS proof, privacy lifecycle, observability/runbooks, and agent/tool policy attestations.
+
+---
+
+# 25. What not to do
+
+To keep the audit smart and avoid causing issues:
+
+1. **Do not make every lexical smell a hard fail.** Use path context, generated/vendor/docs/test exemptions, and confidence tiers.
+2. **Do not penalize non-applicable stacks.** Docker rules apply only if Docker exists; RLS rules apply only if multi-tenant DB exists.
+3. **Do not treat local config as proof.** Config is readiness; CI artifact plus exit status is proof.
+4. **Do not let waivers live forever.** Every suppression needs owner, reason, scope, expiry, and linked evidence.
+5. **Do not equate “scanner installed” with “scanner enforced.”** The score should care about blocking behavior.
+6. **Do not claim detector-backed coverage from control-family mapping.** Keep policy/control-family/detector-backed/benchmark-backed distinct.
+7. **Do not let the audit engine become unreviewable.** Refactor trust-critical giant functions before adding many more rules.
+8. **Do not break adoption by hard-failing everything immediately.** Roll new rules out as `observe → advisory → ratchet → hard cap`.
+
+---
+
+## Final prioritized action list
+
+1. **Restore/build the missing `audit::prose` module or fix the archive.**
+2. **Remove AppleDouble sidecar files and add archive hygiene scanning.**
+3. **Fix CI ratchet baseline so it uses protected accepted baseline, not candidate output.**
+4. **Make security CI strict and align `agent/security-policy.toml`, `tools/security-lane.sh`, and `docs/security-tool-matrix.md`.**
+5. **Add explicit GitHub Actions permissions, timeouts, concurrency, and SARIF upload.**
+6. **Pin security/release workflow actions to full commit SHAs or add explicit risk waivers.**
+7. **Add full Rust/TS quality gates: fmt, clippy, full workspace tests, typecheck, lint.**
+8. **Add dependency review, CodeQL/Semgrep, cargo-deny, SBOM, vulnerability scan, Scorecard, signing, and provenance.**
+9. **Add policy-code-doc-schema drift verification.**
+10. **Split the public score into posture, enforcement, detector maturity, calibration, and supply-chain scores.**
+11. **Build a real calibration corpus with positive and negative fixtures per rule.**
+12. **Add stable decision fingerprints separate from volatile report fingerprints.**
+13. **Strengthen schemas and close evidence contracts by default.**
+14. **Refactor large audit-engine functions into table-driven, fixture-backed modules.**
+15. **Map security rules to ASVS/SSDF/SAMM/SLSA/S2C2F where applicable so users can understand external assurance coverage.**
+
+The highest-leverage change is **score integrity**: make it impossible for a repo to claim a perfect score unless its evidence is enforced, calibrated, reproducible, and externally auditable.
+
+[1]: https://docs.github.com/actions/security-guides/security-hardening-for-github-actions "https://docs.github.com/actions/security-guides/security-hardening-for-github-actions"
+[2]: https://docs.github.com/en/code-security/reference/code-scanning/sarif-support-for-code-scanning "https://docs.github.com/en/code-security/reference/code-scanning/sarif-support-for-code-scanning"
+[3]: https://csrc.nist.gov/publications/detail/sp/800-218/final "https://csrc.nist.gov/publications/detail/sp/800-218/final"
+[4]: https://devguide.owasp.org/en/11-security-gap-analysis/01-guides/01-samm/ "https://devguide.owasp.org/en/11-security-gap-analysis/01-guides/01-samm/"
+[5]: https://github.com/actions/dependency-review-action "https://github.com/actions/dependency-review-action"
+[6]: https://openssf.org/projects/scorecard/ "https://openssf.org/projects/scorecard/"
+[7]: https://openssf.org/projects/s2c2f/ "https://openssf.org/projects/s2c2f/"
+[8]: https://slsa.dev/spec/v1.2/build-track-basics "https://slsa.dev/spec/v1.2/build-track-basics"
+[9]: https://owasp.org/www-project-application-security-verification-standard/ "https://owasp.org/www-project-application-security-verification-standard/"
+

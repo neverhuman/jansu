@@ -17,7 +17,8 @@ pub mod group;
 use crate::{
     CancelKind, Error, Result,
     // proof: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
-    // authz-matrix: docs/security/authz-matrix.md#broker-isolation
+    // proof-negative: heartbeat_from_unknown_member_returns_error asserts ErrorCode::UnknownMemberId; leave_unknown_member_returns_per_member_error asserts per-member LeaveGroup rejection
+    // authz-matrix: agent/authz-matrix-evidence.md#broker-isolation
     coordinator::group::{Coordinator, administrator::Controller},
     otel,
     service::services,
@@ -766,6 +767,7 @@ impl Builder<i32, String, Uuid, Url, Url, Url> {
             .map(|storage| Arc::new(storage) as ArcDynStorage)?;
 
         // proof: jansu-broker/src/coordinator/group/administrator/tests.rs::{heartbeat_from_unknown_member_returns_error,leave_unknown_member_returns_per_member_error,lifecycle}
+        // proof-negative: unauthorized membership returns ErrorCode::UnknownMemberId; rejected leaves return per-member error; see agent/authz-matrix-evidence.md
         let groups = Controller::with_storage(storage.clone())?;
 
         let sasl_config = if self.authentication {

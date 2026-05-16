@@ -1592,33 +1592,33 @@ mod tests {
             &self,
             _broker_registration: BrokerRegistrationRequest,
         ) -> Result<()> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn create_topic(&self, _topic: CreatableTopic, _validate_only: bool) -> Result<Uuid> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn incremental_alter_resource(
             &self,
             _resource: AlterConfigsResource,
         ) -> Result<AlterConfigsResourceResponse> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn delete_records(
             &self,
             _topics: &[DeleteRecordsTopic],
         ) -> Result<Vec<DeleteRecordsTopicResult>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn delete_topic(&self, _topic: &TopicId) -> Result<ErrorCode> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn produce(
@@ -1627,7 +1627,7 @@ mod tests {
             _topition: &Topition,
             _batch: deflated::Batch,
         ) -> Result<i64> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn fetch(
@@ -1643,7 +1643,7 @@ mod tests {
         }
 
         async fn offset_stage(&self, _topition: &Topition) -> Result<OffsetStage> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn list_offsets(
@@ -1651,7 +1651,7 @@ mod tests {
             _isolation_level: IsolationLevel,
             _offsets: &[(Topition, ListOffset)],
         ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn offset_commit(
@@ -1660,7 +1660,7 @@ mod tests {
             _retention_time_ms: Option<Duration>,
             _offsets: &[(Topition, OffsetCommitRequest)],
         ) -> Result<Vec<(Topition, ErrorCode)>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn offset_for_leader_epoch(
@@ -1668,7 +1668,7 @@ mod tests {
             _topition: &Topition,
             _leader_epoch: i32,
         ) -> Result<Option<(i32, i64)>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn offset_fetch(
@@ -1677,7 +1677,7 @@ mod tests {
             _topics: &[Topition],
             _require_stable: Option<bool>,
         ) -> Result<BTreeMap<Topition, i64>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn offset_fetch_records(
@@ -1686,18 +1686,18 @@ mod tests {
             _topics: &[Topition],
             _require_stable: Option<bool>,
         ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn committed_offset_topitions(
             &self,
             _group_id: &str,
         ) -> Result<BTreeMap<Topition, i64>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn metadata(&self, _topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn upsert_user_scram_credential(
@@ -1706,7 +1706,7 @@ mod tests {
             _mechanism: ScramMechanism,
             _credential: ScramCredential,
         ) -> Result<()> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn delete_user_scram_credential(
@@ -1714,7 +1714,7 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<()> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn user_scram_credential(
@@ -1722,7 +1722,7 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<Option<ScramCredential>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn describe_config(
@@ -1731,18 +1731,18 @@ mod tests {
             _resource: ConfigResource,
             _keys: Option<&[String]>,
         ) -> Result<DescribeConfigsResult> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn list_groups(&self, _states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn delete_groups(
             &self,
             _group_ids: Option<&[String]>,
         ) -> Result<Vec<DeletableGroupResult>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn describe_groups(
@@ -1750,7 +1750,7 @@ mod tests {
             _group_ids: Option<&[String]>,
             _include_authorized_operations: bool,
         ) -> Result<Vec<NamedGroupDetail>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn describe_topic_partitions(
@@ -1759,7 +1759,7 @@ mod tests {
             _partition_limit: i32,
             _cursor: Option<Topition>,
         ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn update_group(
@@ -1768,7 +1768,7 @@ mod tests {
             _detail: GroupDetail,
             _version: Option<Version>,
         ) -> Result<Version, UpdateError<GroupDetail>> {
-            todo!()
+            Err(UpdateError::Error(Error::Api(ErrorCode::UnknownServerError)))
         }
 
         async fn init_producer(
@@ -1778,7 +1778,7 @@ mod tests {
             _producer_id: Option<i64>,
             _producer_epoch: Option<i16>,
         ) -> Result<ProducerIdResponse> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn txn_add_offsets(
@@ -1788,21 +1788,21 @@ mod tests {
             _producer_epoch: i16,
             _group_id: &str,
         ) -> Result<ErrorCode> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn txn_add_partitions(
             &self,
             _partitions: TxnAddPartitionsRequest,
         ) -> Result<TxnAddPartitionsResponse> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn txn_offset_commit(
             &self,
             _offsets: TxnOffsetCommitRequest,
         ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn txn_end(
@@ -1812,23 +1812,23 @@ mod tests {
             _producer_epoch: i16,
             _committed: bool,
         ) -> Result<ErrorCode> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn cluster_id(&self) -> Result<String> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn node(&self) -> Result<i32> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn advertised_listener(&self) -> Result<Url> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
 
         async fn ping(&self) -> Result<()> {
-            todo!()
+            Err(Error::Api(ErrorCode::UnknownServerError))
         }
     }
 

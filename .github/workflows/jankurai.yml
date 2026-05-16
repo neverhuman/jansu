@@ -5,24 +5,35 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
+      security-events: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
       - name: Install jankurai
         run: cargo install jankurai --locked
       - run: jankurai --version
       - name: jankurai audit
         run: jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md --sarif target/jankurai/jankurai.sarif --github-step-summary target/jankurai/summary.md --repair-queue-jsonl target/jankurai/repair-queue.jsonl
       - name: DB doctor proof
-        run: just db-doctor || true
+        run: just db-doctor
       - name: Tool adoption evidence
         run: just tool-adoption-evidence
-      - uses: actions/upload-artifact@v4
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360
+        if: always()
+        with:
+          sarif_file: target/jankurai/jankurai.sarif
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: jankurai-adoption-evidence

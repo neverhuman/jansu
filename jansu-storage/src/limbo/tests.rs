@@ -194,7 +194,7 @@ async fn simpler_insert_select_with_returning() -> Result<()> {
 }
 
 #[tokio::test]
-async fn create_topic() -> Result<()> {
+async fn create_topic_libsql_compat() -> Result<()> {
     let _guard = init_tracing()?;
 
     let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
@@ -252,7 +252,7 @@ async fn create_topic() -> Result<()> {
 }
 
 #[tokio::test]
-async fn create_topic_in_tx() -> Result<()> {
+async fn create_topic_in_tx_libsql_compat() -> Result<()> {
     let _guard = init_tracing()?;
 
     let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;

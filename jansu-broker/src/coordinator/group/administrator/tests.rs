@@ -13,16 +13,11 @@
 // limitations under the License.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Arc, LazyLock, Mutex},
+    collections::BTreeMap,
+    hash::Hasher,
     time::SystemTime,
 };
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use jansu_sans_io::{
     Body, ErrorCode,
@@ -34,30 +29,23 @@ use jansu_sans_io::{
     offset_commit_response::{
         OffsetCommitResponse, OffsetCommitResponsePartition, OffsetCommitResponseTopic,
     },
-    offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
-    offset_fetch_response::{
-        OffsetFetchResponse, OffsetFetchResponseGroup, OffsetFetchResponsePartition,
-        OffsetFetchResponsePartitions, OffsetFetchResponseTopic, OffsetFetchResponseTopics,
-    },
+    offset_fetch_request::OffsetFetchRequestTopic,
+    offset_fetch_response::OffsetFetchResponse,
     sync_group_request::SyncGroupRequestAssignment,
     sync_group_response::SyncGroupResponse,
 };
 use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, Storage, Topition, UpdateError,
-    Version,
+    GroupDetail, GroupState, Storage,
 };
-use opentelemetry::{KeyValue, metrics::Counter};
-use tokio::time::{Duration, sleep};
-use tracing::{debug, error, info};
+use tokio::time::Duration;
 use uuid::Uuid;
 
-use crate::{Error, METER, Result};
+use crate::{Error, Result};
 
 use super::{Coordinator, OffsetCommit};
 
 use super::*;
 
-use super::*;
 use jansu_sans_io::{
     create_topics_request::CreatableTopic,
     offset_commit_request::{OffsetCommitRequestPartition, OffsetCommitRequestTopic},

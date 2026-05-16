@@ -158,9 +158,10 @@ impl Postgres {
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
         debug!(cluster = self.cluster, ?topics);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
+        let tx = c.transaction().await?;
 
-        let delete_records = c
+        let delete_records = tx
             .prepare(concat!(
                 "delete from record",
                 " using topic, cluster",
@@ -168,7 +169,7 @@ impl Postgres {
                 " cluster.name=$1",
                 " and topic.name = $2",
                 " and record.partition = $3",
-                " and record.id >= $4",
+                " and record.id < $4",
                 " and topic.cluster = cluster.id",
                 " and record.topic = topic.id",
             ))
@@ -182,7 +183,7 @@ impl Postgres {
 
             if let Some(ref partitions) = topic.partitions {
                 for partition in partitions {
-                    _ = c
+                    _ = tx
                         .execute(
                             &delete_records,
                             &[
@@ -202,70 +203,53 @@ impl Postgres {
                             error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
                         })?;
 
-                    let prepared = c
-                        .prepare(concat!(
-                            "select",
-                            " id as offset",
-                            " from",
-                            " record",
-                            " join (",
-                            " select",
-                            " coalesce(min(record.id), (select last_value from record_id_seq)) as offset",
-                            " from record, topic, cluster",
-                            " where",
-                            " topic.cluster = cluster.id",
-                            " and cluster.name = $1",
-                            " and topic.name = $2",
-                            " and record.partition = $3",
-                            " and record.topic = topic.id) as minimum",
-                            " on record.id = minimum.offset",
-                        ))
-                        .await
-                        .inspect_err(|err| {
-                            let cluster = self.cluster.as_str();
-                            let topic = topic.name.as_str();
-                            let partition_index = partition.partition_index;
-                            let offset = partition.offset;
+                    _ = self.tx_prepare_execute(
+                        &tx,
+                        "watermark_update_low.sql",
+                        &[
+                            &self.cluster,
+                            &topic.name,
+                            &partition.partition_index,
+                            &partition.offset,
+                        ]
+                    ).await?;
 
-                            error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
-                        })?;
+                    let partition_result = self.tx_prepare_query_opt(
+                        &tx,
+                        "watermark_select_no_update.sql",
+                        &[&self.cluster, &topic.name, &partition.partition_index],
+                    )
+                    .await
+                    .inspect_err(|err| {
+                        let cluster = self.cluster.as_str();
+                        let topic = topic.name.as_str();
+                        let partition_index = partition.partition_index;
+                        let offset = partition.offset;
 
-                    let partition_result = c
-                        .query_opt(
-                            &prepared,
-                            &[&self.cluster, &topic.name, &partition.partition_index],
-                        )
-                        .await
-                        .inspect_err(|err| {
-                            let cluster = self.cluster.as_str();
-                            let topic = topic.name.as_str();
-                            let partition_index = partition.partition_index;
-                            let offset = partition.offset;
-
-                            error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
-                        })
-                        .map_or(
-                            Ok(DeleteRecordsPartitionResult::default()
-                                .partition_index(partition.partition_index)
-                                .low_watermark(0)
-                                .error_code(ErrorCode::UnknownServerError.into())),
-                            |row| {
-                                row.map_or(
-                                    Ok(DeleteRecordsPartitionResult::default()
-                                        .partition_index(partition.partition_index)
-                                        .low_watermark(0)
-                                        .error_code(ErrorCode::UnknownServerError.into())),
-                                    |row| {
-                                        row.try_get::<_, i64>(0).map(|low_watermark| {
-                                            DeleteRecordsPartitionResult::default()
-                                                .partition_index(partition.partition_index)
-                                                .low_watermark(low_watermark)
-                                                .error_code(ErrorCode::None.into())
-                                        })
-                                    },
-                                )
-                            },
-                        )?;
+                        error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
+                    })
+                    .map_or(
+                        Ok(DeleteRecordsPartitionResult::default()
+                            .partition_index(partition.partition_index)
+                            .low_watermark(0)
+                            .error_code(ErrorCode::UnknownServerError.into())),
+                        |row| {
+                            row.map_or(
+                                Ok(DeleteRecordsPartitionResult::default()
+                                    .partition_index(partition.partition_index)
+                                    .low_watermark(0)
+                                    .error_code(ErrorCode::UnknownServerError.into())),
+                                |row| {
+                                    row.try_get::<_, Option<i64>>(0).map(|low_watermark| {
+                                        DeleteRecordsPartitionResult::default()
+                                            .partition_index(partition.partition_index)
+                                            .low_watermark(low_watermark.unwrap_or(0))
+                                            .error_code(ErrorCode::None.into())
+                                    }).map_err(Error::from)
+                                },
+                            )
+                        },
+                    )?;
 
                     partition_responses.push(partition_result);
                 }
@@ -277,6 +261,9 @@ impl Postgres {
                     .partitions(Some(partition_responses)),
             );
         }
+        
+        tx.commit().await.inspect_err(|err| error!(?err))?;
+
         Ok(responses)
     }
 

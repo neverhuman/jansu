@@ -11,7 +11,6 @@
     "docs/": "standard",
     "tools/": "ops",
     "packages/": "tools",
-    "python/ai-service/": "ai",
     ".agents/agents.md": "agent",
     ".agents/skills/jankurai/SKILL.md": "agent",
     ".agents/workflows/jankurai-audit.md": "agent",
@@ -79,7 +78,6 @@
 "logs/": "ops",
 "phase-logs/": "ops",
 "phase08-libsql-produce-leader-epoch.db": "ops",
-"check_errors.log": "ops",
 "*": "ops"
   }
 }

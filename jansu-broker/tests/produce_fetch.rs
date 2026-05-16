@@ -832,6 +832,9 @@ mod pg {
     #[tokio::test]
     async fn simple_non_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -847,6 +850,9 @@ mod pg {
     #[tokio::test]
     async fn with_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -862,6 +868,9 @@ mod pg {
     #[tokio::test]
     async fn with_multiple_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -877,6 +886,9 @@ mod pg {
     #[tokio::test]
     async fn virtual_keyed_topic_fetch() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -892,6 +904,9 @@ mod pg {
     #[tokio::test]
     async fn non_virtual_topic_with_slash_streams_all() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -1153,10 +1168,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn simple_non_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -1169,10 +1186,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn with_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -1185,10 +1204,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn with_multiple_txn() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);

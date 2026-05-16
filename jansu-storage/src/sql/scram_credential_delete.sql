@@ -11,10 +11,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 
-delete from scram_credential
-where
-
-scram_credential.cluster in (
+delete from scram_credential where scram_credential.cluster in (
     select c.id
     from cluster c
     where

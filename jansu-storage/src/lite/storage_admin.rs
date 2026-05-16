@@ -167,8 +167,80 @@ impl Delegate {
         &self,
         topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        debug!(?topics);
-        Err(Error::FeatureUnsupported { backend: "lite", feature: "delete_records".into() })
+        let start = SystemTime::now();
+        debug!(cluster = self.cluster, ?topics);
+
+        let pc = self.connection().await?;
+        let tx = pc.transaction().await?;
+
+        let mut results = vec![];
+
+        for topic in topics {
+            let mut partitions = vec![];
+
+            for partition in topic.partitions.as_ref().unwrap_or(&vec![]) {
+                let partition_index = partition.partition_index;
+                let offset = partition.offset;
+
+                let topic_name = topic.name.as_str();
+
+                // Validate if topition exists
+                if pc.query_opt(
+                    "topition_select.sql",
+                    (self.cluster.as_str(), topic_name, partition_index),
+                ).await?.is_none() {
+                    partitions.push(
+                        DeleteRecordsPartitionResult::default()
+                            .partition_index(partition_index)
+                            .low_watermark(-1)
+                            .error_code(i16::from(ErrorCode::UnknownTopicOrPartition)),
+                    );
+                    continue;
+                }
+
+                _ = pc.execute(
+                    "record_delete_by_offset.sql",
+                    (self.cluster.as_str(), topic_name, partition_index, offset),
+                ).await.inspect_err(|err| error!(?err))?;
+
+                _ = pc.execute(
+                    "watermark_update_low.sql",
+                    (self.cluster.as_str(), topic_name, partition_index, offset),
+                ).await.inspect_err(|err| error!(?err))?;
+
+                // Read back the updated low watermark (or the current one if $offset was lower)
+                let low_watermark = if let Some(row) = pc.query_opt(
+                    "watermark_select_no_update.sql",
+                    (self.cluster.as_str(), topic_name, partition_index),
+                ).await.inspect_err(|err| error!(?err))? {
+                    row.get::<Option<i64>>(0).unwrap_or(Some(0)).unwrap_or(0)
+                } else {
+                    0
+                };
+
+                partitions.push(
+                    DeleteRecordsPartitionResult::default()
+                        .partition_index(partition_index)
+                        .low_watermark(low_watermark)
+                        .error_code(i16::from(ErrorCode::None)),
+                );
+            }
+
+            results.push(
+                DeleteRecordsTopicResult::default()
+                    .name(topic.name.clone())
+                    .partitions(Some(partitions)),
+            );
+        }
+
+        pc.commit(tx).await?;
+
+        Ok(results).inspect(|_| {
+            DELEGATE_REQUEST_DURATION.record(
+                elapsed_millis(start),
+                &[KeyValue::new("operation", "delete_records")],
+            )
+        })
     }
 
     pub(super) async fn delegate_delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {

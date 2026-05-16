@@ -319,6 +319,9 @@ mod pg {
     #[tokio::test]
     async fn create_describe_topic_partitions_by_id() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -334,6 +337,9 @@ mod pg {
     #[tokio::test]
     async fn create_describe_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -349,6 +355,9 @@ mod pg {
     #[tokio::test]
     async fn describe_non_existing_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -364,6 +373,9 @@ mod pg {
     #[tokio::test]
     async fn create_delete() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -379,6 +391,9 @@ mod pg {
     #[tokio::test]
     async fn create_with_config_delete() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -716,10 +731,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_describe_topic_partitions_by_id() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -732,10 +749,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_describe_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -748,10 +767,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn describe_non_existing_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -764,10 +785,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_delete() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = format!("cluster-{}", Uuid::now_v7());
         let broker_id = rng().random_range(0..i32::MAX);
@@ -780,10 +803,12 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_with_config_delete() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("JANSU_TEST_TURSO").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);

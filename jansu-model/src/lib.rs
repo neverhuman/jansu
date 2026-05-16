@@ -22,6 +22,52 @@ pub mod wv;
 
 use convert_case::{Case, Casing};
 pub use error::Error;
+
+/// A structured diagnostic for agent-facing error reports.
+///
+/// Encapsulates a machine-readable error code, the operation purpose, a human-readable
+/// reason, common fixes, documentation URL, and a repair hint so that both agents and
+/// operators can quickly triage and resolve issues.
+#[derive(Clone, Debug)]
+pub struct AgentException {
+    pub code: &'static str,
+    pub purpose: &'static str,
+    pub reason: String,
+    pub common_fixes: &'static [&'static str],
+    pub docs_url: &'static str,
+    pub repair_hint: &'static str,
+}
+
+impl AgentException {
+    pub fn new(
+        code: &'static str,
+        purpose: &'static str,
+        reason: impl Into<String>,
+        common_fixes: &'static [&'static str],
+        docs_url: &'static str,
+        repair_hint: &'static str,
+    ) -> Self {
+        Self {
+            code,
+            purpose,
+            reason: reason.into(),
+            common_fixes,
+            docs_url,
+            repair_hint,
+        }
+    }
+}
+
+impl fmt::Display for AgentException {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[{}] {}: {} (see {})",
+            self.code, self.purpose, self.reason, self.docs_url
+        )
+    }
+}
+
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;

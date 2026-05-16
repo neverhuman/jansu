@@ -26,6 +26,16 @@
 
 mod engine;
 mod storage;
+mod storage_admin;
+mod storage_broker_topic;
+mod storage_fetch;
+mod storage_topic_metadata;
+mod storage_groups;
+mod storage_init_producer;
+mod storage_offsets;
+mod storage_produce;
+mod storage_txn;
+mod storage_txn_end;
 mod types;
 
 #[cfg(test)]

@@ -14,7 +14,7 @@
 
 use super::*;
 
-fn row_to_list_offset_response(row: libsql::Row) -> Result<ListOffsetResponse> {
+fn row_to_list_offset_response(row: Row) -> Result<ListOffsetResponse> {
     debug!(?row);
     row.get::<i64>(0)
         .map_err(Into::into)

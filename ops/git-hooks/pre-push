@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pre-push hook — runs fast gate before pushing
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+source "$REPO_ROOT/ops/ci/lib.sh"
+ci_fmt
+ci_clippy

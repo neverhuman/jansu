@@ -4757,6 +4757,7 @@ dependencies = [
  "hyper-util",
  "indicatif",
  "jansu-auth",
+ "jansu-client",
  "jansu-model",
  "jansu-sans-io",
  "jansu-schema",
@@ -4856,8 +4857,10 @@ dependencies = [
  "clap",
  "deadpool",
  "dotenv",
+ "jansu-broker",
  "jansu-sans-io",
  "jansu-service",
+ "jansu-storage",
  "opentelemetry",
  "opentelemetry-semantic-conventions",
  "rama",
@@ -4867,6 +4870,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
 ]
 
 [[package]]

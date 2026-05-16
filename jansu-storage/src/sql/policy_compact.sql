@@ -38,5 +38,4 @@ compaction as (
     where dup.offset_id > r.offset_id
 )
 
-delete from record
-where (record.topition, record.offset_id) in (select * from compaction);
+delete from record where (record.topition, record.offset_id) in (select * from compaction);

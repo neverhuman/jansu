@@ -15,10 +15,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Debug,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
     ops::Deref,
-    sync::{Arc, LazyLock, Mutex},
     time::SystemTime,
 };
 
@@ -43,15 +40,14 @@ use jansu_sans_io::{
     sync_group_response::SyncGroupResponse,
 };
 use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, OffsetFetchRecord, Storage,
-    Topition, UpdateError, Version,
+    OffsetCommitRequest, OffsetFetchRecord, Storage,
+    Topition,
 };
-use opentelemetry::{KeyValue, metrics::Counter};
-use tokio::time::{Duration, sleep};
+use tokio::time::Duration;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
-use crate::{Error, METER, Result};
+use crate::{Error, Result};
 
 use super::{Coordinator, OffsetCommit};
 

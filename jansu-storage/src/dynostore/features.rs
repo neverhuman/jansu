@@ -156,9 +156,78 @@ impl DynoStore {
 
     pub(super) async fn delete_records_inner(
         &self,
-        _topics: &[DeleteRecordsTopic],
+        topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        Err(Error::FeatureUnsupported { backend: "dynostore", feature: "delete_records".into() })
+        let mut results = vec![];
+
+        for topic in topics {
+            let mut partitions = vec![];
+
+            for partition in topic.partitions.as_ref().unwrap_or(&vec![]) {
+                let partition_index = partition.partition_index;
+                let offset = partition.offset;
+                
+                let topition = Topition::new(topic.name.as_str(), partition_index);
+
+                // Update low watermark
+                let low_watermark = {
+                    let watermark = self.watermarks.lock().map(|mut locked| {
+                        locked
+                            .entry(topition.to_owned())
+                            .or_insert(OptiCon::<Watermark>::new(self.cluster.as_str(), &topition))
+                            .to_owned()
+                    })?;
+
+                    watermark.with_mut(&self.object_store, |watermark| {
+                        if watermark.low.unwrap_or(0) < offset {
+                            watermark.low = Some(offset);
+                        }
+                        Ok(watermark.low.unwrap_or(0))
+                    }).await?
+                };
+
+                // Delete objects < offset
+                let location = Path::from(format!(
+                    "clusters/{}/topics/{}/partitions/{:0>10}/records/",
+                    self.cluster, topic.name, partition_index
+                ));
+
+                let locations = self
+                    .object_store
+                    .list(Some(&location))
+                    .filter_map(move |m| {
+                        async move {
+                            m.map_or(None, |m| {
+                                let Some(part) = m.location.parts().next_back() else { return None; };
+                                if let Ok(record_offset) = i64::from_str(&part.as_ref()[0..20]) {
+                                    if record_offset < offset {
+                                        return Some(Ok(m.location.clone()));
+                                    }
+                                }
+                                None
+                            })
+                        }
+                    })
+                    .boxed();
+
+                _ = self.object_store.delete_stream(locations).try_collect::<Vec<Path>>().await;
+
+                partitions.push(
+                    DeleteRecordsPartitionResult::default()
+                        .partition_index(partition_index)
+                        .low_watermark(low_watermark)
+                        .error_code(i16::from(ErrorCode::None)),
+                );
+            }
+
+            results.push(
+                DeleteRecordsTopicResult::default()
+                    .name(topic.name.clone())
+                    .partitions(Some(partitions)),
+            );
+        }
+
+        Ok(results)
     }
 
     pub(super) async fn delete_topic_inner(&self, topic: &TopicId) -> Result<ErrorCode> {
