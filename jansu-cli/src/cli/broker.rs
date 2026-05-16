@@ -230,7 +230,11 @@ impl Arg {
                 jansu_schema::lake::House::iceberg()
                     .location(location.into_inner())
                     .catalog(catalog.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Iceberg lake mode".into(),
+                        ),
+                    )?)
                     .namespace(namespace)
                     .warehouse(warehouse)
                     .build()
@@ -245,7 +249,11 @@ impl Arg {
             }) => Some(
                 jansu_schema::lake::House::delta()
                     .location(location.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Delta lake mode".into(),
+                        ),
+                    )?)
                     .database(database)
                     .records_per_second(records_per_second)
                     .build()?,
@@ -255,7 +263,11 @@ impl Arg {
             Some(Lake::Parquet { location }) => Some(
                 jansu_schema::lake::House::parquet()
                     .location(location.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Parquet lake mode".into(),
+                        ),
+                    )?)
                     .build()?,
             ),
 
