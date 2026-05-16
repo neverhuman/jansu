@@ -26,7 +26,7 @@ use std::{
 
 use crate::{
     BrokerRegistrationRequest, ChannelRequestLayer, DEFAULT_OFFSET_RETENTION, Error, GroupDetail,
-    LeaderEpochRecord, ListOffsetResponse, METER, MetadataResponse, NamedGroupDetail,
+    LeaderEpochRecord, ListOffsetResponse, MetadataResponse, NamedGroupDetail,
     OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse, RequestChannelService,
     RequestStorageService, Result, ScramCredential, Storage, TopicId, Topition,
     TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, TxnState,
@@ -68,10 +68,7 @@ use libsql::{
     Connection, Database, Row, Rows, Statement, Transaction, TransactionBehavior,
     ffi::SQLITE_CONSTRAINT_UNIQUE, params::IntoParams,
 };
-use opentelemetry::{
-    KeyValue,
-    metrics::{Counter, Histogram},
-};
+use opentelemetry::KeyValue;
 use rama::{Context, Layer as _, Service as _};
 use rand::{rng, seq::SliceRandom as _};
 use regex::Regex;
@@ -87,88 +84,13 @@ macro_rules! include_sql {
     };
 }
 
-static SQL_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_duration")
-        .with_unit("ms")
-        .with_description("The SQL request latencies in milliseconds")
-        .build()
-});
+mod metrics;
 
-static CONNECT_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_connect_duration")
-        .with_unit("ms")
-        .with_description("The connection latencies in milliseconds")
-        .build()
-});
-
-static PRODUCE_IN_TX_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_produce_in_tx_duration")
-        .with_unit("ms")
-        .with_description("The produce in TX latencies in milliseconds")
-        .build()
-});
-
-static TRANSACTION_WITH_BEHAVIOR_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_transaction_with_behavior_duration")
-        .with_unit("ms")
-        .with_description("The transaction with behavior latencies in milliseconds")
-        .build()
-});
-
-static TRANSACTION_COMMIT_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_transaction_commit_duration")
-        .with_unit("ms")
-        .with_description("The transaction commit latencies in milliseconds")
-        .build()
-});
-
-static ENGINE_REQUEST_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_engine_request_duration")
-        .with_unit("ms")
-        .with_description("The engine latencies in milliseconds")
-        .build()
-});
-
-static DELEGATE_REQUEST_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
-    METER
-        .u64_histogram("jansu_sqlite_delegate_request_duration")
-        .with_boundaries(
-            [
-                0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0,
-                1000.0,
-            ]
-            .into(),
-        )
-        .with_unit("ms")
-        .with_description("The engine latencies in milliseconds")
-        .build()
-});
-
-static SQL_REQUESTS: LazyLock<Counter<u64>> = LazyLock::new(|| {
-    METER
-        .u64_counter("jansu_sqlite_requests")
-        .with_description("The number of SQL requests made")
-        .build()
-});
-
-static SQL_ERROR: LazyLock<Counter<u64>> = LazyLock::new(|| {
-    METER
-        .u64_counter("jansu_sqlite_error")
-        .with_description("The SQL error count")
-        .build()
-});
-
-fn elapsed_millis(start: SystemTime) -> u64 {
-    start
-        .elapsed()
-        .map_or(0, |duration| duration.as_millis() as u64)
-}
+use metrics::{
+    CONNECT_DURATION, DELEGATE_REQUEST_DURATION, ENGINE_REQUEST_DURATION, PRODUCE_IN_TX_DURATION,
+    SQL_DURATION, SQL_ERROR, SQL_REQUESTS, TRANSACTION_COMMIT_DURATION,
+    TRANSACTION_WITH_BEHAVIOR_DURATION, elapsed_millis,
+};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Txn {
