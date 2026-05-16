@@ -217,7 +217,10 @@ impl Schema {
                 })
                 .map_err(Into::into),
 
-            AvroSchema::BigDecimal => todo!(),
+            AvroSchema::BigDecimal => Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("BigDecimal Avro logical type is not mapped to an Arrow DataType"),
+            }),
 
             AvroSchema::Date => Ok(DataType::Date32),
 
@@ -247,10 +250,10 @@ impl Schema {
                 Field::new("milliseconds", DataType::UInt32, NULLABLE),
             ]))),
 
-            AvroSchema::Ref { name } => {
-                let _ = name;
-                todo!();
-            }
+            AvroSchema::Ref { name } => Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro schema reference {name:?} cannot be resolved to an Arrow DataType"),
+            }),
         }
     }
 
@@ -325,7 +328,12 @@ impl Schema {
                 if let Some(schema) = schema.nullable_variant() {
                     self.schema_array_builder(path, schema)
                 } else {
-                    todo!()
+                    Err(Error::NotImplemented {
+                        kind: "avro_to_arrow",
+                        detail: format!(
+                            "Avro union without a single nullable variant is not supported: {schema:?}"
+                        ),
+                    })
                 }
             }
 
@@ -358,7 +366,10 @@ impl Schema {
                 })
                 .map_err(Into::into),
 
-            AvroSchema::BigDecimal => todo!(),
+            AvroSchema::BigDecimal => Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("BigDecimal Avro logical type has no Arrow array builder"),
+            }),
             AvroSchema::Date => Ok(Box::new(Date32Builder::new())),
             AvroSchema::TimeMillis => Ok(Box::new(Time32MillisecondBuilder::new())),
             AvroSchema::TimeMicros => Ok(Box::new(Time64MicrosecondBuilder::new())),
@@ -382,10 +393,10 @@ impl Schema {
                 ],
             ))),
 
-            AvroSchema::Ref { name } => {
-                let _ = name;
-                todo!();
-            }
+            AvroSchema::Ref { name } => Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro schema reference {name:?} has no Arrow array builder"),
+            }),
         }
     }
 }
@@ -561,9 +572,24 @@ fn append_list_builder(
                     })
             })?,
 
-        AvroSchema::Array(_schema) => todo!(),
-        AvroSchema::Map(_schema) => todo!(),
-        AvroSchema::Union(_schema) => todo!(),
+        AvroSchema::Array(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("nested Avro array inside list builder is not supported: {schema:?}"),
+            });
+        }
+        AvroSchema::Map(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro map inside list builder is not supported: {schema:?}"),
+            });
+        }
+        AvroSchema::Union(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro union inside list builder is not supported: {schema:?}"),
+            });
+        }
 
         AvroSchema::Record(schema) => builder
             .values()
@@ -585,10 +611,30 @@ fn append_list_builder(
             })
             .map(|_| ())?,
 
-        AvroSchema::Enum(_schema) => todo!(),
-        AvroSchema::Fixed(_schema) => todo!(),
-        AvroSchema::Decimal(_schema) => todo!(),
-        AvroSchema::BigDecimal => todo!(),
+        AvroSchema::Enum(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro enum inside list builder is not supported: {schema:?}"),
+            });
+        }
+        AvroSchema::Fixed(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro fixed inside list builder is not supported: {schema:?}"),
+            });
+        }
+        AvroSchema::Decimal(schema) => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro decimal inside list builder is not supported: {schema:?}"),
+            });
+        }
+        AvroSchema::BigDecimal => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("Avro BigDecimal inside list builder is not supported"),
+            });
+        }
 
         AvroSchema::Date => builder
             .values()
@@ -644,16 +690,59 @@ fn append_list_builder(
                     })
             })?,
 
-        AvroSchema::TimestampMillis => todo!(),
-        AvroSchema::TimestampMicros => todo!(),
-        AvroSchema::TimestampNanos => todo!(),
-        AvroSchema::LocalTimestampMillis => todo!(),
-        AvroSchema::LocalTimestampMicros => todo!(),
-        AvroSchema::LocalTimestampNanos => todo!(),
-        AvroSchema::Duration => todo!(),
+        AvroSchema::TimestampMillis => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("Avro TimestampMillis inside list builder is not supported"),
+            });
+        }
+        AvroSchema::TimestampMicros => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("Avro TimestampMicros inside list builder is not supported"),
+            });
+        }
+        AvroSchema::TimestampNanos => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("Avro TimestampNanos inside list builder is not supported"),
+            });
+        }
+        AvroSchema::LocalTimestampMillis => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from(
+                    "Avro LocalTimestampMillis inside list builder is not supported",
+                ),
+            });
+        }
+        AvroSchema::LocalTimestampMicros => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from(
+                    "Avro LocalTimestampMicros inside list builder is not supported",
+                ),
+            });
+        }
+        AvroSchema::LocalTimestampNanos => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from(
+                    "Avro LocalTimestampNanos inside list builder is not supported",
+                ),
+            });
+        }
+        AvroSchema::Duration => {
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: String::from("Avro Duration inside list builder is not supported"),
+            });
+        }
         AvroSchema::Ref { name } => {
-            let _ = name;
-            todo!()
+            return Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("Avro schema reference {name:?} inside list builder cannot be resolved"),
+            });
         }
     }
 
@@ -739,8 +828,13 @@ fn append_struct_builder(
                 .inspect_err(|err| error!(?err, ?schema, ?values))
                 .and_then(|builder| append_map_builder(schema, values, builder))?,
 
-            (AvroSchema::Union(_schema), Value::Union(_, _value)) => {
-                todo!()
+            (AvroSchema::Union(union_schema), Value::Union(_, _value)) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro union struct field {name:?} is not supported: {union_schema:?}"
+                    ),
+                });
             }
 
             (AvroSchema::Record(schema), Value::Record(items)) => builder
@@ -748,9 +842,28 @@ fn append_struct_builder(
                 .ok_or(Error::BadDowncast { field: name })
                 .and_then(|builder| append_struct_builder(schema, items, builder))?,
 
-            (AvroSchema::Fixed(_fixed_schema), _) => todo!(),
-            (AvroSchema::Decimal(_decimal_schema), _) => todo!(),
-            (AvroSchema::BigDecimal, _) => todo!(),
+            (AvroSchema::Fixed(fixed_schema), _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro fixed struct field {name:?} is not supported: {fixed_schema:?}"
+                    ),
+                });
+            }
+            (AvroSchema::Decimal(decimal_schema), _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro decimal struct field {name:?} is not supported: {decimal_schema:?}"
+                    ),
+                });
+            }
+            (AvroSchema::BigDecimal, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!("Avro BigDecimal struct field {name:?} is not supported"),
+                });
+            }
 
             (AvroSchema::Uuid, Value::Uuid(value)) => builder
                 .field_builder::<StringBuilder>(index)
@@ -787,15 +900,54 @@ fn append_struct_builder(
                 .ok_or(Error::BadDowncast { field: name })
                 .map(|values| values.append_value(value))?,
 
-            (AvroSchema::LocalTimestampMillis, _) => todo!(),
-            (AvroSchema::LocalTimestampMicros, _) => todo!(),
-            (AvroSchema::LocalTimestampNanos, _) => todo!(),
-            (AvroSchema::Duration, _) => todo!(),
-            (AvroSchema::Ref { name }, _) => {
-                let _ = name;
-                todo!();
+            (AvroSchema::LocalTimestampMillis, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro LocalTimestampMillis struct field {name:?} is not supported"
+                    ),
+                });
             }
-            (schema, value) => unimplemented!("schema: {schema:?}, value: {value:?}"),
+            (AvroSchema::LocalTimestampMicros, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro LocalTimestampMicros struct field {name:?} is not supported"
+                    ),
+                });
+            }
+            (AvroSchema::LocalTimestampNanos, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro LocalTimestampNanos struct field {name:?} is not supported"
+                    ),
+                });
+            }
+            (AvroSchema::Duration, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro Duration struct field {name:?} is not supported"
+                    ),
+                });
+            }
+            (AvroSchema::Ref { name: ref_name }, _) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "Avro schema reference {ref_name:?} struct field {name:?} cannot be resolved"
+                    ),
+                });
+            }
+            (schema, value) => {
+                return Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "unsupported Avro struct field {name:?} for schema {schema:?} value {value:?}"
+                    ),
+                });
+            }
         }
     }
 
@@ -926,7 +1078,10 @@ fn append_value(
 
         (schema, Value::Null) => {
             debug!(?schema);
-            todo!()
+            Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!("appending null is not supported for Avro schema {schema:?}"),
+            })
         }
 
         (_, Value::Boolean(value)) => column
@@ -983,7 +1138,12 @@ fn append_value(
             if let Some(schema) = schema.nullable_variant() {
                 append_value(Some(schema), *value, column)
             } else {
-                todo!()
+                Err(Error::NotImplemented {
+                    kind: "avro_to_arrow",
+                    detail: format!(
+                        "appending value to Avro union without a single nullable variant is not supported: {schema:?}"
+                    ),
+                })
             }
         }
 
@@ -1016,10 +1176,20 @@ fn append_value(
 
         (schema, Value::Decimal(value)) => {
             let big_int = BigInt::from(value);
-            todo!("schema: {schema:?}, value: {big_int:?}")
+            Err(Error::NotImplemented {
+                kind: "avro_to_arrow",
+                detail: format!(
+                    "appending Avro Decimal is not supported: schema {schema:?}, value {big_int:?}"
+                ),
+            })
         }
 
-        (schema, Value::BigDecimal(value)) => todo!("schema: {schema:?}, value: {value:?}"),
+        (schema, Value::BigDecimal(value)) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "appending Avro BigDecimal is not supported: schema {schema:?}, value {value:?}"
+            ),
+        }),
 
         (_, Value::TimeMillis(value)) => column
             .as_any_mut()
@@ -1051,17 +1221,31 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_value(value)),
 
-        (schema, Value::LocalTimestampMillis(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
-        (schema, Value::LocalTimestampMicros(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
-        (schema, Value::LocalTimestampNanos(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
+        (schema, Value::LocalTimestampMillis(value)) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "appending Avro LocalTimestampMillis is not supported: schema {schema:?}, value {value:?}"
+            ),
+        }),
+        (schema, Value::LocalTimestampMicros(value)) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "appending Avro LocalTimestampMicros is not supported: schema {schema:?}, value {value:?}"
+            ),
+        }),
+        (schema, Value::LocalTimestampNanos(value)) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "appending Avro LocalTimestampNanos is not supported: schema {schema:?}, value {value:?}"
+            ),
+        }),
 
-        (schema, Value::Duration(value)) => todo!("schema: {schema:?}, value: {value:?}"),
+        (schema, Value::Duration(value)) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "appending Avro Duration is not supported: schema {schema:?}, value {value:?}"
+            ),
+        }),
 
         (_, Value::Uuid(value)) => column
             .as_any_mut()
@@ -1069,7 +1253,12 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_value(value.to_string())),
 
-        (schema, value) => unimplemented!("schema: {schema:?}, value: {value:?}"),
+        (schema, value) => Err(Error::NotImplemented {
+            kind: "avro_to_arrow",
+            detail: format!(
+                "unsupported Avro append: schema {schema:?}, value {value:?}"
+            ),
+        }),
     }
 }
 
@@ -1427,7 +1616,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1527,7 +1716,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1587,7 +1776,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1653,7 +1842,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1730,7 +1919,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1791,7 +1980,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1862,7 +2051,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1952,7 +2141,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2023,7 +2212,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2096,7 +2285,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2167,7 +2356,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2241,7 +2430,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2315,7 +2504,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2389,7 +2578,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2483,7 +2672,7 @@ mod tests {
         assert_eq!(2, data_files[0].record_count());
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2557,7 +2746,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2632,7 +2821,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2705,7 +2894,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2777,7 +2966,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2850,7 +3039,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2922,7 +3111,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2995,7 +3184,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3068,7 +3257,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3142,7 +3331,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3222,7 +3411,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3298,7 +3487,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3571,7 +3760,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;

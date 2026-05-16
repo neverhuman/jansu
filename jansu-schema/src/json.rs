@@ -159,14 +159,22 @@ impl AsKafkaRecord for Schema {
 
 impl Generator for Schema {
     fn generate(&self) -> Result<jansu_sans_io::record::Builder> {
-        todo!()
+        Err(Error::NotImplemented {
+            kind: "json_generate",
+            detail: String::from("Generator::generate for JSON schemas is not yet implemented"),
+        })
     }
 }
 
 impl AsJsonValue for Schema {
     fn as_json_value(&self, batch: &Batch) -> Result<Value> {
         let _ = batch;
-        todo!()
+        Err(Error::NotImplemented {
+            kind: "json_as_json_value",
+            detail: String::from(
+                "AsJsonValue::as_json_value for JSON schemas is not yet implemented",
+            ),
+        })
     }
 }
 

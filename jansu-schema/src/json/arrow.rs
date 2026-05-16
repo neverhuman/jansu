@@ -187,7 +187,10 @@ impl Schema {
                 ))
             }
 
-            _ => unimplemented!("unexpected: {}", type_name_of_val(data_type)),
+            _ => panic!(
+                "data_type_builder has no Arrow builder for data type: {}",
+                type_name_of_val(data_type)
+            ),
         }
     }
 }
@@ -779,7 +782,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -851,7 +854,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -928,7 +931,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -999,7 +1002,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1072,7 +1075,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1162,7 +1165,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1247,7 +1250,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.table(topic).await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
