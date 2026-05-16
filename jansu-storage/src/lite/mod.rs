@@ -31,6 +31,8 @@ use crate::{
 };
 #[cfg(test)]
 use crate::sql::remove_comments;
+#[cfg(test)]
+use std::env;
 use async_trait::async_trait;
 use bytes::Bytes;
 use deadpool::managed;
