@@ -15,11 +15,13 @@
 use common::{alphanumeric_string, register_broker};
 use jansu_broker::Result;
 use jansu_sans_io::{
-    ConfigResource, ConfigSource, DescribeConfigsRequest, DescribeConfigsResponse, ErrorCode,
+    ConfigResource, ConfigSource, ConfigType, DescribeConfigsRequest, DescribeConfigsResponse,
+    ErrorCode,
     IncrementalAlterConfigsRequest, OpType,
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     describe_configs_request::DescribeConfigsResource,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
+    describe_configs_response::DescribeConfigsSynonym,
     incremental_alter_configs_request::{AlterConfigsResource, AlterableConfig},
 };
 use jansu_storage::{DescribeConfigsService, IncrementalAlterConfigsService, Storage};
@@ -40,6 +42,7 @@ where
     debug!(?topic_name);
 
     let cleanup_policy = "cleanup.policy";
+    let retention_ms = "retention.ms";
     let compact = "compact";
 
     let num_partitions = 6;
@@ -76,11 +79,11 @@ where
 
     let results = DescribeConfigsService
         .serve(
-            ctx,
+            ctx.clone(),
             DescribeConfigsRequest::default()
                 .include_documentation(include_documentation)
                 .include_synonyms(include_synonyms)
-                .resources(Some(resources.into())),
+                .resources(Some(resources.clone().into())),
         )
         .await?;
 
@@ -91,9 +94,61 @@ where
                 .error_code(ErrorCode::None.into())
                 .error_message(Some(ErrorCode::None.to_string()))
                 .resource_type(ConfigResource::Topic.into())
-                .resource_name(topic_name)
+                .resource_name(topic_name.clone())
                 .configs(Some(
-                    [DescribeConfigsResourceResult::default()
+                    [
+                        DescribeConfigsResourceResult::default()
+                            .name(cleanup_policy.into())
+                            .value(Some(compact.into()))
+                            .read_only(false)
+                            .is_default(None)
+                            .config_source(Some(ConfigSource::DefaultConfig.into()))
+                            .is_sensitive(false)
+                            .synonyms(Some([].into()))
+                            .config_type(Some(ConfigType::String.into()))
+                            .documentation(Some("".into())),
+                        DescribeConfigsResourceResult::default()
+                            .name(retention_ms.into())
+                            .value(Some("604800000".into()))
+                            .read_only(false)
+                            .is_default(Some(true))
+                            .config_source(Some(ConfigSource::DefaultConfig.into()))
+                            .is_sensitive(false)
+                            .synonyms(Some([].into()))
+                            .config_type(Some(ConfigType::String.into()))
+                            .documentation(Some("".into())),
+                    ]
+                    .into()
+                ))
+        ],))
+    );
+
+    let filtered = DescribeConfigsService
+        .serve(
+            ctx.clone(),
+            DescribeConfigsRequest::default()
+                .include_documentation(include_documentation)
+                .include_synonyms(include_synonyms)
+                .resources(Some(
+                    [DescribeConfigsResource::default()
+                        .resource_name(topic_name.clone())
+                        .resource_type(ConfigResource::Topic.into())
+                        .configuration_keys(Some([cleanup_policy.into()].into()))]
+                    .into(),
+                )),
+        )
+        .await?;
+
+    assert_eq!(
+        filtered,
+        DescribeConfigsResponse::default().results(Some(vec![
+            DescribeConfigsResult::default()
+                .error_code(ErrorCode::None.into())
+                .error_message(Some(ErrorCode::None.to_string()))
+                .resource_type(ConfigResource::Topic.into())
+                .resource_name(topic_name.clone())
+                .configs(Some(vec![
+                    DescribeConfigsResourceResult::default()
                         .name(cleanup_policy.into())
                         .value(Some(compact.into()))
                         .read_only(false)
@@ -101,11 +156,53 @@ where
                         .config_source(Some(ConfigSource::DefaultConfig.into()))
                         .is_sensitive(false)
                         .synonyms(Some([].into()))
-                        .config_type(Some(ConfigResource::Topic.into()))
-                        .documentation(Some("".into()))]
-                    .into()
-                ))
-        ],))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ])),
+        ]))
+    );
+
+    let with_synonyms = DescribeConfigsService
+        .serve(
+            ctx.clone(),
+            DescribeConfigsRequest::default()
+                .include_documentation(include_documentation)
+                .include_synonyms(Some(true))
+                .resources(Some(resources.clone().into())),
+        )
+        .await?;
+
+    let results = with_synonyms.results.unwrap_or_default();
+    assert_eq!(1, results.len());
+    let configs = results[0].configs.as_deref().unwrap_or_default();
+    let cleanup = configs
+        .iter()
+        .find(|config| config.name == cleanup_policy)
+        .expect("cleanup.policy");
+    assert_eq!(
+        Some(
+            [DescribeConfigsSynonym::default()
+                .name("log.cleanup.policy".into())
+                .value(Some(compact.into()))
+                .source(ConfigSource::DefaultConfig.into())]
+            .into()
+        ),
+        cleanup.synonyms
+    );
+
+    let retention = configs
+        .iter()
+        .find(|config| config.name == retention_ms)
+        .expect("retention.ms");
+    assert_eq!(
+        Some(
+            [DescribeConfigsSynonym::default()
+                .name("log.retention.ms".into())
+                .value(Some("604800000".into()))
+                .source(ConfigSource::DefaultConfig.into())]
+            .into()
+        ),
+        retention.synonyms
     );
 
     debug!(?topic_id);
@@ -126,6 +223,7 @@ where
     debug!(?topic_name);
 
     let cleanup_policy = "cleanup.policy";
+    let retention_ms = "retention.ms";
     let compact = "compact";
     let delete = "delete";
 
@@ -174,7 +272,28 @@ where
                 .error_message(Some(none.to_string()))
                 .resource_type(ConfigResource::Topic.into())
                 .resource_name(topic_name.clone())
-                .configs(Some([].into()))
+                .configs(Some(vec![
+                    DescribeConfigsResourceResult::default()
+                        .name(cleanup_policy.into())
+                        .value(Some(delete.into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                    DescribeConfigsResourceResult::default()
+                        .name(retention_ms.into())
+                        .value(Some("604800000".into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ]))
         ]))
     );
 
@@ -221,7 +340,8 @@ where
                 .resource_type(ConfigResource::Topic.into())
                 .resource_name(topic_name.clone())
                 .configs(Some(
-                    [DescribeConfigsResourceResult::default()
+                    [
+                        DescribeConfigsResourceResult::default()
                         .name(cleanup_policy.into())
                         .value(Some(compact.into()))
                         .read_only(false)
@@ -229,11 +349,61 @@ where
                         .config_source(Some(ConfigSource::DefaultConfig.into()))
                         .is_sensitive(false)
                         .synonyms(Some([].into()))
-                        .config_type(Some(ConfigResource::Topic.into()))
-                        .documentation(Some("".into()))]
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                        DescribeConfigsResourceResult::default()
+                            .name(retention_ms.into())
+                            .value(Some("604800000".into()))
+                            .read_only(false)
+                            .is_default(Some(true))
+                            .config_source(Some(ConfigSource::DefaultConfig.into()))
+                            .is_sensitive(false)
+                            .synonyms(Some([].into()))
+                            .config_type(Some(ConfigType::String.into()))
+                            .documentation(Some("".into())),
+                    ]
                     .into(),
                 )),
         ],))
+    );
+
+    let filtered = DescribeConfigsService
+        .serve(
+            ctx.clone(),
+            DescribeConfigsRequest::default()
+                .include_documentation(include_documentation)
+                .include_synonyms(include_synonyms)
+                .resources(Some(
+                    [DescribeConfigsResource::default()
+                        .resource_type(ConfigResource::Topic.into())
+                        .resource_name(topic_name.clone())
+                        .configuration_keys(Some([cleanup_policy.into()].into()))]
+                    .into(),
+                )),
+        )
+        .await?;
+
+    assert_eq!(
+        filtered,
+        DescribeConfigsResponse::default().results(Some(vec![
+            DescribeConfigsResult::default()
+                .error_code(none.into())
+                .error_message(Some(none.to_string()))
+                .resource_type(ConfigResource::Topic.into())
+                .resource_name(topic_name.clone())
+                .configs(Some(vec![
+                    DescribeConfigsResourceResult::default()
+                        .name(cleanup_policy.into())
+                        .value(Some(compact.into()))
+                        .read_only(false)
+                        .is_default(None)
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ])),
+        ]))
     );
 
     let response = IncrementalAlterConfigsService
@@ -278,8 +448,8 @@ where
                 .error_message(Some(none.to_string()))
                 .resource_type(ConfigResource::Topic.into())
                 .resource_name(topic_name.clone())
-                .configs(Some(
-                    [DescribeConfigsResourceResult::default()
+                .configs(Some(vec![
+                    DescribeConfigsResourceResult::default()
                         .name(cleanup_policy.into())
                         .value(Some(delete.into()))
                         .read_only(false)
@@ -287,10 +457,19 @@ where
                         .config_source(Some(ConfigSource::DefaultConfig.into()))
                         .is_sensitive(false)
                         .synonyms(Some([].into()))
-                        .config_type(Some(ConfigResource::Topic.into()))
-                        .documentation(Some("".into()))]
-                    .into(),
-                )),
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                    DescribeConfigsResourceResult::default()
+                        .name(retention_ms.into())
+                        .value(Some("604800000".into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ])),
         ],))
     );
 
@@ -336,7 +515,28 @@ where
                 .error_message(Some(none.to_string()))
                 .resource_type(ConfigResource::Topic.into())
                 .resource_name(topic_name.clone())
-                .configs(Some([].into()))
+                .configs(Some(vec![
+                    DescribeConfigsResourceResult::default()
+                        .name(cleanup_policy.into())
+                        .value(Some(delete.into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                    DescribeConfigsResourceResult::default()
+                        .name(retention_ms.into())
+                        .value(Some("604800000".into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ]))
         ],))
     );
 
@@ -370,6 +570,9 @@ mod pg {
     #[tokio::test]
     async fn alter_single_topic() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -385,6 +588,9 @@ mod pg {
     #[tokio::test]
     async fn single_topic() -> Result<()> {
         let _guard = init_tracing()?;
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);

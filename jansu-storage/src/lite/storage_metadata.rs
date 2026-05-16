@@ -353,26 +353,56 @@ impl Delegate {
             .await?;
 
         if rows.next().await?.is_some() {
-            let mut rows = c
+            use std::collections::{BTreeMap, BTreeSet};
+
+            let mut configs = BTreeMap::from([
+                (
+                    "cleanup.policy".to_string(),
+                    DescribeConfigsResourceResult::default()
+                        .name("cleanup.policy".into())
+                        .value(Some("delete".into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ),
+                (
+                    "retention.ms".to_string(),
+                    DescribeConfigsResourceResult::default()
+                        .name("retention.ms".into())
+                        .value(Some("604800000".into()))
+                        .read_only(false)
+                        .is_default(Some(true))
+                        .config_source(Some(ConfigSource::DefaultConfig.into()))
+                        .is_sensitive(false)
+                        .synonyms(Some([].into()))
+                        .config_type(Some(ConfigType::String.into()))
+                        .documentation(Some("".into())),
+                ),
+            ]);
+
+            let mut topic_rows = c
                 .query(
                     "topic_configuration_select.sql",
                     (self.cluster.as_str(), name),
                 )
                 .await?;
 
-            let mut configs = vec![];
-
-            while let Some(row) = rows.next().await? {
-                let name = row.get_str(0).inspect_err(|err| error!(?err))?;
+            while let Some(row) = topic_rows.next().await? {
+                let config_name = row.get_str(0).inspect_err(|err| error!(?err))?;
                 let value = row
                     .get::<Option<String>>(1)
-                    .map(|value| value.unwrap_or_default())
+                    .map(|value| value.unwrap_or_else(String::new))
                     .map(Some)
                     .inspect_err(|err| error!(?err))?;
 
-                configs.push(
+                _ = configs.insert(
+                    config_name.to_owned(),
                     DescribeConfigsResourceResult::default()
-                        .name(name.to_owned())
+                        .name(config_name.to_owned())
                         .value(value)
                         .read_only(false)
                         .is_default(None)
@@ -384,6 +414,11 @@ impl Delegate {
                 );
             }
 
+            if let Some(keys) = keys.filter(|keys| !keys.is_empty()) {
+                let requested: BTreeSet<_> = keys.iter().map(|key| key.as_str()).collect();
+                configs.retain(|name, _| requested.contains(name.as_str()));
+            }
+
             let error_code = ErrorCode::None;
 
             Ok(DescribeConfigsResult::default()
@@ -391,7 +426,7 @@ impl Delegate {
                 .error_message(Some(error_code.to_string()))
                 .resource_type(i8::from(resource))
                 .resource_name(name.into())
-                .configs(Some(configs)))
+                .configs(Some(configs.into_values().collect())))
             .inspect(|_| {
                 DELEGATE_REQUEST_DURATION.record(
                     elapsed_millis(start),

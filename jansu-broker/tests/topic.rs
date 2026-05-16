@@ -266,8 +266,8 @@ where
     let assignments = Some([].into());
     let configs = Some(
         [CreatableTopicConfig::default()
-            .name("xyz".into())
-            .value(Some("12321".into()))]
+            .name("cleanup.policy".into())
+            .value(Some("compact".into()))]
         .into(),
     );
 

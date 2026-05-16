@@ -17,7 +17,7 @@
 use std::iter;
 
 use jansu_sans_io::{
-    ConfigResource, ConfigSource, ErrorCode,
+    ConfigResource, ConfigSource, ConfigType, ErrorCode,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
     describe_topic_partitions_response::{
         DescribeTopicPartitionsResponsePartition, DescribeTopicPartitionsResponseTopic,
@@ -155,34 +155,70 @@ impl Engine {
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        let _ = keys;
         match resource {
             ConfigResource::Topic => match self.topic_metadata(&TopicId::Name(name.into())).await {
                 Ok(Some(topic_metadata)) => {
                     let error_code = ErrorCode::None;
+
+                    let mut configs = std::collections::BTreeMap::from([
+                        (
+                            "cleanup.policy".to_string(),
+                            DescribeConfigsResourceResult::default()
+                                .name("cleanup.policy".into())
+                                .value(Some("delete".into()))
+                                .read_only(false)
+                                .is_default(Some(true))
+                                .config_source(Some(ConfigSource::DefaultConfig.into()))
+                                .is_sensitive(false)
+                                .synonyms(Some([].into()))
+                                .config_type(Some(ConfigType::String.into()))
+                                .documentation(Some("".into())),
+                        ),
+                        (
+                            "retention.ms".to_string(),
+                            DescribeConfigsResourceResult::default()
+                                .name("retention.ms".into())
+                                .value(Some("604800000".into()))
+                                .read_only(false)
+                                .is_default(Some(true))
+                                .config_source(Some(ConfigSource::DefaultConfig.into()))
+                                .is_sensitive(false)
+                                .synonyms(Some([].into()))
+                                .config_type(Some(ConfigType::String.into()))
+                                .documentation(Some("".into())),
+                        ),
+                    ]);
+
+                    if let Some(topic_configs) = topic_metadata.topic.configs.as_ref() {
+                        for config in topic_configs {
+                            _ = configs.insert(
+                                config.name.clone(),
+                                DescribeConfigsResourceResult::default()
+                                    .name(config.name.clone())
+                                    .value(config.value.clone())
+                                    .read_only(false)
+                                    .is_default(None)
+                                    .config_source(Some(ConfigSource::DefaultConfig.into()))
+                                    .is_sensitive(false)
+                                    .synonyms(Some([].into()))
+                                    .config_type(Some(ConfigType::String.into()))
+                                    .documentation(Some("".into())),
+                            );
+                        }
+                    }
+
+                    if let Some(keys) = keys.filter(|keys| !keys.is_empty()) {
+                        let requested: std::collections::BTreeSet<_> =
+                            keys.iter().map(|key| key.as_str()).collect();
+                        configs.retain(|name, _| requested.contains(name.as_str()));
+                    }
 
                     Ok(DescribeConfigsResult::default()
                         .error_code(error_code.into())
                         .error_message(Some(error_code.to_string()))
                         .resource_type(i8::from(resource))
                         .resource_name(name.into())
-                        .configs(topic_metadata.topic.configs.map(|configs| {
-                            configs
-                                .iter()
-                                .map(|config| {
-                                    DescribeConfigsResourceResult::default()
-                                        .name(config.name.clone())
-                                        .value(config.value.clone())
-                                        .read_only(false)
-                                        .is_default(None)
-                                        .config_source(Some(ConfigSource::DefaultConfig.into()))
-                                        .is_sensitive(false)
-                                        .synonyms(Some([].into()))
-                                        .config_type(Some(ConfigResource::Topic.into()))
-                                        .documentation(Some("".into()))
-                                })
-                                .collect()
-                        })))
+                        .configs(Some(configs.into_values().collect())))
                 }
 
                 Ok(None) => {
