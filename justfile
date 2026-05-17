@@ -668,6 +668,8 @@ doctor:
 	jankurai doctor --fail-on high
 security: security-lane
 	jankurai security run . --out target/jankurai/security/evidence.json
+deprecated-backend-guard:
+	bash tools/deprecated-backend-guard.sh
 rust-map:
 	jankurai rust map .
 rust-witness:
