@@ -37,4 +37,4 @@ pub use version::{Version, VersionRange};
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[cfg(test)]
-mod model_tests;
+mod tests;
