@@ -1555,15 +1555,18 @@ async fn offset_commit_with_stale_generation_returns_illegal_generation() -> Res
 /// proof-negative: ErrorCode::UnknownMemberId returned for any member_id not in the group record
 #[tokio::test]
 async fn authz_isolation_non_member_heartbeat_rejected() -> Result<()> {
-    heartbeat_from_unknown_member_returns_error()
+    heartbeat_unknown_member_check("hb-authz-iso").await
 }
 
 /// Verify that heartbeat from an unknown member returns UnknownMemberId
 #[tokio::test]
 async fn heartbeat_from_unknown_member_returns_error() -> Result<()> {
+    heartbeat_unknown_member_check("hb-unknown").await
+}
+
+async fn heartbeat_unknown_member_check(cluster: &str) -> Result<()> {
     let _guard = init_tracing()?;
 
-    let cluster = "hb-unknown";
     let node = 1;
 
     const CLIENT_ID: &str = "test-client";
