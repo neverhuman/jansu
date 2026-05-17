@@ -283,11 +283,10 @@ impl Delegate {
                 .map(Some)
                 .inspect_err(|err| error!(?err))?;
 
-            let epoch = row
+            let epoch_i32 = row
                 .get::<i32>(1)
-                .map(|epoch| epoch as i16)
-                .map(Some)
                 .inspect_err(|err| error!(?err))?;
+            let epoch = Some(i16::try_from(epoch_i32)?);
 
             (producer_id, epoch)
         } else {

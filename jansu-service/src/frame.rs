@@ -353,8 +353,8 @@ where
         }
 
         let attributes = vec![
-            KeyValue::new("api_key", api_key as i64),
-            KeyValue::new("api_version", api_version as i64),
+            KeyValue::new("api_key", i64::from(api_key)),
+            KeyValue::new("api_version", i64::from(api_version)),
         ];
         let response_api_version = response_api_version(api_key, api_version);
 

@@ -95,7 +95,7 @@ impl Delegate {
                     base_topic,
                     topition.partition(),
                     offset,
-                    (max_bytes as i64),
+                    i64::from(max_bytes),
                     high_watermark,
                     key_bytes,
                 ),
@@ -110,7 +110,7 @@ impl Delegate {
                     topition.topic(),
                     topition.partition(),
                     offset,
-                    (max_bytes as i64),
+                    i64::from(max_bytes),
                     high_watermark,
                 ),
             )

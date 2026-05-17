@@ -131,7 +131,7 @@ impl Engine {
             })?;
 
         let offset = watermark.high.unwrap_or(0_i64);
-        let offset_end = offset + deflated.last_offset_delta as i64;
+        let offset_end = offset + i64::from(deflated.last_offset_delta);
         let batch_leader_epoch = deflated.partition_leader_epoch;
 
         let leader_epoch_prefix =
@@ -193,8 +193,8 @@ impl Engine {
 
         watermark.high = watermark
             .high
-            .map_or(Some(deflated.last_offset_delta as i64 + 1i64), |high| {
-                Some(high + deflated.last_offset_delta as i64 + 1i64)
+            .map_or(Some(i64::from(deflated.last_offset_delta) + 1i64), |high| {
+                Some(high + i64::from(deflated.last_offset_delta) + 1i64)
             });
 
         _ = watermark

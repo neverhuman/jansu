@@ -337,8 +337,9 @@ impl Engine {
                         for record in inflated_batch.records {
                             if let Some(r_key) = record.key {
                                 let current = latest_keys.entry(r_key.to_vec()).or_insert(-1);
-                                if key.offset + record.offset_delta as i64 > *current {
-                                    *current = key.offset + record.offset_delta as i64;
+                                let candidate = key.offset + i64::from(record.offset_delta);
+                                if candidate > *current {
+                                    *current = candidate;
                                 }
                             }
                         }
@@ -353,7 +354,7 @@ impl Engine {
                         for record in &inflated_batch.records {
                             if let Some(r_key) = &record.key {
                                 if let Some(latest_offset) = latest_keys.get(&r_key.to_vec())
-                                    && base_offset + record.offset_delta as i64 >= *latest_offset
+                                    && base_offset + i64::from(record.offset_delta) >= *latest_offset
                                 {
                                     keep = true;
                                 }

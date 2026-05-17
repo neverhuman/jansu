@@ -140,8 +140,8 @@ impl Engine {
 
                 watermark.high = watermark
                     .high
-                    .map_or(Some(batch.last_offset_delta as i64 + 1i64), |high| {
-                        Some(high + batch.last_offset_delta as i64 + 1i64)
+                    .map_or(Some(i64::from(batch.last_offset_delta) + 1i64), |high| {
+                        Some(high + i64::from(batch.last_offset_delta) + 1i64)
                     });
 
                 _ = watermark

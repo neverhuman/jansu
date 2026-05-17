@@ -134,7 +134,7 @@ impl Command {
                         [ScramCredentialUpsertion::default()
                             .name(name.into())
                             .mechanism(mechanism.into())
-                            .iterations(iterations as i32)
+                            .iterations(i32::try_from(iterations).unwrap_or(i32::MAX))
                             .salt(salt.into())
                             .salted_password(salted_password)]
                         .into()

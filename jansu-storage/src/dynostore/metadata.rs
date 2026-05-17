@@ -341,7 +341,7 @@ where
     ) -> BoxStream<'static, Result<Path, object_store::Error>> {
         REQUESTS.add(1, &[KeyValue::new("method", "delete_stream")]);
 
-        let entries = self.entries.clone();
+        let entries = Arc::clone(&self.entries);
         let inner = self.object_store.delete_stream(locations);
 
         Box::pin(inner.inspect(move |result| {

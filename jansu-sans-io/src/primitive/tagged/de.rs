@@ -55,14 +55,14 @@ impl<'de> Decoder<'de> {
 
             if buf[0] & CONTINUATION == CONTINUATION {
                 accumulator = u32::from(buf[0] & MASK)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
                 shift = shift.checked_add(7).ok_or(Error::Overflow)?;
             } else {
                 accumulator = u32::from(buf[0])
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
                 done = true;

@@ -180,9 +180,9 @@ impl Builder<i32, String, Url, Url> {
                     .build()
                     .map(|object_store| {
                         DynoStore::new(self.cluster_id.as_str(), self.node_id, object_store)
-                            .advertised_listener(self.advertised_listener.clone())
+                            .advertised_listener(self.advertised_listener)
                             .schemas(self.schema_registry)
-                            .lake(self.lake_house.clone())
+                            .lake(self.lake_house)
                     })
                     .map(|storage| {
                         ProduceRequestBatcher::new(StorageContainer::DynoStore(storage))
@@ -237,9 +237,9 @@ impl Builder<i32, String, Url, Url> {
                     })
                     .map(|object_store| {
                         DynoStore::new(self.cluster_id.as_str(), self.node_id, object_store)
-                            .advertised_listener(self.advertised_listener.clone())
+                            .advertised_listener(self.advertised_listener)
                             .schemas(self.schema_registry)
-                            .lake(self.lake_house.clone())
+                            .lake(self.lake_house)
                     })
                     .map(|storage| {
                         ProduceRequestBatcher::new(StorageContainer::DynoStore(storage))
@@ -254,9 +254,9 @@ impl Builder<i32, String, Url, Url> {
             #[cfg(feature = "dynostore")]
             "memory" => Ok(
                 DynoStore::new(self.cluster_id.as_str(), self.node_id, InMemory::new())
-                    .advertised_listener(self.advertised_listener.clone())
+                    .advertised_listener(self.advertised_listener)
                     .schemas(self.schema_registry)
-                    .lake(self.lake_house.clone()),
+                    .lake(self.lake_house),
             )
             .map(|storage| Box::new(StorageContainer::DynoStore(storage)) as Box<dyn Storage>)
             .map(Arc::new),
@@ -272,11 +272,11 @@ impl Builder<i32, String, Url, Url> {
                 redlinedb::Engine::builder()
                     .storage(self.storage.clone())
                     .node(self.node_id)
-                    .cluster(self.cluster_id.clone())
-                    .advertised_listener(self.advertised_listener.clone())
+                    .cluster(self.cluster_id)
+                    .advertised_listener(self.advertised_listener)
                     .schemas(self.schema_registry)
-                    .lake(self.lake_house.clone())
-                    .cancellation(self.cancellation.clone())
+                    .lake(self.lake_house)
+                    .cancellation(self.cancellation)
                     .build()
                     .await
             }
@@ -320,9 +320,9 @@ impl Builder<i32, String, Url, Url> {
                     .map(Arc::new)
                     .map(|db| {
                         slate::Engine::builder()
-                            .cluster(self.cluster_id.clone())
+                            .cluster(self.cluster_id)
                             .node(self.node_id)
-                            .advertised_listener(self.advertised_listener.clone())
+                            .advertised_listener(self.advertised_listener)
                             .db(db)
                             .schemas(self.schema_registry)
                             .lake(self.lake_house)
@@ -340,9 +340,9 @@ impl Builder<i32, String, Url, Url> {
             }),
 
             "null" => Ok(null::Engine::new(
-                self.cluster_id.clone(),
+                self.cluster_id,
                 self.node_id,
-                self.advertised_listener.clone(),
+                self.advertised_listener,
             ))
             .map(|storage| Box::new(StorageContainer::Null(storage)) as Box<dyn Storage>)
             .map(Arc::new),
@@ -353,9 +353,9 @@ impl Builder<i32, String, Url, Url> {
                 feature = "slatedb",
             )))]
             _storage => Ok(null::Engine::new(
-                self.cluster_id.clone(),
+                self.cluster_id,
                 self.node_id,
-                self.advertised_listener.clone(),
+                self.advertised_listener,
             ))
             .map(|storage| Box::new(StorageContainer::Null(storage)) as Box<dyn Storage>)
             .map(Arc::new),

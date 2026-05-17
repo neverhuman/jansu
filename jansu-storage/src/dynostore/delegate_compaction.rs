@@ -109,8 +109,9 @@ impl DynoStore {
                         if let Some(key) = record.key {
                             let map_key = (topic_name.to_string(), partition, key.to_vec());
                             let current = latest_keys.entry(map_key).or_insert(-1);
-                            if batch.base_offset + record.offset_delta as i64 > *current {
-                                *current = batch.base_offset + record.offset_delta as i64;
+                            let candidate = batch.base_offset + i64::from(record.offset_delta);
+                            if candidate > *current {
+                                *current = candidate;
                             }
                         }
                     }
@@ -125,7 +126,7 @@ impl DynoStore {
                     if let Some(key) = &record.key {
                         let map_key = (topic_name.clone(), partition, key.to_vec());
                         if let Some(latest_offset) = latest_keys.get(&map_key)
-                            && batch.base_offset + record.offset_delta as i64 >= *latest_offset
+                            && batch.base_offset + i64::from(record.offset_delta) >= *latest_offset
                         {
                             keep = true;
                         }

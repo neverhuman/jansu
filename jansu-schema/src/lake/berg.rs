@@ -305,7 +305,7 @@ impl LakeHouse for Iceberg {
 
         let parquet_writer_builder = ParquetWriterBuilder::new(
             WriterProperties::default(),
-            table.metadata().current_schema().clone(),
+            Arc::clone(table.metadata().current_schema()),
         );
 
         let rolling_writer_builder = RollingFileWriterBuilder::new_with_default_file_size(

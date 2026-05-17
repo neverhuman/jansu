@@ -64,7 +64,7 @@ impl Delegate {
             .await
             .inspect_err(|err| error!(self.cluster, producer, next_epoch, ?err))?;
 
-        Ok(next_epoch as i16)
+        i16::try_from(next_epoch).map_err(Into::into)
     }
 
     pub(super) async fn delegate_init_producer(
@@ -260,7 +260,10 @@ impl Delegate {
                     )
                     .await?
                 {
-                    row.get::<i32>(0).map(|epoch| epoch as i16).unwrap_or(-1)
+                    row.get::<i32>(0)
+                        .ok()
+                        .and_then(|epoch| i16::try_from(epoch).ok())
+                        .unwrap_or(-1)
                 } else {
                     -1
                 };

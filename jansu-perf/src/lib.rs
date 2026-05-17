@@ -275,10 +275,10 @@ impl Perf {
             meter_provider
         };
 
-        let mut interrupt_signal = signal(SignalKind::interrupt()).unwrap();
+        let mut interrupt_signal = signal(SignalKind::interrupt())?;
         debug!(?interrupt_signal);
 
-        let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
+        let mut terminate_signal = signal(SignalKind::terminate())?;
         debug!(?terminate_signal);
 
         let rate_limiter = self
@@ -503,7 +503,7 @@ impl Producer {
             },
 
             Ok(_) = self.produce(frame) => {
-                PRODUCE_RECORD_COUNT.add(self.batch_size.get() as u64, &attributes);
+                PRODUCE_RECORD_COUNT.add(u64::from(self.batch_size.get()), &attributes);
                 PRODUCE_API_DURATION.record(produce_start.elapsed().inspect(|duration|debug!(produce_duration_ms = duration.as_millis())).map_or(0, |duration| duration.as_millis() as u64), &attributes);
             },
         }

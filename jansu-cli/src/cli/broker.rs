@@ -208,9 +208,9 @@ impl Arg {
             .map(|env_var_exp| env_var_exp.into_inner());
 
         let schema_registry = schema_registry_url
-            .clone()
+            .as_ref()
             .map(|object_store| {
-                Registry::builder_try_from_url(&object_store).map(|registry| {
+                Registry::builder_try_from_url(object_store).map(|registry| {
                     registry
                         .with_cache_expiry_after(self.schema_registry_cache_expiry)
                         .build()

@@ -71,7 +71,7 @@ impl DynoStore {
 
         let mut batches = vec![];
 
-        let mut bytes = max_bytes as u64;
+        let mut bytes = u64::from(max_bytes);
 
         for offset in offsets.split_off(&offset) {
             debug!(?offset);
