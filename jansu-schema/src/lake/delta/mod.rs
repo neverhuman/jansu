@@ -641,7 +641,7 @@ impl Delta {
             .schema()
             .fields()
             .iter()
-            .map(|field| field.name().clone())
+            .map(|field| field.name().to_owned())
             .collect();
         debug!(?actual_names);
 

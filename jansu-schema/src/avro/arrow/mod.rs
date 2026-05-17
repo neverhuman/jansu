@@ -434,7 +434,7 @@ use values::append_value;
 
 fn process<'a, T>(
     schema: Option<&AvroSchema>,
-    encoded: Option<Bytes>,
+    encoded: Option<&Bytes>,
     builders: &mut T,
 ) -> Result<()>
 where
@@ -481,23 +481,36 @@ impl AsArrow for Schema {
 
             let mut builders = record_builder.0.iter_mut();
 
-            process(self.key.as_ref(), record.key.clone(), &mut builders)?;
+            process(self.key.as_ref(), record.key.as_ref(), &mut builders)?;
 
-            process(self.value.as_ref(), record.value.clone(), &mut builders)?;
+            process(self.value.as_ref(), record.value.as_ref(), &mut builders)?;
 
-            process(
-                self.meta.as_ref(),
-                self.meta
-                    .as_ref()
-                    .map(|schema| {
-                        schema_write(
+            let meta_encoded = self
+                .meta
+                .as_ref()
+                .map(|schema| {
+                    schema_write(
+                        schema,
+                        r(
                             schema,
-                            r(
-                                schema,
-                                DateTime::from_timestamp_millis(
-                                    batch.base_timestamp + record.timestamp_delta,
-                                )
-                                .map_or(
+                            DateTime::from_timestamp_millis(
+                                batch.base_timestamp + record.timestamp_delta,
+                            )
+                            .map_or(
+                                [
+                                    ("partition", Value::Int(partition)),
+                                    (
+                                        "timestamp",
+                                        Value::Long(
+                                            (batch.base_timestamp + record.timestamp_delta)
+                                                * 1_000,
+                                        ),
+                                    ),
+                                    ("year", Value::Int(0)),
+                                    ("month", Value::Int(0)),
+                                    ("day", Value::Int(0)),
+                                ],
+                                |date_time| {
                                     [
                                         ("partition", Value::Int(partition)),
                                         (
@@ -507,39 +520,25 @@ impl AsArrow for Schema {
                                                     * 1_000,
                                             ),
                                         ),
-                                        ("year", Value::Int(0)),
-                                        ("month", Value::Int(0)),
-                                        ("day", Value::Int(0)),
-                                    ],
-                                    |date_time| {
-                                        [
-                                            ("partition", Value::Int(partition)),
-                                            (
-                                                "timestamp",
-                                                Value::Long(
-                                                    (batch.base_timestamp + record.timestamp_delta)
-                                                        * 1_000,
-                                                ),
-                                            ),
-                                            ("year", Value::Int(date_time.date_naive().year())),
-                                            (
-                                                "month",
-                                                Value::Int(date_time.date_naive().month() as i32),
-                                            ),
-                                            (
-                                                "day",
-                                                Value::Int(date_time.date_naive().day() as i32),
-                                            ),
-                                        ]
-                                    },
-                                ),
-                            )
-                            .into(),
+                                        ("year", Value::Int(date_time.date_naive().year())),
+                                        (
+                                            "month",
+                                            Value::Int(date_time.date_naive().month() as i32),
+                                        ),
+                                        (
+                                            "day",
+                                            Value::Int(date_time.date_naive().day() as i32),
+                                        ),
+                                    ]
+                                },
+                            ),
                         )
-                    })
-                    .transpose()?,
-                &mut builders,
-            )?;
+                        .into(),
+                    )
+                })
+                .transpose()?;
+
+            process(self.meta.as_ref(), meta_encoded.as_ref(), &mut builders)?;
         }
 
         debug!(

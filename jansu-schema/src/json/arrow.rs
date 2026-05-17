@@ -488,7 +488,7 @@ impl AsArrow for Schema {
             .records
             .iter()
             .map(|record| {
-                record.key.clone().map_or(Ok(None), |encoded| {
+                record.key.as_ref().map_or(Ok(None), |encoded| {
                     serde_json::from_slice::<Value>(&encoded[..])
                         .map(Some)
                         .map_err(Into::into)
@@ -514,7 +514,7 @@ impl AsArrow for Schema {
             .records
             .iter()
             .map(|record| {
-                record.value.clone().map_or(Ok(None), |encoded| {
+                record.value.as_ref().map_or(Ok(None), |encoded| {
                     serde_json::from_slice::<Value>(&encoded[..])
                         .map(Some)
                         .map_err(Into::into)
@@ -574,18 +574,18 @@ impl AsArrow for Schema {
         {
             let mut i = fields.iter().zip(builders.iter_mut());
 
-            let (field, builder) = i.next().unwrap();
+            let (field, builder) = i.next().ok_or(Error::BuilderExhausted)?;
             debug!(meta = %kv.meta, ?field);
             append(field, kv.meta, builder)?;
 
             if let Some(key) = kv.key {
-                let (field, builder) = i.next().unwrap();
+                let (field, builder) = i.next().ok_or(Error::BuilderExhausted)?;
                 debug!(%key, ?field);
                 append(field, key, builder)?;
             }
 
             if let Some(value) = kv.value {
-                let (field, builder) = i.next().unwrap();
+                let (field, builder) = i.next().ok_or(Error::BuilderExhausted)?;
                 debug!(%value, ?field);
                 append(field, value, builder)?;
             }
