@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,16 +17,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - name: Install workflow lint tools
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          cargo install zizmor --version 1.24.1 --locked
       - name: Run workflow linting
+        run: |
+          actionlint .github/workflows/*.yml
+          zizmor --no-online-audits --min-severity medium .github/workflows/*.yml
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - name: Install security lane tools
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          go install github.com/gitleaks/gitleaks/v8@v8.30.1
+          go install github.com/anchore/syft/cmd/syft@v1.44.0
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          cargo install zizmor --version 1.24.1 --locked
+          cargo install cargo-audit --version 0.22.1 --locked
+      - name: Run security lane
+        run: just security
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: jankurai-security-evidence
+          if-no-files-found: ignore
+          path: target/jankurai/security/
 
   audit:
     runs-on: ubuntu-latest
+    needs: security
     timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: Swatinem/rust-cache@23bcedea146cecece289c0a6b7e889eb2260f719

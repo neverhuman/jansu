@@ -135,12 +135,9 @@ use std::{
     collections::HashMap,
     env::VarError,
     fmt::{self, Display, Formatter},
-    io,
-    num,
-    str,
-    string,
+    io, num, str, string,
     sync::{Arc, OnceLock},
-    time::{Duration, SystemTime, SystemTimeError},
+    time::{SystemTime, SystemTimeError},
 };
 use tracing::{debug, instrument, warn};
 use tracing_subscriber::filter::ParseError;
@@ -761,10 +758,9 @@ pub use protocol_types::{
 };
 pub use protocol_types::{to_system_time, to_timestamp};
 
-
 #[cfg(test)]
 mod tests {
-    use std::thread::sleep;
+    use std::{thread::sleep, time::Duration};
 
     use super::*;
 

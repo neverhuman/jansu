@@ -6,7 +6,7 @@ Depends on: Phase 01 - Compatibility Contract
 
 Can run with: Phase 02, Phase 03, Phase 04, and Phase 05 after storage certification tiers are named.
 
-Goal: Define the Kafka log/storage contract across PostgreSQL, SQLite/libSQL, S3/dynostore, SlateDB, Turso, and memory. PostgreSQL is the first production parity target; every other engine gets an explicit certification tier per feature.
+Goal: Define the Kafka log/storage contract across PostgreSQL, RedlineDB, S3/dynostore, SlateDB, RedlineDB, and memory. PostgreSQL is the first production parity target; every other engine gets an explicit certification tier per feature.
 
 Current code anchors:
 - `jansu-storage/src/lib.rs` defines `Storage`, `StorageContainer`, `OffsetStage`, `ListOffsetResponse`, producer, transaction, group, and metadata methods.
@@ -19,7 +19,7 @@ Implementation steps:
 - Write a `KafkaLog` contract document and map it to the current `Storage` trait.
 - Define required invariants: contiguous offsets, log start offset, log end offset, high watermark, last stable offset, leader epoch cache, timestamp lookup, batch CRC validation, compression handling, producer state, transaction visibility, tombstones, retention, compaction, delete-records, and crash recovery.
 - Identify which invariants are already represented by `Storage` and which require new methods or internal engine tables/indexes.
-- Make PostgreSQL the first production parity engine and specify what SQLite, S3/dynostore, SlateDB, Turso, and memory can claim.
+- Make PostgreSQL the first production parity engine and specify what RedlineDB, S3/dynostore, SlateDB, RedlineDB, and memory can claim.
 - Add feature capability reporting so services can choose Kafka-compatible errors when a storage engine cannot support required semantics.
 - Define migration expectations for storage schema changes before phases 07 through 13 land.
 

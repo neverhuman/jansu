@@ -8,7 +8,7 @@ Required work:
 
 1. No-SQL memory-only feature profile.
    - `cargo build --bin jansu --no-default-features --features dynostore`
-   - no Postgres/libSQL/SQLite/Turso unless explicitly enabled
+   - no Postgres/RedlineDB unless explicitly enabled
 
 2. Embeddable in-process broker.
    - start a memory broker from Rust without shelling out
@@ -51,7 +51,7 @@ Pending work discovered during xdoug validation:
   shelling out.
 - Timestamp-based lookup now resolves explicit produced record timestamps in
   the in-memory path, including the end-of-log after-last case, and the
-  non-Postgres local profiles (`libsql` and `slatedb`) now match the same
+  non-Postgres local profiles (`redlinedb` and `slatedb`) now match the same
   dynostore contract.
 - `DescribeConfigs` now returns all 22 Kafka-standard topic config defaults
   across every storage backend via centralized service-layer defaults. Synonym
@@ -60,4 +60,4 @@ Pending work discovered during xdoug validation:
 
 Acceptance target:
 - the native runtime can depend on Jansu as its canonical embedded event bus
-  without shelling out or requiring a Postgres/SQLite-backed sidecar
+  without shelling out or requiring a Postgres/RedlineDB-backed sidecar

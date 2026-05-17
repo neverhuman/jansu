@@ -15,8 +15,7 @@
 use common::{alphanumeric_string, register_broker};
 use jansu_broker::Result;
 use jansu_sans_io::{
-    ConfigResource, ConfigSource, DescribeConfigsRequest,
-    ErrorCode,
+    ConfigResource, ConfigSource, DescribeConfigsRequest, ErrorCode,
     IncrementalAlterConfigsRequest, OpType,
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     describe_configs_request::DescribeConfigsResource,
@@ -562,8 +561,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -576,7 +575,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,

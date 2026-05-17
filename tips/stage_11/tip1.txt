@@ -2221,9 +2221,9 @@ Steering:
   * truncation + LEO/HW/epoch cleanup
 * Do not let two brokers both think they are leader for the same partition. Use `leader_epoch` and compare-and-swap updates.
 
-## SQLite / libSQL / Turso
+## RedlineDB / RedlineDB
 
-Reuse the PostgreSQL logical schema with SQLite-compatible types:
+Reuse the PostgreSQL logical schema with RedlineDB-compatible types:
 
 ```text
 integer arrays => JSON text
@@ -2729,7 +2729,7 @@ Exit criteria:
 * HW advances after follower fetch
 * ISR shrink/expand works
 
-## PR 6: PostgreSQL/SQLite persistence
+## PR 6: PostgreSQL/RedlineDB persistence
 
 Files:
 
@@ -2815,7 +2815,7 @@ Use this as the merge gate:
 
 The most important implementation principle: **never let client-visible data move past the high watermark, and never let a follower append at an offset chosen locally.** If those two rules hold, leader changes and truncation become tractable instead of terrifying.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://kafka.apache.org/42/design/design/ "Design | Apache Kafka"
 [3]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/lib.rs "raw.githubusercontent.com"
 [4]: https://kafka.apache.org/28/configuration/broker-configs/ "Broker Configs | Apache Kafka"

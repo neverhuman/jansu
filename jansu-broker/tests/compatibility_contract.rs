@@ -97,20 +97,14 @@ const PHASE_07_MANIFEST_PROOF: &str =
 const ALLOWED_PROFILES: [&str; 6] = [
     "jansu-native",
     "kafka-parity-postgres",
-    "kafka-parity-sqlite",
+    "kafka-parity-redlinedb",
     "kafka-parity-s3-dynostore",
     "kafka-parity-slatedb",
     "compat-preview",
 ];
 
-const ALLOWED_STORAGE_ENGINES: [&str; 6] = [
-    "postgres",
-    "sqlite",
-    "s3-dynostore",
-    "slatedb",
-    "turso",
-    "memory",
-];
+const ALLOWED_STORAGE_ENGINES: [&str; 5] =
+    ["postgres", "redlinedb", "s3-dynostore", "slatedb", "memory"];
 
 const ALLOWED_PROFILE_STATUSES: [&str; 4] = ["green", "yellow", "red", "gray"];
 const ALLOWED_STORAGE_STATUSES: [&str; 6] = [
@@ -150,10 +144,9 @@ fn storage_certification_label(certification: StorageCertification) -> &'static 
 fn phase06_storage_matrix() -> BTreeMap<&'static str, StorageCertification> {
     BTreeMap::from([
         ("postgres", StorageCertification::ProductionParity),
-        ("sqlite", StorageCertification::LimitedParity),
+        ("redlinedb", StorageCertification::LimitedParity),
         ("s3-dynostore", StorageCertification::LimitedParity),
         ("slatedb", StorageCertification::LimitedParity),
-        ("turso", StorageCertification::Uncertified),
         ("memory", StorageCertification::DevelopmentTestOnly),
     ])
 }
@@ -294,10 +287,8 @@ fn section_bullets(contents: &str, heading: &str) -> Vec<String> {
         if in_section && trimmed.starts_with("## ") {
             break;
         }
-        if in_section {
-            if let Some(item) = trimmed.strip_prefix("- ") {
-                bullets.push(item.to_string());
-            }
+        if in_section && let Some(item) = trimmed.strip_prefix("- ") {
+            bullets.push(item.to_string());
         }
     }
 
@@ -495,7 +486,7 @@ fn assert_structured_phase_log(path: &Path) {
     );
 }
 
-fn ledger_by_key<'a>(ledger: &'a Ledger) -> BTreeMap<i16, &'a ApiRow> {
+fn ledger_by_key(ledger: &Ledger) -> BTreeMap<i16, &ApiRow> {
     let mut rows = BTreeMap::new();
 
     for row in &ledger.apis {

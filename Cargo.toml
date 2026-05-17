@@ -22,7 +22,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.6.0"
+version = "1.0.0"
 license = "Apache-2.0"
 homepage = "https://jansu.io"
 repository = "https://github.com/jansu-io/jansu"
@@ -109,7 +109,6 @@ indicatif = "0.18.3"
 jsonschema = "0.45.0"
 lazy_static = "1.4.0"
 libfuzzer-sys = "0.4"
-libsql = { version = "0.9.18", default-features = false, features = ["core"] }
 lz4 = "1.28.1"
 nanoid = "0.4.0"
 nonzero_ext = "0.3.0"
@@ -136,6 +135,7 @@ quote = "1.0"
 rama = { version = "0.2.0", features = ["http", "tcp"] }
 rand = "0.10"
 regex = "1.12.3"
+redlinedb = "=1.0.1"
 rhai = { version = "1.24.0", features = ["sync"] }
 rhai-rand = "0.1"
 rsasl = { version = "2.2.0", features = ["config_builder", "provider", "oauthbearer", "scram-sha-2"], default-features = false }
@@ -147,22 +147,22 @@ sha2 = "0.10.9"
 slatedb = "0.10.1"
 snap = "1.1.1"
 syn = { version = "2.0", features = ["full"] }
-jansu = { version = "0.6.0", path = "jansu", default-features = false }
-jansu-auth = { version = "0.6.0", path = "jansu-auth", default-features = false }
-jansu-broker = { version = "0.6.0", path = "jansu-broker", default-features = false }
-jansu-cat = { version = "0.6.0", path = "jansu-cat", default-features = false }
-jansu-cli = { version = "0.6.0", path = "jansu-cli", default-features = false }
-jansu-client = { version = "0.6.0", path = "jansu-client", default-features = false }
-jansu-generator = { version = "0.6.0", path = "jansu-generator", default-features = false }
-jansu-model = { version = "0.6.0", path = "jansu-model", default-features = false }
-jansu-otel = { version = "0.6.0", path = "jansu-otel", default-features = false }
-jansu-perf = { version = "0.6.0", path = "jansu-perf", default-features = false }
-jansu-proxy = { version = "0.6.0", path = "jansu-proxy", default-features = false }
-jansu-sans-io = { version = "0.6.0", path = "jansu-sans-io", default-features = false }
-jansu-schema = { version = "0.6.0", path = "jansu-schema", default-features = false }
-jansu-service = { version = "0.6.0", path = "jansu-service", default-features = false }
-jansu-storage = { version = "0.6.0", path = "jansu-storage", default-features = false }
-jansu-topic = { version = "0.6.0", path = "jansu-topic", default-features = false }
+jansu = { version = "1.0.0", path = "jansu", default-features = false }
+jansu-auth = { version = "1.0.0", path = "jansu-auth", default-features = false }
+jansu-broker = { version = "1.0.0", path = "jansu-broker", default-features = false }
+jansu-cat = { version = "1.0.0", path = "jansu-cat", default-features = false }
+jansu-cli = { version = "1.0.0", path = "jansu-cli", default-features = false }
+jansu-client = { version = "1.0.0", path = "jansu-client", default-features = false }
+jansu-generator = { version = "1.0.0", path = "jansu-generator", default-features = false }
+jansu-model = { version = "1.0.0", path = "jansu-model", default-features = false }
+jansu-otel = { version = "1.0.0", path = "jansu-otel", default-features = false }
+jansu-perf = { version = "1.0.0", path = "jansu-perf", default-features = false }
+jansu-proxy = { version = "1.0.0", path = "jansu-proxy", default-features = false }
+jansu-sans-io = { version = "1.0.0", path = "jansu-sans-io", default-features = false }
+jansu-schema = { version = "1.0.0", path = "jansu-schema", default-features = false }
+jansu-service = { version = "1.0.0", path = "jansu-service", default-features = false }
+jansu-storage = { version = "1.0.0", path = "jansu-storage", default-features = false }
+jansu-topic = { version = "1.0.0", path = "jansu-topic", default-features = false }
 tempfile = "3"
 thiserror = "2.0"
 time = { version = "0.3.47", features = ["formatting", "macros"] }
@@ -175,10 +175,12 @@ tracing = "0.1"
 tracing-core = { version = "0.1" }
 tracing-opentelemetry = "0.32.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-turso = "0.1.4"
 url = { version = "2.5.4", features = ["serde"] }
 uuid = { version = "1.20.0", features = ["serde", "v4", "v5", "v7"] }
 zstd = "0.13.2"
+
+[patch.crates-io]
+redlinedb = { git = "https://github.com/neverhuman/redlineDB.git", rev = "0fee9976cd3274df2e23cb8886c51286d008e8cd" }
 
 [profile.release]
 codegen-units = 1

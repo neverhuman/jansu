@@ -18,7 +18,10 @@ use super::*;
 
 impl Postgres {
     #[instrument(skip_all)]
-    pub(super) async fn list_groups_storage(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
+    pub(super) async fn list_groups_storage(
+        &self,
+        states_filter: Option<&[String]>,
+    ) -> Result<Vec<ListedGroup>> {
         debug!(?states_filter);
 
         let c = self.connection().await.inspect_err(|err| error!(?err))?;
@@ -43,7 +46,6 @@ impl Postgres {
 
         Ok(listed_groups)
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn delete_groups_storage(
@@ -106,7 +108,6 @@ impl Postgres {
         Ok(results)
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn describe_groups_storage(
         &self,
@@ -148,7 +149,6 @@ impl Postgres {
 
         Ok(results)
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn update_group_storage(

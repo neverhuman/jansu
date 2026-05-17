@@ -14,9 +14,7 @@
 
 use bytes::Bytes;
 use jansu_sans_io::{
-    ErrorCode,
-    consumer_group_describe_response,
-    describe_groups_response,
+    ErrorCode, consumer_group_describe_response, describe_groups_response,
     join_group_response::JoinGroupResponseMember,
 };
 use serde::{Deserialize, Serialize};
@@ -236,7 +234,9 @@ impl From<&NamedGroupDetail> for consumer_group_describe_response::DescribedGrou
                 response: GroupDetailResponse::Found(group_detail),
             } => {
                 let assignor_name = match group_detail.state {
-                    GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or(String::new()),
+                    GroupState::Forming { ref leader, .. } => {
+                        leader.clone().unwrap_or(String::new())
+                    }
                     GroupState::Formed { ref leader, .. } => leader.clone(),
                 };
 

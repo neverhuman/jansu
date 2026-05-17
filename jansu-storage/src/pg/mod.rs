@@ -32,7 +32,7 @@ use jansu_sans_io::{
     BatchAttribute, ConfigResource, ConfigSource, ConfigType, ControlBatch, EndTransactionMarker,
     ErrorCode, IsolationLevel, ListOffset, NULL_TOPIC_ID, OpType, ScramMechanism,
     add_partitions_to_txn_response::{
-        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult, AddPartitionsToTxnResult,
+        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnResult, AddPartitionsToTxnTopicResult,
     },
     create_topics_request::CreatableTopic,
     delete_groups_response::DeletableGroupResult,
@@ -124,19 +124,19 @@ impl TryFrom<Row> for Txn {
 mod builder;
 pub(crate) use builder::Builder;
 
-mod queries;
-mod txqueries;
-mod produce;
-mod features;
-mod groups;
-mod fetch;
-mod epochs;
-mod offsets;
-mod txn;
-mod migrations;
-mod service;
-mod metadata;
 mod describe;
+mod epochs;
+mod features;
+mod fetch;
+mod groups;
+mod metadata;
+mod migrations;
+mod offsets;
+mod produce;
+mod queries;
+mod service;
+mod txn;
+mod txqueries;
 
 #[async_trait]
 impl Storage for Postgres {
@@ -183,7 +183,8 @@ impl Storage for Postgres {
         topition: &Topition,
         deflated: deflated::Batch,
     ) -> Result<i64> {
-        self.produce_storage(transaction_id, topition, deflated).await
+        self.produce_storage(transaction_id, topition, deflated)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -195,7 +196,8 @@ impl Storage for Postgres {
         max_bytes: u32,
         isolation_level: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>> {
-        self.fetch_storage(topition, offset, min_bytes, max_bytes, isolation_level).await
+        self.fetch_storage(topition, offset, min_bytes, max_bytes, isolation_level)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -224,7 +226,8 @@ impl Storage for Postgres {
         topition: &Topition,
         leader_epoch: i32,
     ) -> Result<Option<(i32, i64)>> {
-        self.offset_for_leader_epoch_storage(topition, leader_epoch).await
+        self.offset_for_leader_epoch_storage(topition, leader_epoch)
+            .await
     }
 
     async fn leader_epoch_history(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
@@ -238,7 +241,8 @@ impl Storage for Postgres {
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
-        self.offset_fetch_records_storage(group_id, topics, require_stable).await
+        self.offset_fetch_records_storage(group_id, topics, require_stable)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -248,7 +252,8 @@ impl Storage for Postgres {
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, i64>> {
-        self.offset_fetch_storage(group_id, topics, require_stable).await
+        self.offset_fetch_storage(group_id, topics, require_stable)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -282,7 +287,8 @@ impl Storage for Postgres {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        self.describe_topic_partitions_storage(topics, partition_limit, cursor).await
+        self.describe_topic_partitions_storage(topics, partition_limit, cursor)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -304,7 +310,8 @@ impl Storage for Postgres {
         group_ids: Option<&[String]>,
         include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        self.describe_groups_storage(group_ids, include_authorized_operations).await
+        self.describe_groups_storage(group_ids, include_authorized_operations)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -325,7 +332,13 @@ impl Storage for Postgres {
         producer_id: Option<i64>,
         producer_epoch: Option<i16>,
     ) -> Result<ProducerIdResponse> {
-        self.init_producer_storage(transaction_id, transaction_timeout_ms, producer_id, producer_epoch).await
+        self.init_producer_storage(
+            transaction_id,
+            transaction_timeout_ms,
+            producer_id,
+            producer_epoch,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -336,7 +349,8 @@ impl Storage for Postgres {
         producer_epoch: i16,
         group_id: &str,
     ) -> Result<ErrorCode> {
-        self.txn_add_offsets_storage(transaction_id, producer_id, producer_epoch, group_id).await
+        self.txn_add_offsets_storage(transaction_id, producer_id, producer_epoch, group_id)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -363,7 +377,8 @@ impl Storage for Postgres {
         producer_epoch: i16,
         committed: bool,
     ) -> Result<ErrorCode> {
-        self.txn_end_storage(transaction_id, producer_id, producer_epoch, committed).await
+        self.txn_end_storage(transaction_id, producer_id, producer_epoch, committed)
+            .await
     }
 
     #[instrument(skip_all)]
@@ -376,7 +391,8 @@ impl Storage for Postgres {
         user: &str,
         mechanism: ScramMechanism,
     ) -> Result<()> {
-        self.delete_user_scram_credential_storage(user, mechanism).await
+        self.delete_user_scram_credential_storage(user, mechanism)
+            .await
     }
 
     async fn upsert_user_scram_credential(
@@ -385,7 +401,8 @@ impl Storage for Postgres {
         mechanism: ScramMechanism,
         credential: ScramCredential,
     ) -> Result<()> {
-        self.upsert_user_scram_credential_storage(username, mechanism, credential).await
+        self.upsert_user_scram_credential_storage(username, mechanism, credential)
+            .await
     }
 
     async fn user_scram_credential(
@@ -412,7 +429,6 @@ impl Storage for Postgres {
     async fn ping(&self) -> Result<()> {
         self.ping_storage().await
     }
-
 }
 
 static SQL_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
@@ -436,4 +452,3 @@ static SQL_ERROR: LazyLock<Counter<u64>> = LazyLock::new(|| {
         .with_description("The SQL error count")
         .build()
 });
-

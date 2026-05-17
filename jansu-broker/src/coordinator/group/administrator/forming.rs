@@ -39,17 +39,14 @@ use jansu_sans_io::{
     sync_group_request::SyncGroupRequestAssignment,
     sync_group_response::SyncGroupResponse,
 };
-use jansu_storage::{
-    OffsetCommitRequest, OffsetFetchRecord, Storage,
-    Topition,
-};
+use jansu_storage::{OffsetCommitRequest, OffsetFetchRecord, Storage, Topition};
 use tokio::time::Duration;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use crate::{Error, Result};
 
-use super::{Coordinator, OffsetCommit};
+use super::OffsetCommit;
 
 use super::*;
 
@@ -139,9 +136,7 @@ where
                         .as_ref()
                         .into_iter()
                         .flatten()
-                        .map(|partition_index| {
-                            Topition::new(topic.name.clone(), *partition_index)
-                        })
+                        .map(|partition_index| Topition::new(topic.name.clone(), *partition_index))
                         .collect::<Vec<_>>()
                 })
                 .collect();
@@ -943,37 +938,36 @@ where
         let _ = now;
         debug!(?detail);
 
-        if let Some(member_id) = detail.member_id {
-            if !member_id.is_empty() && !self.members.contains_key(member_id) {
-                return (
-                    self,
-                    OffsetCommitResponse::default()
-                        .throttle_time_ms(Some(0))
-                        .topics(detail.topics.map(|topics| {
-                            topics
-                                .as_ref()
-                                .iter()
-                                .map(|topic| {
-                                    OffsetCommitResponseTopic::default()
-                                        .name(topic.name.clone())
-                                        .partitions(topic.partitions.as_ref().map(|partitions| {
-                                            partitions
-                                                .iter()
-                                                .map(|partition| {
-                                                    OffsetCommitResponsePartition::default()
-                                                        .partition_index(partition.partition_index)
-                                                        .error_code(
-                                                            ErrorCode::UnknownMemberId.into(),
-                                                        )
-                                                })
-                                                .collect()
-                                        }))
-                                })
-                                .collect()
-                        }))
-                        .into(),
-                );
-            }
+        if let Some(member_id) = detail.member_id
+            && !member_id.is_empty()
+            && !self.members.contains_key(member_id)
+        {
+            return (
+                self,
+                OffsetCommitResponse::default()
+                    .throttle_time_ms(Some(0))
+                    .topics(detail.topics.map(|topics| {
+                        topics
+                            .as_ref()
+                            .iter()
+                            .map(|topic| {
+                                OffsetCommitResponseTopic::default()
+                                    .name(topic.name.clone())
+                                    .partitions(topic.partitions.as_ref().map(|partitions| {
+                                        partitions
+                                            .iter()
+                                            .map(|partition| {
+                                                OffsetCommitResponsePartition::default()
+                                                    .partition_index(partition.partition_index)
+                                                    .error_code(ErrorCode::UnknownMemberId.into())
+                                            })
+                                            .collect()
+                                    }))
+                            })
+                            .collect()
+                    }))
+                    .into(),
+            );
         }
 
         if let Some(error_code) = self.offset_commit_error_code(detail) {

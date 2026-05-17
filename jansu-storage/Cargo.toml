@@ -1,6 +1,6 @@
 [package]
 name = "jansu-storage"
-description = "Storage abstraction for PostgreSQL, libSQL and ObjectStore (S3 or memory)"
+description = "Storage abstraction for PostgreSQL, RedlineDB and ObjectStore (S3 or memory)"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -11,12 +11,11 @@ repository.workspace = true
 version.workspace = true
 
 [features]
-default = ["dynostore", "libsql", "postgres", "slatedb", "turso"]
+default = ["dynostore", "postgres", "redlinedb", "slatedb"]
 dynostore = ["dep:object_store"]
-libsql = ["dep:libsql", "dep:deadpool"]
 postgres = ["dep:tokio-postgres", "dep:deadpool", "dep:deadpool-postgres", "dep:tokio-postgres-rustls"]
+redlinedb = ["dep:redlinedb"]
 slatedb = ["dep:object_store", "dep:postcard", "dep:slatedb"]
-turso = ["dep:turso"]
 
 
 [lints]
@@ -37,7 +36,6 @@ glob.workspace = true
 governor.workspace = true
 human-units.workspace = true
 indicatif.workspace = true
-libsql = { workspace = true, optional = true }
 object_store = { workspace = true, optional = true }
 opentelemetry-semantic-conventions.workspace = true
 opentelemetry.workspace = true
@@ -46,6 +44,7 @@ protobuf.workspace = true
 rama.workspace = true
 rand.workspace = true
 regex.workspace = true
+redlinedb = { workspace = true, optional = true }
 rsasl.workspace = true
 rustls-native-certs.workspace = true
 rustls.workspace = true
@@ -62,7 +61,6 @@ tokio-util.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
-turso = { workspace = true, optional = true }
 url.workspace = true
 uuid.workspace = true
 

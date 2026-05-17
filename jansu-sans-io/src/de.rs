@@ -1043,5 +1043,4 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
     }
 }
 
-
 include!("de_part2.rs");

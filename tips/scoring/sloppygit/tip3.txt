@@ -183,7 +183,7 @@ GitLab’s best-practice guidance emphasizes descriptive, single-purpose, atomic
 133. IDE state.
 134. OS metadata files.
 135. Local database files.
-136. Local SQLite dev databases.
+136. Local RedlineDB dev databases.
 137. Personal scripts with machine-specific paths.
 138. Generated code committed without documenting generator/version/reproducibility.
 139. Generated docs committed when they can be built reliably elsewhere.

@@ -64,14 +64,14 @@ impl<E> ApiVersionsService<E> {
             .supported_features(Some([].into()))
             .zk_migration_ready(Some(false))
             .error_code(ErrorCode::None.into())
-            .api_keys(Some(self.advertised_api_keys().into()))
+            .api_keys(Some(self.advertised_api_keys()))
             .throttle_time_ms(Some(0))
     }
 
     fn unsupported_version_response(&self) -> ApiVersionsResponse {
         ApiVersionsResponse::default()
             .error_code(ErrorCode::UnsupportedVersion.into())
-            .api_keys(Some(Self::supported_api_versions().into()))
+            .api_keys(Some(Self::supported_api_versions()))
     }
 }
 
@@ -212,15 +212,14 @@ where
         let api_key = req.api_key()?;
         let api_version = req.api_version()?;
 
-        if let Some(range) = self.advertised_versions.get(&api_key) {
-            if api_version < range.min_version || api_version > range.max_version {
-                if api_key != ApiVersionsRequest::KEY {
-                    return Ok(unsupported_version_response_frame(
-                        api_key,
-                        req.correlation_id()?,
-                    )?);
-                }
-            }
+        if let Some(range) = self.advertised_versions.get(&api_key)
+            && (api_version < range.min_version || api_version > range.max_version)
+            && api_key != ApiVersionsRequest::KEY
+        {
+            return Ok(unsupported_version_response_frame(
+                api_key,
+                req.correlation_id()?,
+            )?);
         }
 
         if let Some(service) = self.routes.get(&api_key) {
@@ -489,7 +488,7 @@ fn unsupported_version_response_frame(api_key: i16, correlation_id: i32) -> Resu
         Ok(Frame {
             size: 0,
             header: Header::Response { correlation_id },
-            body: body.into(),
+            body,
         })
     } else {
         Err(crate::Error::Message(format!(

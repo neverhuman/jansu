@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeSet;
-
 use jansu_sans_io::{
     ApiKey, ConfigResource, DescribeConfigsRequest, DescribeConfigsResponse, ErrorCode,
 };
@@ -59,10 +57,16 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let results = response.results.unwrap_or(Vec::new());
+/// let results = match response.results {
+///     Some(results) => results,
+///     None => Vec::new(),
+/// };
 /// assert_eq!(1, results.len());
 /// assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
-/// assert!(results[0].configs.as_deref().unwrap_or(&[]).is_empty());
+/// assert!(match results[0].configs.as_deref() {
+///     Some(configs) => configs.is_empty(),
+///     None => true,
+/// });
 /// # Ok(())
 /// # }
 /// ```
@@ -86,10 +90,17 @@ where
         ctx: Context<G>,
         req: DescribeConfigsRequest,
     ) -> Result<Self::Response, Self::Error> {
-        let include_synonyms = req.include_synonyms.unwrap_or(false);
+        let include_synonyms = match req.include_synonyms {
+            Some(include_synonyms) => include_synonyms,
+            None => false,
+        };
+        let resources = match req.resources {
+            Some(resources) => resources,
+            None => Vec::new(),
+        };
         let mut results = vec![];
 
-        for resource in req.resources.unwrap_or(Vec::new()) {
+        for resource in resources {
             let resource_type = ConfigResource::from(resource.resource_type);
             let mut result = ctx
                 .state()
@@ -107,28 +118,32 @@ where
             if resource_type == ConfigResource::Topic
                 && matches!(ErrorCode::try_from(result.error_code), Ok(ErrorCode::None))
             {
+                let requested_specific_keys = resource
+                    .configuration_keys
+                    .as_ref()
+                    .is_some_and(|keys| !keys.is_empty());
+
                 if let Some(configs) = result.configs.as_mut() {
-                    // Build a fresh default map.
-                    let mut merged = topic_config_defaults::build_default_configs();
+                    let merged = if requested_specific_keys {
+                        configs
+                            .drain(..)
+                            .map(|config| (config.name.clone(), config))
+                            .collect()
+                    } else {
+                        // Build a fresh default map.
+                        let mut merged = topic_config_defaults::build_default_configs();
 
-                    // Overlay explicitly-stored configs from the storage
-                    // backend, keeping the storage value and marking
-                    // is_default = None.
-                    for config in configs.drain(..) {
-                        _ = merged.insert(config.name.clone(), config);
-                    }
+                        // Overlay explicitly-stored configs from the storage
+                        // backend, keeping the storage value and marking
+                        // is_default = None.
+                        for config in configs.drain(..) {
+                            _ = merged.insert(config.name.clone(), config);
+                        }
 
-                    // Apply key filtering if the request asked for
-                    // specific keys.
-                    if let Some(keys) = resource
-                        .configuration_keys
-                        .as_ref()
-                        .filter(|keys| !keys.is_empty())
-                    {
-                        let requested: BTreeSet<_> =
-                            keys.iter().map(|key| key.as_str()).collect();
-                        merged.retain(|name, _| requested.contains(name.as_str()));
-                    }
+                        merged
+                    };
+
+                    let mut merged: std::collections::BTreeMap<_, _> = merged;
 
                     // Apply synonym expansion.
                     if include_synonyms {
@@ -143,6 +158,9 @@ where
                     }
 
                     *configs = merged.into_values().collect();
+                    if configs.is_empty() {
+                        result.configs = None;
+                    }
                 }
             }
 

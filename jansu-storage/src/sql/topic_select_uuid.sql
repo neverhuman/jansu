@@ -25,7 +25,7 @@ where
 c.name = $1
 and t.uuid = $2
 
-union
+union all
 
 select vt.uuid, t.name || '/' || vt.k, t.is_internal, t.partitions, t.replication_factor
 

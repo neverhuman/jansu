@@ -30,8 +30,7 @@ use datafusion::prelude::*;
 use iceberg::{
     io::FileIOBuilder,
     spec::{
-        DataFile, DataFileFormat::Parquet, Schema as IcebergSchema,
-        SchemaRef as IcebergSchemaRef,
+        DataFile, DataFileFormat::Parquet, Schema as IcebergSchema, SchemaRef as IcebergSchemaRef,
     },
     writer::{
         IcebergWriter, IcebergWriterBuilder,

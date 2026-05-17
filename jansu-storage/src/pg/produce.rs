@@ -39,8 +39,6 @@ impl Postgres {
         Ok(high)
     }
 
-
-
     #[instrument(skip_all)]
     pub(super) async fn maybe_record_leader_epoch_boundary(
         &self,

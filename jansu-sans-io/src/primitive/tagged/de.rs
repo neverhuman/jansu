@@ -236,9 +236,7 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
             Some(n) => n,
             None => {
                 let n = self.unsigned_varint()?;
-                n.checked_sub(1)
-                    .ok_or(Error::Overflow)?
-                    .try_into()?
+                n.checked_sub(1).ok_or(Error::Overflow)?.try_into()?
             }
         };
         let mut buf = vec![0u8; length];
@@ -257,9 +255,7 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
             Some(n) => n,
             None => {
                 let n = self.unsigned_varint()?;
-                n.checked_sub(1)
-                    .ok_or(Error::Overflow)?
-                    .try_into()?
+                n.checked_sub(1).ok_or(Error::Overflow)?.try_into()?
             }
         };
         if length > self.message_max_size.unwrap_or(MESSAGE_MAX_SIZE) {

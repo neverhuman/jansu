@@ -36,10 +36,7 @@ use jansu_sans_io::{
     offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
     sync_group_request::SyncGroupRequestAssignment,
 };
-use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, Storage, UpdateError,
-    Version,
-};
+use jansu_storage::{GroupDetail, GroupMember, GroupState, Storage, UpdateError, Version};
 use opentelemetry::{KeyValue, metrics::Counter};
 use tokio::time::{Duration, sleep};
 use tracing::{debug, info};
@@ -752,27 +749,28 @@ where
 
             let now = SystemTime::now();
 
-            let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                match wrappers.remove(group_id) {
-                    Some(existing) => existing,
-                    None => {
-                        debug!(?iteration, ?group_id);
+            let (mut original, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => {
+                            debug!(?iteration, ?group_id);
 
-                        let inner = Inner {
-                            session_timeout_ms,
-                            rebalance_timeout_ms,
-                            members: Default::default(),
-                            generation_id: -1,
-                            state: Forming::default(),
-                            skip_assignment: Some(false),
-                            storage: self.storage.clone(),
-                            inception: SystemTime::now(),
-                        };
+                            let inner = Inner {
+                                session_timeout_ms,
+                                rebalance_timeout_ms,
+                                members: Default::default(),
+                                generation_id: -1,
+                                state: Forming::default(),
+                                skip_assignment: Some(false),
+                                storage: self.storage.clone(),
+                                inception: SystemTime::now(),
+                            };
 
-                        (Wrapper::Forming(inner), None)
-                    }
-                }
-            })?;
+                            (Wrapper::Forming(inner), None)
+                        }
+                    })?;
 
             original = original.missed_heartbeat(group_id, now);
 
@@ -908,12 +906,13 @@ where
 
             let now = SystemTime::now();
 
-            let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                match wrappers.remove(group_id) {
-                    Some(existing) => existing,
-                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
-                }
-            })?;
+            let (mut original, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?original, ?version, ?iteration);
 
@@ -1019,12 +1018,13 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "leave_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                match wrappers.remove(group_id) {
-                    Some(existing) => existing,
-                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
-                }
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 
@@ -1092,12 +1092,13 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "offset_commit_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                match wrappers.remove(group_id) {
-                    Some(existing) => existing,
-                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
-                }
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 
@@ -1190,12 +1191,13 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "heartbeat_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                match wrappers.remove(group_id) {
-                    Some(existing) => existing,
-                    None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
-                }
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 

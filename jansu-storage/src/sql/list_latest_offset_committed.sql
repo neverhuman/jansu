@@ -50,7 +50,7 @@ and t.name = $2
 and tp.partition = $3
 and (txn_d.status = 'PREPARE_COMMIT' or txn_d.status = 'PREPARE_ABORT' or txn_d.status = 'BEGIN')
 
-union
+union all
 
 select
 

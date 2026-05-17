@@ -328,9 +328,7 @@ pub(super) fn append_value(
 
         (schema, value) => Err(Error::NotImplemented {
             kind: "avro_to_arrow",
-            detail: format!(
-                "unsupported Avro append: schema {schema:?}, value {value:?}"
-            ),
+            detail: format!("unsupported Avro append: schema {schema:?}, value {value:?}"),
         }),
     }
 }

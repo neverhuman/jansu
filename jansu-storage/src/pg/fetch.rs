@@ -265,7 +265,6 @@ impl Postgres {
         Ok(batches)
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn offset_stage_storage(&self, topition: &Topition) -> Result<OffsetStage> {
         debug!(cluster = self.cluster, ?topition);
@@ -276,11 +275,7 @@ impl Postgres {
             .prepare_query_one(
                 &c,
                 "watermark_select.sql",
-                &[
-                    &self.cluster,
-                    &base_topic,
-                    &topition.partition(),
-                ],
+                &[&self.cluster, &base_topic, &topition.partition()],
             )
             .await
             .inspect_err(|err| error!(?topition, ?err))?;
@@ -309,7 +304,6 @@ impl Postgres {
         })
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn offset_commit_storage(
         &self,
@@ -336,11 +330,7 @@ impl Postgres {
                 .tx_prepare_query_opt(
                     &tx,
                     "topition_select.sql",
-                    &[
-                        &self.cluster,
-                        &base_topic,
-                        &topition.partition(),
-                    ],
+                    &[&self.cluster, &base_topic, &topition.partition()],
                 )
                 .await
                 .inspect_err(|err| error!(?err))?
@@ -399,9 +389,11 @@ impl Postgres {
         Ok(responses)
     }
 
-
     #[instrument(skip_all)]
-    pub(super) async fn committed_offset_topitions_storage(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
+    pub(super) async fn committed_offset_topitions_storage(
+        &self,
+        group_id: &str,
+    ) -> Result<BTreeMap<Topition, i64>> {
         debug!(group_id);
 
         let mut results = BTreeMap::new();

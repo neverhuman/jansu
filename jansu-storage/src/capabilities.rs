@@ -21,12 +21,11 @@ use std::collections::BTreeMap;
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum StorageEngine {
     DynoStore,
-    Lite,
     Memory,
     Null,
     Postgres,
+    RedlineDb,
     SlateDb,
-    Turso,
     Unknown,
 }
 
@@ -136,8 +135,11 @@ impl StorageCapabilities {
         )
     }
 
-    pub fn phase06_lite() -> Self {
-        Self::phase06_core(StorageEngine::Lite, StorageCertification::LimitedParity)
+    pub fn phase06_redlinedb() -> Self {
+        Self::phase06_core(
+            StorageEngine::RedlineDb,
+            StorageCertification::LimitedParity,
+        )
     }
 
     pub fn phase06_dynostore() -> Self {
@@ -149,10 +151,6 @@ impl StorageCapabilities {
 
     pub fn phase06_slatedb() -> Self {
         Self::phase06_core(StorageEngine::SlateDb, StorageCertification::LimitedParity)
-    }
-
-    pub fn phase06_turso() -> Self {
-        Self::phase06_core(StorageEngine::Turso, StorageCertification::Uncertified)
     }
 
     pub fn phase06_null() -> Self {

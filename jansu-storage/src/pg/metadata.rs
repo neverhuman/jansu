@@ -18,7 +18,10 @@ use super::*;
 
 impl Postgres {
     #[instrument(skip_all)]
-    pub(super) async fn metadata_storage(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
+    pub(super) async fn metadata_storage(
+        &self,
+        topics: Option<&[TopicId]>,
+    ) -> Result<MetadataResponse> {
         debug!(cluster = self.cluster, ?topics);
 
         let c = self.connection().await.inspect_err(|err| error!(?err))?;

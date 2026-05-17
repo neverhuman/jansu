@@ -53,4 +53,4 @@ Phase 08 / cross-phase — flexible request encoding; `AUDIT-004` partial; `AUDI
 
 ## Next Recommended Action
 
-- Continue `AUDIT-004`: Fetch long-poll, read_committed, API 23 advertisement gated on Postgres/Turso epoch proofs.
+- Continue `AUDIT-004`: Fetch long-poll, read_committed, API 23 advertisement gated on Postgres/RedlineDB epoch proofs.

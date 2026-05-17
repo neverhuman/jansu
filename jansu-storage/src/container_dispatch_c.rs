@@ -20,8 +20,7 @@ use jansu_sans_io::ScramMechanism;
 use url::Url;
 
 use crate::{
-    Result, ScramCredential, Storage, StorageContainer,
-    capabilities::StorageCapabilities,
+    Result, ScramCredential, Storage, StorageContainer, capabilities::StorageCapabilities,
 };
 
 impl StorageContainer {
@@ -30,8 +29,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(_) => StorageCapabilities::phase06_dynostore(),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(_) => StorageCapabilities::phase06_lite(),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(_) => StorageCapabilities::phase06_redlinedb(),
 
             Self::Null(_) => StorageCapabilities::phase06_null(),
 
@@ -40,9 +39,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(_) => StorageCapabilities::phase06_slatedb(),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(_) => StorageCapabilities::phase06_turso(),
         }
     }
 
@@ -51,8 +47,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.cluster_id().await,
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.cluster_id().await,
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.cluster_id().await,
 
             Self::Null(engine) => engine.cluster_id().await,
 
@@ -61,9 +57,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.cluster_id().await,
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.cluster_id().await,
         }
     }
 
@@ -72,8 +65,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.node().await,
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.node().await,
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.node().await,
 
             Self::Null(engine) => engine.node().await,
 
@@ -82,9 +75,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.node().await,
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.node().await,
         }
     }
 
@@ -93,8 +83,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.advertised_listener().await,
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.advertised_listener().await,
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.advertised_listener().await,
 
             Self::Null(engine) => engine.advertised_listener().await,
 
@@ -103,9 +93,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.advertised_listener().await,
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.advertised_listener().await,
         }
     }
 
@@ -118,8 +105,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.delete_user_scram_credential(user, mechanism).await,
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.delete_user_scram_credential(user, mechanism).await,
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.delete_user_scram_credential(user, mechanism).await,
 
             Self::Null(engine) => engine.delete_user_scram_credential(user, mechanism).await,
 
@@ -128,9 +115,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.delete_user_scram_credential(user, mechanism).await,
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.delete_user_scram_credential(user, mechanism).await,
         }
     }
 
@@ -148,8 +132,8 @@ impl StorageContainer {
                     .await
             }
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => {
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
                 engine
                     .upsert_user_scram_credential(user, mechanism, credential)
                     .await
@@ -174,13 +158,6 @@ impl StorageContainer {
                     .upsert_user_scram_credential(user, mechanism, credential)
                     .await
             }
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => {
-                engine
-                    .upsert_user_scram_credential(user, mechanism, credential)
-                    .await
-            }
         }
     }
 
@@ -193,8 +170,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.user_scram_credential(user, mechanism).await,
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.user_scram_credential(user, mechanism).await,
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.user_scram_credential(user, mechanism).await,
 
             Self::Null(engine) => engine.user_scram_credential(user, mechanism).await,
 
@@ -203,9 +180,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.user_scram_credential(user, mechanism).await,
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.user_scram_credential(user, mechanism).await,
         }
     }
 }

@@ -1047,7 +1047,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_produce_in_tx_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_produce_in_tx_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1144,7 +1144,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_transaction_with_behavior_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_transaction_with_behavior_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1241,7 +1241,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1337,7 +1337,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "rate(jansu_sqlite_requests_total[$__rate_interval])",
+              "expr": "rate(jansu_redlinedb_requests_total[$__rate_interval])",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "legendFormat": "__auto",
@@ -1434,7 +1434,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_engine_request_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_engine_request_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1531,7 +1531,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_connect_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_connect_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1628,7 +1628,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_delegate_request_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_delegate_request_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1725,7 +1725,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_sqlite_transaction_commit_duration_milliseconds_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.99, sum by(le) (rate(jansu_redlinedb_transaction_commit_duration_milliseconds_bucket[$__rate_interval])))",
               "fullMetaSearch": false,
               "includeNullMetadata": false,
               "legendFormat": "__auto",
@@ -1821,7 +1821,7 @@
             {
               "disableTextWrap": false,
               "editorMode": "builder",
-              "expr": "rate(jansu_sqlite_error[$__rate_interval])",
+              "expr": "rate(jansu_redlinedb_error[$__rate_interval])",
               "fullMetaSearch": false,
               "includeNullMetadata": true,
               "legendFormat": "__auto",
@@ -1834,7 +1834,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "libSQL",
+      "title": "RedlineDB",
       "type": "row"
     },
     {

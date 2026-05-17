@@ -49,7 +49,7 @@ use crate::{Error, Result, Storage};
 /// let results = response.results.unwrap_or(Vec::new());
 /// assert_eq!(1, results.len());
 /// assert_eq!(group_id, results[0].group_id.as_str());
-/// assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
+/// assert_eq!(ErrorCode::GroupIdNotFound, ErrorCode::try_from(results[0].error_code)?);
 /// # Ok(())
 /// # }
 /// ```
@@ -146,7 +146,10 @@ mod tests {
         let results = response.results.unwrap_or(Vec::new());
         assert_eq!(1, results.len());
         assert_eq!(group_id, results[0].group_id.as_str());
-        assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
+        assert_eq!(
+            ErrorCode::GroupIdNotFound,
+            ErrorCode::try_from(results[0].error_code)?
+        );
 
         Ok(())
     }

@@ -65,10 +65,10 @@ Phase 06 scope:
 | Engine | Phase 06 claim | Condition |
 | --- | --- | --- |
 | PostgreSQL | `production-parity` | Only for the Phase 06 core invariants proven by the shared storage conformance tests. |
-| SQLite / libSQL | `limited-parity` | Only if the feature-gated Phase 06 conformance path passes; otherwise `uncertified`. |
+| RedlineDB | `limited-parity` | Only if the feature-gated Phase 06 conformance path passes; otherwise `uncertified`. |
 | S3 / dynostore | `limited-parity` | Only if the feature-gated Phase 06 conformance path passes; otherwise `uncertified`. |
 | SlateDB | `limited-parity` | Only if the feature-gated Phase 06 conformance path passes; otherwise `uncertified`. |
-| Turso | `uncertified` | Remains uncertified unless the implementation has a reliable feature-gated Phase 06 test path. |
+| RedlineDB | `uncertified` | Remains uncertified unless the implementation has a reliable feature-gated Phase 06 test path. |
 | Memory | `development-test-only` | Suitable for local and CI conformance only. |
 | Null | `unsupported` | Does not provide log-storage invariants; metadata-only bootstrap remains separate. |
 

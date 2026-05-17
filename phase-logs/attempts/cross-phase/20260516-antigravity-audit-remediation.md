@@ -82,10 +82,10 @@
 
 - Pre-existing compiler warnings remain (~49 in broker, ~3 in model, ~8 in list_offsets test). These are non-blocking `unused_results` and suggestion-level issues.
 - `jansu-storage/src/batch.rs` metric statics still flagged as dead code by the audit (they are LazyLock deferred — not actually dead).
-- The `phase08-libsql-produce-leader-epoch.db` file in owner-map may be a stale artifact worth investigating.
+- The `phase08-redlinedb-produce-leader-epoch.db` file in owner-map may be a stale artifact worth investigating.
 
 ## Next Recommended Action
 
 - Address compiler warning debt (run `cargo fix --lib -p jansu-broker` and `cargo fix --lib -p jansu-model`).
-- Investigate and potentially remove `phase08-libsql-produce-leader-epoch.db` from the repo root.
+- Investigate and potentially remove `phase08-redlinedb-produce-leader-epoch.db` from the repo root.
 - Re-run the full Jankurai audit to confirm score improvement toward 85+.

@@ -230,7 +230,7 @@ security documents can link back to the `#broker-isolation` anchor.
    ACL matcher uses byte-level prefix matching on the topic name. There
    is no glob expansion or regex evaluation, which keeps the matcher
    immune to a class of regex-injection attacks.
-4. **Storage backend isolation.** Each backend (PostgreSQL, libSQL,
+4. **Storage backend isolation.** Each backend (PostgreSQL, RedlineDB,
    SlateDB, S3) is selected at startup via a single storage URL. The
    broker never holds simultaneous open handles to two production
    backends; the only multi-backend configurations are the test

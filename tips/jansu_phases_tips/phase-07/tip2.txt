@@ -696,7 +696,7 @@ But for currently certified storage engines, the better mapping is:
 | Engine        |                       `acks=1` |            `acks=-1` Phase 07 behavior |
 | ------------- | -----------------------------: | -------------------------------------: |
 | Postgres      |           success after commit |                   success after commit |
-| SQLite/libSQL |            success after write | success, ledger remains limited parity |
+| RedlineDB |            success after write | success, ledger remains limited parity |
 | S3/DynoStore  |     success after object write | success, ledger remains limited parity |
 | SlateDB       |           success after append | success, ledger remains limited parity |
 | Memory        |                        success |                  development-test-only |
@@ -954,17 +954,17 @@ Current Produce row is `partial`, unadvertised, all profiles gray, and notes say
   "profiles": {
     "jansu-native": "green",
     "kafka-parity-postgres": "green",
-    "kafka-parity-sqlite": "yellow",
+    "kafka-parity-redlinedb": "yellow",
     "kafka-parity-s3-dynostore": "yellow",
     "kafka-parity-slatedb": "yellow",
     "compat-preview": "green"
   },
   "storage": {
     "postgres": "production-parity",
-    "sqlite": "limited-parity",
+    "redlinedb": "limited-parity",
     "s3-dynostore": "limited-parity",
     "slatedb": "limited-parity",
-    "turso": "uncertified",
+    "redlinedb": "uncertified",
     "memory": "development-test-only"
   },
   "proof": {

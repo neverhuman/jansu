@@ -19,7 +19,9 @@ use std::time::SystemTime;
 
 use jansu_sans_io::{
     ErrorCode,
-    add_partitions_to_txn_response::{AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult},
+    add_partitions_to_txn_response::{
+        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult,
+    },
     txn_offset_commit_response::{TxnOffsetCommitResponsePartition, TxnOffsetCommitResponseTopic},
 };
 use tracing::debug;
@@ -352,5 +354,4 @@ impl Engine {
 
         Ok(responses)
     }
-
 }

@@ -12,41 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use console::Emoji;
 #[cfg(feature = "dynostore")]
 use crate::dynostore::DynoStore;
+#[cfg(feature = "postgres")]
+use crate::pg::Postgres;
+use console::Emoji;
 use indicatif::{ProgressBar, ProgressStyle};
+use jansu_schema::{Registry, lake::House};
+#[cfg(feature = "dynostore")]
+use object_store::aws::{AmazonS3Builder, S3ConditionalPut};
 #[cfg(feature = "dynostore")]
 use object_store::memory::InMemory;
 #[cfg(feature = "dynostore")]
-use object_store::aws::{AmazonS3Builder, S3ConditionalPut};
-#[cfg(feature = "postgres")]
-use crate::pg::Postgres;
-use jansu_schema::{Registry, lake::House};
-use std::{
-    marker::PhantomData,
-    str::FromStr,
-    sync::Arc,
-};
+use std::str::FromStr;
+use std::{marker::PhantomData, sync::Arc};
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 #[cfg(feature = "dynostore")]
 use tracing::warn;
 use url::Url;
 
-use crate::{
-    Error, Result, Storage, StorageContainer,
-    null,
-};
+use crate::{Error, Result, Storage, StorageContainer, null};
 
-#[cfg(feature = "libsql")]
-use crate::lite;
+#[cfg(feature = "redlinedb")]
+use crate::redlinedb;
 
 #[cfg(feature = "slatedb")]
 use crate::slate;
-
-#[cfg(feature = "turso")]
-use crate::limbo;
 
 /// A [`StorageContainer`] builder
 #[derive(Clone, Debug, Default)]
@@ -294,9 +286,9 @@ impl Builder<i32, String, Url, Url> {
                 message: self.storage.to_string(),
             }),
 
-            #[cfg(feature = "libsql")]
-            "sqlite" => {
-                lite::Engine::builder()
+            #[cfg(feature = "redlinedb")]
+            "redlinedb" => {
+                redlinedb::Engine::builder()
                     .storage(self.storage.clone())
                     .node(self.node_id)
                     .cluster(self.cluster_id.clone())
@@ -308,9 +300,9 @@ impl Builder<i32, String, Url, Url> {
                     .await
             }
 
-            #[cfg(not(feature = "libsql"))]
-            "sqlite" => Err(Error::FeatureNotEnabled {
-                feature: "libsql".into(),
+            #[cfg(not(feature = "redlinedb"))]
+            "redlinedb" => Err(Error::FeatureNotEnabled {
+                feature: "redlinedb".into(),
                 message: self.storage.to_string(),
             }),
 
@@ -366,25 +358,6 @@ impl Builder<i32, String, Url, Url> {
                 message: self.storage.to_string(),
             }),
 
-            #[cfg(feature = "turso")]
-            "turso" => limbo::Engine::builder()
-                .storage(self.storage.clone())
-                .node(self.node_id)
-                .cluster(self.cluster_id.clone())
-                .advertised_listener(self.advertised_listener.clone())
-                .schemas(self.schema_registry)
-                .lake(self.lake_house.clone())
-                .build()
-                .await
-                .map(|storage| Box::new(StorageContainer::Turso(storage)) as Box<dyn Storage>)
-                .map(Arc::new),
-
-            #[cfg(not(feature = "turso"))]
-            "turso" => Err(Error::FeatureNotEnabled {
-                feature: "turso".into(),
-                message: self.storage.to_string(),
-            }),
-
             "null" => Ok(null::Engine::new(
                 self.cluster_id.clone(),
                 self.node_id,
@@ -395,10 +368,9 @@ impl Builder<i32, String, Url, Url> {
 
             #[cfg(not(any(
                 feature = "dynostore",
-                feature = "libsql",
                 feature = "postgres",
+                feature = "redlinedb",
                 feature = "slatedb",
-                feature = "turso"
             )))]
             _storage => Ok(null::Engine::new(
                 self.cluster_id.clone(),
@@ -410,10 +382,9 @@ impl Builder<i32, String, Url, Url> {
 
             #[cfg(any(
                 feature = "dynostore",
-                feature = "libsql",
                 feature = "postgres",
+                feature = "redlinedb",
                 feature = "slatedb",
-                feature = "turso"
             ))]
             _unsupported => Err(Error::UnsupportedStorageUrl(self.storage.clone())),
         }?;

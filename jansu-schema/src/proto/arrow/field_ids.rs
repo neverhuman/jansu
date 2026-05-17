@@ -1,4 +1,4 @@
-use super::{ARROW_LIST_FIELD_NAME, KEY, META, VALUE, GOOGLE_PROTOBUF_TIMESTAMP};
+use super::{ARROW_LIST_FIELD_NAME, GOOGLE_PROTOBUF_TIMESTAMP, KEY, META, VALUE};
 use protobuf::reflect::{FileDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType};
 use std::collections::BTreeMap;
 use tracing::debug;

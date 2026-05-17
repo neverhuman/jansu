@@ -34,7 +34,7 @@ async fn create() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -84,7 +84,7 @@ async fn create_with_default() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -184,7 +184,7 @@ async fn duplicate() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -259,7 +259,7 @@ async fn reject_unknown_topic_config() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(12321)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 

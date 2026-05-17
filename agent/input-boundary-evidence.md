@@ -156,7 +156,7 @@ originate from a registry the broker did not author.
 ## Storage SQL Sinks (`jansu-storage/src/sql/`)
 
 The SQL directory contains the on-disk persistence queries for the
-PostgreSQL backend, with mirrors for libSQL. None of them concatenate
+PostgreSQL backend, with mirrors for RedlineDB. None of them concatenate
 user input into the query body; every external input is passed as a
 positional parameter (`$1`, `$2`, ...). The audit lane verifies this
 property by grepping the directory for forbidden patterns.
@@ -205,16 +205,16 @@ The storage backends each load and persist data through one of the
 following files. None of them takes raw bytes from the network without
 the request having been first decoded by `jansu-sans-io/src/de.rs`.
 
-### libSQL backend (`jansu-storage/src/lite.rs`)
+### RedlineDB backend (`jansu-storage/src/lite.rs`)
 
 - Sink: `Database::open` and the `Statement::query`/`Statement::execute`
   paths in `jansu-storage/src/lite.rs`.
-- Validator: libSQL parses each statement against its grammar. Bound
+- Validator: RedlineDB parses each statement against its grammar. Bound
   parameters use `IntoParams` to enforce typed binding.
-- Denylist: SQLite/libSQL pragmas that change durability behaviour
+- Denylist: RedlineDB pragmas that change durability behaviour
   (`PRAGMA synchronous = OFF`, `PRAGMA journal_mode = MEMORY`) are
   excluded from the cached SQL by the loader.
-- Maximum accepted size: libSQL imposes its own per-statement size cap
+- Maximum accepted size: RedlineDB imposes its own per-statement size cap
   (one megabyte by default) before the request even reaches the
   parameter binder.
 

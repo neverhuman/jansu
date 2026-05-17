@@ -332,7 +332,10 @@ impl Postgres {
         tx.commit().await.map_err(Into::into).and(Ok(deleted))
     }
 
-    pub(super) async fn topic_with_key<'a>(&self, topic: &'a str) -> Result<(&'a str, Option<&'a str>)> {
+    pub(super) async fn topic_with_key<'a>(
+        &self,
+        topic: &'a str,
+    ) -> Result<(&'a str, Option<&'a str>)> {
         if let Some((base, key)) = topic.split_once('/')
             && self
                 .describe_config(base, ConfigResource::Topic, None)

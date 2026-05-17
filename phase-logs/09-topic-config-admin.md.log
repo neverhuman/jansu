@@ -274,7 +274,7 @@
 
 - `cargo test -p jansu-broker --test describe_configs --no-default-features --features dynostore` ✅
 - `cargo test -p jansu-broker --test describe_configs --no-default-features --features slatedb` ✅
-- `cargo test -p jansu-broker --test describe_configs --no-default-features --features libsql` ✅
+- `cargo test -p jansu-broker --test describe_configs --no-default-features --features redlinedb` ✅
 - `cargo test -p jansu-storage --test describe_configs --no-default-features --features dynostore` ✅
 
 ### Outcomes

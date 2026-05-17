@@ -1,0 +1,437 @@
+// Copyright ⓒ 2024-2026 Peter Morgan <peter.james.morgan@gmail.com>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use super::*;
+
+#[derive(Clone, Default, Debug)]
+pub struct Builder<C, N, L, D> {
+    pub(super) cluster: C,
+    pub(super) node: N,
+    pub(super) advertised_listener: L,
+    pub(super) storage: D,
+    pub(super) schemas: Option<Registry>,
+    pub(super) lake: Option<House>,
+    pub(super) cancellation: CancellationToken,
+}
+
+impl<C, N, L, D> Builder<C, N, L, D> {
+    pub(crate) fn cluster<T>(self, cluster: T) -> Builder<String, N, L, D>
+    where
+        T: Into<String>,
+    {
+        Builder {
+            cluster: cluster.into(),
+            node: self.node,
+            advertised_listener: self.advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
+
+    pub(crate) fn node(self, node: i32) -> Builder<C, i32, L, D> {
+        debug!(node);
+        Builder {
+            cluster: self.cluster,
+            node,
+            advertised_listener: self.advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
+
+    pub(crate) fn advertised_listener(self, advertised_listener: Url) -> Builder<C, N, Url, D> {
+        debug!(%advertised_listener);
+        Builder {
+            cluster: self.cluster,
+            node: self.node,
+            advertised_listener,
+            storage: self.storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
+
+    pub(crate) fn storage(self, storage: Url) -> Builder<C, N, L, Url> {
+        debug!(%storage);
+        Builder {
+            cluster: self.cluster,
+            node: self.node,
+            advertised_listener: self.advertised_listener,
+            storage,
+            schemas: self.schemas,
+            lake: self.lake,
+            cancellation: self.cancellation,
+        }
+    }
+
+    pub(crate) fn schemas(self, schemas: Option<Registry>) -> Builder<C, N, L, D> {
+        Self { schemas, ..self }
+    }
+
+    pub(crate) fn lake(self, lake: Option<House>) -> Self {
+        Self { lake, ..self }
+    }
+
+    pub(crate) fn cancellation(self, cancellation: CancellationToken) -> Self {
+        Self {
+            cancellation,
+            ..self
+        }
+    }
+}
+
+pub(super) static DDL: LazyLock<Cache> = LazyLock::new(|| {
+    let mapping = [
+        ("010-cluster.sql", include_sql!("../ddl/010-cluster.sql")),
+        (
+            "020-consumer-group.sql",
+            include_sql!("../ddl/020-consumer-group.sql"),
+        ),
+        ("020-producer.sql", include_sql!("../ddl/020-producer.sql")),
+        (
+            "020-scram-credential.sql",
+            include_sql!("../ddl/020-scram-credential.sql"),
+        ),
+        ("020-topic.sql", include_sql!("../ddl/020-topic.sql")),
+        (
+            "030-consumer-group-detail.sql",
+            include_sql!("../ddl/030-consumer-group-detail.sql"),
+        ),
+        (
+            "030-producer-epoch.sql",
+            include_sql!("../ddl/030-producer-epoch.sql"),
+        ),
+        (
+            "030-topic-configuration.sql",
+            include_sql!("../ddl/030-topic-configuration.sql"),
+        ),
+        ("030-topition.sql", include_sql!("../ddl/030-topition.sql")),
+        ("030-txn.sql", include_sql!("../ddl/030-txn.sql")),
+        (
+            "030-virtual-topic.sql",
+            include_sql!("../ddl/030-virtual-topic.sql"),
+        ),
+        (
+            "040-consumer-offset.sql",
+            include_sql!("../ddl/040-consumer-offset.sql"),
+        ),
+        ("040-header.sql", include_sql!("../ddl/040-header.sql")),
+        (
+            "040-producer-detail.sql",
+            include_sql!("../ddl/040-producer-detail.sql"),
+        ),
+        ("040-record.sql", include_sql!("../ddl/040-record.sql")),
+        (
+            "040-leader-epoch-history.sql",
+            include_sql!("../ddl/040-leader-epoch-history.sql"),
+        ),
+        (
+            "040-txn-detail.sql",
+            include_sql!("../ddl/040-txn-detail.sql"),
+        ),
+        (
+            "040-watermark.sql",
+            include_sql!("../ddl/040-watermark.sql"),
+        ),
+        (
+            "050-txn-offset-commit.sql",
+            include_sql!("../ddl/050-txn-offset-commit.sql"),
+        ),
+        (
+            "050-txn-topition.sql",
+            include_sql!("../ddl/050-txn-topition.sql"),
+        ),
+        (
+            "060-txn-offset-commit-tp.sql",
+            include_sql!("../ddl/060-txn-offset-commit-tp.sql"),
+        ),
+        (
+            "060-txn-produce-offset.sql",
+            include_sql!("../ddl/060-txn-produce-offset.sql"),
+        ),
+    ];
+
+    let mapping = match mapping
+        .into_iter()
+        .map(|(name, ddl)| fix_ddl(ddl.as_str()).map(|ddl| (name, ddl)))
+        .collect::<Result<BTreeMap<_, _>>>()
+    {
+        Ok(mapping) => mapping,
+        Err(err) => panic!("failed to build DDL cache: {err}"),
+    };
+
+    Cache::new(mapping)
+});
+
+pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
+    let mapping = match crate::sql::SQL
+        .iter()
+        .map(|(name, sql)| fix_parameters(sql).map(|sql| (*name, sql)))
+        .collect::<Result<BTreeMap<_, _>>>()
+    {
+        Ok(mapping) => mapping,
+        Err(err) => panic!("failed to build SQL cache: {err}"),
+    };
+
+    Cache::new(mapping)
+});
+
+fn fix_ddl(sql: &str) -> Result<String> {
+    let sql = Regex::new(r"(?i)\s+autoincrement").map(|re| re.replace_all(sql, "").into_owned())?;
+
+    Regex::new(r"(?i)default\s+current_timestamp")
+        .map(|re| {
+            re.replace_all(sql.as_str(), "default '1970-01-01T00:00:00Z'")
+                .into_owned()
+        })
+        .map_err(Into::into)
+}
+
+pub(super) fn fix_parameters(sql: &str) -> Result<String> {
+    let sql =
+        Regex::new(r"(?im)^union$").map(|re| re.replace_all(sql, "union all").into_owned())?;
+
+    Regex::new(r"\$(?<i>\d+)")
+        .map(|re| re.replace_all(sql.as_str(), "?$i").into_owned())
+        .map_err(Into::into)
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(super) enum CompactionMode {
+    Single,
+    #[default]
+    Multi,
+}
+
+impl FromStr for CompactionMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        match s {
+            "single" => Ok(Self::Single),
+            "multi" => Ok(Self::Multi),
+            otherwise => Err(Error::Message(otherwise.to_owned())),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum CommunicationMode {
+    Mpsc,
+    Direct,
+    #[default]
+    Semaphore,
+}
+
+impl FromStr for CommunicationMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> result::Result<Self, Self::Err> {
+        match s {
+            "direct" => Ok(Self::Direct),
+            "mpsc" => Ok(Self::Mpsc),
+            "semaphore" => Ok(Self::Semaphore),
+            otherwise => Err(Error::Message(otherwise.to_owned())),
+        }
+    }
+}
+
+impl Builder<String, i32, Url, Url> {
+    pub(crate) async fn build(self) -> Result<Arc<Box<dyn Storage>>> {
+        debug!(domain = self.storage.domain(), path = self.storage.path());
+
+        let mut path = env::current_dir().inspect(|current_dir| debug!(?current_dir))?;
+
+        if let Some(domain) = self.storage.domain() {
+            path.push(domain);
+        }
+
+        if let Some(relative) = self.storage.path().strip_prefix("/") {
+            path.push(relative);
+        } else {
+            path.push(self.storage.path());
+        }
+
+        debug!(?path);
+
+        let vacuum_into = self.storage.query_pairs().find_map(|(k, v)| {
+            if k == "vacuum_into" {
+                Some(PathBuf::from(v.as_ref()))
+            } else {
+                None
+            }
+        });
+
+        let busy_timeout = match self.storage.query_pairs().find_map(|(k, v)| {
+            if k == "busy_timeout" {
+                human_units::Duration::from_str(v.as_ref())
+                    .map(|duration| duration.0)
+                    .inspect_err(|err| warn!(storage = %self.storage, v = v.as_ref(), ?err))
+                    .ok()
+            } else {
+                None
+            }
+        }) {
+            Some(timeout) => timeout,
+            None => Duration::from_secs(5),
+        };
+
+        let compaction = match self.storage.query_pairs().find_map(|(k, v)| {
+            if k == "compaction" {
+                CompactionMode::from_str(v.as_ref()).ok()
+            } else {
+                None
+            }
+        }) {
+            Some(compaction) => compaction,
+            None => CompactionMode::Multi,
+        };
+
+        let db = Database::open_with_options(
+            path,
+            OpenOptions {
+                create: true,
+                ..OpenOptions::default()
+            },
+        )?;
+        db.set_busy_timeout(busy_timeout);
+
+        {
+            let mut connection = db.connect()?;
+
+            for (name, ddl) in DDL.iter() {
+                let _ = connection
+                    .execute(ddl.as_str(), ())
+                    .inspect(|rows| debug!(name, ?rows))
+                    .inspect_err(|err| error!(name, ?err))?;
+            }
+
+            let register_broker = match SQL.0.get("register_broker.sql") {
+                Some(register_broker) => register_broker,
+                None => {
+                    error!(
+                        cache = "SQL",
+                        key = "register_broker.sql",
+                        "missing cached SQL entry"
+                    );
+                    return Err(Error::UnknownCacheKey("register_broker.sql".into()));
+                }
+            };
+            let _ = connection
+                .execute(
+                    register_broker.as_str(),
+                    vec![Value::from(self.cluster.as_str())],
+                )
+                .inspect(|rows| debug!(name = "register_broker.sql", ?rows))
+                .inspect_err(|err| error!(name = "register_broker.sql", ?err))?;
+        }
+
+        match match self.storage.query_pairs().find_map(|(k, v)| {
+            if k == "mode" {
+                CommunicationMode::from_str(v.as_ref()).ok()
+            } else {
+                None
+            }
+        }) {
+            Some(mode) => mode,
+            None => CommunicationMode::Semaphore,
+        } {
+            CommunicationMode::Mpsc => {
+                let (sender, receiver) = bounded_channel(1);
+                let mut server = JoinSet::new();
+
+                let _ = {
+                    let cancellation = self.cancellation.clone();
+
+                    let storage = Delegate {
+                        cluster: self.cluster,
+                        node: self.node,
+                        advertised_listener: self.advertised_listener,
+                        pool: Pool::builder(ConnectionManager {
+                            db: db.clone(),
+                            busy_timeout,
+                        })
+                        .build()?,
+                        schemas: self.schemas,
+                        lake: self.lake,
+                        vacuum_into,
+                        maintenance: Arc::new(Semaphore::new(1)),
+                        compaction,
+                    };
+
+                    server.spawn(async move {
+                        let server = ChannelRequestLayer::new(cancellation)
+                            .into_layer(RequestStorageService::new(storage));
+
+                        server.serve(Context::default(), receiver).await
+                    })
+                };
+
+                let inner = RequestChannelService::new(sender);
+
+                Ok(Arc::new(Box::new(Engine {
+                    server: Arc::new(server),
+                    inner,
+                }) as Box<dyn Storage>))
+            }
+
+            CommunicationMode::Direct => Ok(Arc::new(Box::new(Delegate {
+                cluster: self.cluster,
+                node: self.node,
+                advertised_listener: self.advertised_listener,
+                pool: Pool::builder(ConnectionManager {
+                    db: db.clone(),
+                    busy_timeout,
+                })
+                .build()?,
+                schemas: self.schemas,
+                lake: self.lake,
+                vacuum_into,
+                maintenance: Arc::new(Semaphore::new(1)),
+                compaction,
+            }) as Box<dyn Storage>)),
+
+            CommunicationMode::Semaphore => Ok(Arc::new(Box::new(SemaphoreProxy::new(Delegate {
+                cluster: self.cluster,
+                node: self.node,
+                advertised_listener: self.advertised_listener,
+                pool: Pool::builder(ConnectionManager {
+                    db: db.clone(),
+                    busy_timeout,
+                })
+                .build()?,
+                schemas: self.schemas,
+                lake: self.lake,
+                vacuum_into,
+                maintenance: Arc::new(Semaphore::new(1)),
+                compaction,
+            })) as Box<dyn Storage>)),
+        }
+    }
+}
+
+pub(super) fn unique_constraint(error_code: ErrorCode) -> impl Fn(RedlineError) -> Error {
+    move |err| {
+        if err.code() == RedlineErrorCode::Constraint {
+            Error::Api(error_code)
+        } else {
+            err.into()
+        }
+    }
+}

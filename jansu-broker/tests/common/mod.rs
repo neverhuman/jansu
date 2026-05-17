@@ -14,7 +14,6 @@
 
 #![allow(dead_code)]
 use bytes::Bytes;
-use glob::glob;
 use jansu_broker::{
     Error, Result,
     coordinator::group::{Coordinator, administrator::Controller},
@@ -32,8 +31,8 @@ use rand::{
     prelude::*,
     rng,
 };
-use std::{env, io::ErrorKind, sync::Arc, thread};
-use tokio::fs::remove_file;
+use std::{env, sync::Arc, thread};
+use tokio::fs::create_dir_all;
 use tracing::{debug, subscriber::DefaultGuard};
 use tracing_subscriber::EnvFilter;
 use url::Url;
@@ -71,10 +70,9 @@ pub(crate) fn init_tracing() -> Result<DefaultGuard> {
 
 pub(crate) enum StorageType {
     InMemory,
-    Lite,
     Postgres,
+    RedlineDb,
     SlateDb,
-    Turso,
 }
 
 pub(crate) async fn storage_container<C>(
@@ -108,99 +106,27 @@ where
             .await
             .map_err(Into::into),
 
-        StorageType::Lite => {
-            let relative = thread::current()
+        StorageType::RedlineDb => {
+            let name = thread::current()
                 .name()
-                .ok_or(Error::Message(String::from("unnamed thread")))
-                .map(|name| {
-                    format!(
-                        "../logs/{}/{}::{name}.db",
-                        env!("CARGO_PKG_NAME"),
-                        env!("CARGO_CRATE_NAME")
-                    )
-                })?;
-
-            let mut path = env::current_dir()?;
-            path.push(relative);
-            debug!(?path);
-
-            match remove_file(path).await {
-                Ok(_) => Ok(()),
-                Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
-                otherwise @ Err(_) => otherwise,
-            }?;
+                .ok_or(Error::Message(String::from("unnamed thread")))?
+                .replace("::", "-");
+            let directory = "../target/jankurai/redlinedb-tests";
+            create_dir_all(directory).await?;
+            let storage_url = format!(
+                "redlinedb://{directory}/{}-{}-{name}-{}.redline",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_CRATE_NAME"),
+                Uuid::new_v4()
+            );
+            debug!(storage_url);
 
             StorageContainer::builder()
                 .cluster_id(cluster)
                 .node_id(node)
                 .advertised_listener(advertised_listener)
                 .schema_registry(schemas)
-                .storage(
-                    thread::current()
-                        .name()
-                        .ok_or(Error::Message(String::from("unnamed thread")))
-                        .map(|name| {
-                            format!(
-                                "sqlite://../logs/{}/{}::{name}.db",
-                                env!("CARGO_PKG_NAME"),
-                                env!("CARGO_CRATE_NAME")
-                            )
-                        })
-                        .inspect(|url| debug!(url))
-                        .and_then(|url| Url::parse(&url).map_err(Into::into))?,
-                )
-                .build()
-                .await
-                .map_err(Into::into)
-        }
-
-        StorageType::Turso => {
-            let relative = thread::current()
-                .name()
-                .ok_or(Error::Message(String::from("unnamed thread")))
-                .map(|name| {
-                    format!(
-                        "../logs/{}/{}::{name}.db*",
-                        env!("CARGO_PKG_NAME"),
-                        env!("CARGO_CRATE_NAME")
-                    )
-                })?;
-
-            let mut path = env::current_dir()?;
-            path.push(relative);
-            debug!(?path);
-
-            if let Some(pattern) = path.to_str() {
-                debug!(pattern);
-
-                let paths = glob(pattern)?;
-
-                for path in paths.flatten() {
-                    debug!(?path);
-
-                    remove_file(path).await?;
-                }
-            }
-
-            StorageContainer::builder()
-                .cluster_id(cluster)
-                .node_id(node)
-                .advertised_listener(advertised_listener)
-                .schema_registry(schemas)
-                .storage(
-                    thread::current()
-                        .name()
-                        .ok_or(Error::Message(String::from("unnamed thread")))
-                        .map(|name| {
-                            format!(
-                                "turso://../logs/{}/{}::{name}.db",
-                                env!("CARGO_PKG_NAME"),
-                                env!("CARGO_CRATE_NAME")
-                            )
-                        })
-                        .inspect(|url| debug!(url))
-                        .and_then(|url| Url::parse(&url).map_err(Into::into))?,
-                )
+                .storage(Url::parse(&storage_url)?)
                 .build()
                 .await
                 .map_err(Into::into)

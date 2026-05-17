@@ -52,7 +52,7 @@ async fn differential_cg_churn() -> Result<(), Box<dyn std::error::Error>> {
 
     let started = Instant::now();
     let _broker_task = tokio::spawn(async move {
-        broker.main(started).await.unwrap();
+        let _ = broker.main(started).await.unwrap();
     });
 
     // Wait for the broker to start
@@ -67,7 +67,7 @@ async fn differential_cg_churn() -> Result<(), Box<dyn std::error::Error>> {
             .set("enable.partition.eof", "false")
             .set("session.timeout.ms", "6000")
             .set("enable.auto.commit", "true")
-            .set("client.id", &format!("consumer-{}", i))
+            .set("client.id", format!("consumer-{}", i))
             .create()?;
 
         consumer.subscribe(&["test-topic"])?;

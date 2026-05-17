@@ -32,7 +32,7 @@ async fn delete_non_existent_records() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(111)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -64,19 +64,18 @@ async fn delete_non_existent_records() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn delete_non_existent_records_lite() -> Result<(), Error> {
-    if std::env::var("JANSU_TEST_TURSO").is_err() {
-        return Ok(());
-    }
-    
+async fn delete_non_existent_records_redlinedb() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let storage = StorageContainer::builder()
         .cluster_id("jansu")
         .node_id(111)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse(std::env::var("JANSU_TEST_TURSO").unwrap().as_str())?)
+        .storage(common::redlinedb_storage_url(
+            "delete-non-existent-records",
+        )?)
         .build()
         .await?;
 
@@ -113,7 +112,7 @@ async fn delete_non_existent_records_pg() -> Result<(), Error> {
     if std::env::var("POSTGRES_URL").is_err() {
         return Ok(());
     }
-    
+
     let _guard = init_tracing()?;
 
     let storage = StorageContainer::builder()

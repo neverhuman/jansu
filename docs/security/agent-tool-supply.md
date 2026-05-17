@@ -73,15 +73,25 @@ against the new version before the bump lands on `main`.
 
 ### `cargo-audit`
 
-- Pinned version: `unpinned`. The repository does not currently invoke
-  `cargo-audit` from any workflow file or `justfile` recipe.
-- Risk: Without a recurring `cargo-audit` run, advisories against the
-  workspace dependencies (`anyhow 1.0.94`, `apache-avro 0.21.0`,
-  `arrow 57`, `libsql 0.9.18`, `lz4 1.28.1`, and so on per the
-  workspace `Cargo.toml`) are not surfaced automatically.
-- Remediation plan: Add a daily scheduled GitHub Actions job that runs
-  `cargo install cargo-audit --version <X.Y.Z> --locked` followed by
-  `cargo audit`. The pinned version goes here when the job lands.
+- Pinned version: `0.22.1`. The Jankurai workflow installs it with
+  `cargo install cargo-audit --version 0.22.1 --locked`.
+- Where invoked: `tools/security-lane.sh`, exposed locally as
+  `just security` and in CI through `.github/workflows/jankurai.yml`.
+- Failure mode: the advisory JSON is always written to
+  `target/jankurai/security/cargo-audit.json`. The Jankurai lane keeps
+  dependency advisories visible without hiding the rest of the audit
+  receipt.
+
+### Jankurai security lane CLIs
+
+- `actionlint` - pinned to `v1.7.7` in `.github/workflows/jankurai.yml`
+  with `go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7`.
+- `zizmor` - pinned to `1.24.1` in `.github/workflows/jankurai.yml`
+  with `cargo install zizmor --version 1.24.1 --locked`.
+- `gitleaks` - pinned to `v8.30.1` in `.github/workflows/jankurai.yml`
+  with `go install github.com/gitleaks/gitleaks/v8@v8.30.1`.
+- `syft` - pinned to `v1.44.0` in `.github/workflows/jankurai.yml`
+  with `go install github.com/anchore/syft/cmd/syft@v1.44.0`.
 
 ### `cargo-about`
 
@@ -118,7 +128,7 @@ against the new version before the bump lands on `main`.
   valid.
 - `libfuzzer-sys = "0.4"` - fuzz runtime; pin lives at
   `Cargo.toml:111`.
-- `libsql = "0.9.18"` - libSQL backend; security-bearing because a
+- `redlinedb = "=1.0.1"` - RedlineDB backend; security-bearing because a
   bug here would let a crafted SQL statement bypass parameter
   binding.
 - `lz4 = "1.28.1"` - record-batch decompression.
@@ -131,9 +141,9 @@ catalogue on every quarterly review.
 ## 3. GitHub Actions
 
 The active workflows under `.github/workflows/` are `ci.yml`,
-`differential-kafka-lab.yml`, and `release.yml`. Every third-party
-action referenced from those files must be SHA-pinned and listed
-below with its human-readable version.
+`differential-kafka-lab.yml`, `jankurai.yml`, and `release.yml`.
+Every third-party action referenced from those files must be
+SHA-pinned and listed below with its human-readable version.
 
 - `actions/checkout` - used in `ci.yml`. SHA pin recorded in the
   workflow file; the catalogue records the human-readable tag for
@@ -142,9 +152,17 @@ below with its human-readable version.
   Provides the matching rust toolchain channel from
   `rust-toolchain.toml`. SHA pin recorded in the workflow file.
 - `extractions/setup-just` - used in `ci.yml` to install the `just`
-  task runner. SHA pin recorded in the workflow file.
+  task runner and in `jankurai.yml` to run the security lane. SHA pin
+  recorded in the workflow file.
 - `actions/upload-artifact` - used in `ci.yml` to persist CI logs.
   SHA pin recorded in the workflow file.
+- `dtolnay/rust-toolchain` - used in `jankurai.yml` to install the
+  pinned Rust toolchain before Jankurai and security tooling are
+  installed. SHA pin recorded in the workflow file.
+- `Swatinem/rust-cache` - used in `jankurai.yml` for audit-lane Rust
+  build cache reuse. SHA pin recorded in the workflow file.
+- `github/codeql-action/upload-sarif` - used in `jankurai.yml` to
+  upload Jankurai SARIF. SHA pin recorded in the workflow file.
 
 The audit lane verifies that every `uses:` line in the workflow files
 either matches a SHA pin recorded here, or is followed by an inline

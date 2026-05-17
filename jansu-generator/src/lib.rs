@@ -234,20 +234,14 @@ pub async fn produce(
         )
     })?;
 
-    assert!(
-        response
-            .responses
+    assert!(response.responses.into_iter().flatten().all(|topic| {
+        topic
+            .partition_responses
             .into_iter()
             .flatten()
-            .all(|topic| {
-                topic
-                    .partition_responses
-                    .into_iter()
-                    .flatten()
-                    .inspect(|partition| debug!(topic = %topic.name, ?partition))
-                    .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-            })
-    );
+            .inspect(|partition| debug!(topic = %topic.name, ?partition))
+            .all(|partition| partition.error_code == i16::from(ErrorCode::None))
+    }));
 
     Ok(())
 }

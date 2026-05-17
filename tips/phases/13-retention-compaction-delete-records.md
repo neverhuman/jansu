@@ -28,7 +28,7 @@ Tests:
 - Add differential tests for DeleteRecords, earliest/latest offsets after deletion, and fetch from deleted ranges.
 - Add compaction tests for tombstones, repeated keys, null keys, delete retention, and compact/delete combined policy.
 - Add retention tests by time and bytes with deterministic clocks.
-- Add engine conformance tests for PostgreSQL first, then SQLite, S3/dynostore, SlateDB, and memory based on certification tier.
+- Add engine conformance tests for PostgreSQL first, then RedlineDB, S3/dynostore, SlateDB, and memory based on certification tier.
 - Add metrics/maintenance tests for background cleaner progress and cancellation.
 
 Acceptance gate: Compacted and delete-policy topics behave like Kafka across certified engines, including log-start movement, tombstones, and ListOffsets/Fetch after cleanup.

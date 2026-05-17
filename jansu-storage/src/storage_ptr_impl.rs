@@ -15,17 +15,14 @@
 use async_trait::async_trait;
 use jansu_sans_io::{
     ConfigResource, ErrorCode, IsolationLevel, ListOffset, ScramMechanism,
-    create_topics_request::CreatableTopic,
-    delete_groups_response::DeletableGroupResult,
-    delete_records_request::DeleteRecordsTopic,
-    delete_records_response::DeleteRecordsTopicResult,
+    create_topics_request::CreatableTopic, delete_groups_response::DeletableGroupResult,
+    delete_records_request::DeleteRecordsTopic, delete_records_response::DeleteRecordsTopicResult,
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::DescribeConfigsResult,
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
     incremental_alter_configs_request::AlterConfigsResource,
     incremental_alter_configs_response::AlterConfigsResourceResponse,
-    list_groups_response::ListedGroup,
-    record::deflated,
+    list_groups_response::ListedGroup, record::deflated,
     txn_offset_commit_response::TxnOffsetCommitResponseTopic,
 };
 use std::{
@@ -40,8 +37,7 @@ use crate::{
     GroupDetail, LeaderEpochRecord, ListOffsetResponse, MetadataResponse, NamedGroupDetail,
     OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse, Result,
     ScramCredential, Storage, TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse,
-    TxnOffsetCommitRequest, UpdateError, Version,
-    capabilities::StorageCapabilities,
+    TxnOffsetCommitRequest, UpdateError, Version, capabilities::StorageCapabilities,
     topic::BrokerRegistrationRequest,
 };
 

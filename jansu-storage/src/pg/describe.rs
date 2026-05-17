@@ -93,7 +93,6 @@ impl Postgres {
         }
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn describe_topic_partitions_storage(
         &self,

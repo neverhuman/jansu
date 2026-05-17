@@ -32,7 +32,7 @@ async fn req() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 

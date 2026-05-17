@@ -280,7 +280,6 @@ impl Postgres {
         }
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn txn_add_offsets_storage(
         &self,
@@ -296,7 +295,6 @@ impl Postgres {
 
         Ok(ErrorCode::None)
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn txn_add_partitions_storage(
@@ -433,7 +431,9 @@ impl Postgres {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(partition_index)
-                                            .partition_error_code(i16::from(ErrorCode::InvalidTxnState)),
+                                            .partition_error_code(i16::from(
+                                                ErrorCode::InvalidTxnState,
+                                            )),
                                     );
                                 }
                             } else {
@@ -513,7 +513,6 @@ impl Postgres {
             }
         }
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn txn_offset_commit_storage(
@@ -639,7 +638,6 @@ impl Postgres {
         Ok(topics)
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn txn_end_storage(
         &self,
@@ -661,6 +659,4 @@ impl Postgres {
 
         Ok(error_code)
     }
-
-
 }

@@ -478,10 +478,7 @@ impl FieldGeneratorConfiguration {
                     None
                 }
             });
-        match found {
-            Some(config) => config,
-            None => Self::default(),
-        }
+        found.unwrap_or_default()
     }
 
     fn skip(&self) -> bool {

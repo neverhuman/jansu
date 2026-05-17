@@ -986,8 +986,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -997,7 +997,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -1148,8 +1148,8 @@ mod slatedb {
     }
 }
 
-#[cfg(feature = "turso")]
-mod turso {
+#[cfg(feature = "redlinedb")]
+mod redlinedb_secondary {
     use std::sync::Arc;
 
     use super::*;
@@ -1159,7 +1159,7 @@ mod turso {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Turso,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -1171,9 +1171,6 @@ mod turso {
     #[tokio::test]
     async fn simple_non_txn() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -1189,9 +1186,6 @@ mod turso {
     #[tokio::test]
     async fn with_txn() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -1207,9 +1201,6 @@ mod turso {
     #[tokio::test]
     async fn with_multiple_txn() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);

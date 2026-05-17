@@ -697,7 +697,7 @@ The phase ledger names the relevant files as `jansu-storage/src/service/list_off
 
 For each backend:
 
-### SQL/libSQL/Postgres
+### SQL/RedlineDB/Postgres
 
 Implement with indexed queries over actual log metadata, not derived object metadata.
 
@@ -863,7 +863,7 @@ Add checks for:
 
 ## Change 7 — Finish leader epoch storage invariants
 
-The audit says SQLite, DynoStore, and SlateDB initialize epoch `0` and produce epoch transitions, but truncation/recovery proof remains incomplete. ([GitHub][2])
+The audit says RedlineDB, DynoStore, and SlateDB initialize epoch `0` and produce epoch transitions, but truncation/recovery proof remains incomplete. ([GitHub][2])
 
 Add hard invariants across backends:
 
@@ -1145,19 +1145,19 @@ The Phase 08 ledger already lists the core verification commands. Run these afte
 ```bash
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-storage \
   cargo test -p jansu-storage --test offset_for_leader_epoch \
-  --no-default-features --features dynostore,libsql,slatedb -- --nocapture
+  --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-list \
   cargo test -p jansu-storage --test list_offsets \
-  --no-default-features --features dynostore,libsql,slatedb -- --nocapture
+  --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fetch \
   cargo test -p jansu-broker --test fetch \
-  --no-default-features --features libsql,dynostore,slatedb -- --nocapture
+  --no-default-features --features redlinedb,dynostore,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-list-broker \
   cargo test -p jansu-broker --test list_offsets \
-  --no-default-features --features libsql,dynostore,slatedb -- --nocapture
+  --no-default-features --features redlinedb,dynostore,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-contract \
   cargo test -p jansu-broker --test compatibility_contract \

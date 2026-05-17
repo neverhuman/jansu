@@ -37,12 +37,7 @@ impl Postgres {
                 .prepare_query_opt(
                     &c,
                     "consumer_offset_select.sql",
-                    &[
-                        &self.cluster,
-                        &group_id,
-                        &base_topic,
-                        &topic.partition(),
-                    ],
+                    &[&self.cluster, &group_id, &base_topic, &topic.partition()],
                 )
                 .await
                 .and_then(|maybe| {
@@ -97,7 +92,6 @@ impl Postgres {
         Ok(offsets)
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn offset_fetch_storage(
         &self,
@@ -114,7 +108,6 @@ impl Postgres {
                     .collect()
             })
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn list_offsets_storage(

@@ -470,10 +470,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(1, records.len());
+        assert_eq!(1, records.len());
 
         assert_eq!(Some(KEY), records[0].key);
         assert_eq!(Some(THREE), records[0].value);
@@ -796,7 +801,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -946,7 +956,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -1089,7 +1104,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -1408,7 +1428,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -1558,7 +1583,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -1701,7 +1731,12 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .inspect(|records| debug!(?records))
             .unwrap_or_default();
 
@@ -2025,10 +2060,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(3, records.len());
+        assert_eq!(3, records.len());
 
         assert_eq!(Some(KEY), records[0].key);
         assert_eq!(Some(ONE), records[0].value);
@@ -2175,10 +2215,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(1, records.len());
+        assert_eq!(1, records.len());
 
         assert_eq!(Some(KEY), records[0].key);
         assert_eq!(Some(THREE), records[0].value);
@@ -2501,10 +2546,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(3, records.len());
+        assert_eq!(3, records.len());
         assert_eq!(Some(KEY), records[0].key);
         assert_eq!(Some(ONE), records[0].value);
 
@@ -2650,10 +2700,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(1, records.len());
+        assert_eq!(1, records.len());
         assert_eq!(Some(KEY), records[0].key);
         assert_eq!(Some(THREE), records[0].value);
     }
@@ -2786,10 +2841,15 @@ where
             .and_then(|partition_data| partition_data.records)
             .and_then(|deflated| inflated::Frame::try_from(deflated).ok())
             .map(|inflated| inflated.batches)
-            .map(|batches| batches.into_iter().flat_map(|b| b.records).collect::<Vec<_>>())
+            .map(|batches| {
+                batches
+                    .into_iter()
+                    .flat_map(|b| b.records)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
-                assert_eq!(0, records.len());
+        assert_eq!(0, records.len());
     }
 
     Ok(())
@@ -2817,7 +2877,9 @@ mod pg {
 
     #[tokio::test]
     async fn compact_only() -> Result<()> {
-        if std::env::var("POSTGRES_URL").is_err() { return Ok(()); }
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
         let _guard = init_tracing()?;
 
         let cluster_id = Uuid::now_v7();
@@ -2831,7 +2893,9 @@ mod pg {
 
     #[tokio::test]
     async fn delete_only() -> Result<()> {
-        if std::env::var("POSTGRES_URL").is_err() { return Ok(()); }
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
         let _guard = init_tracing()?;
 
         let cluster_id = Uuid::now_v7();
@@ -2845,7 +2909,9 @@ mod pg {
 
     #[tokio::test]
     async fn delete_no_retention_ms_only() -> Result<()> {
-        if std::env::var("POSTGRES_URL").is_err() { return Ok(()); }
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
         let _guard = init_tracing()?;
 
         let cluster_id = Uuid::now_v7();
@@ -2859,7 +2925,9 @@ mod pg {
 
     #[tokio::test]
     async fn compact_delete_001() -> Result<()> {
-        if std::env::var("POSTGRES_URL").is_err() { return Ok(()); }
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
         let _guard = init_tracing()?;
 
         let cluster_id = Uuid::now_v7();
@@ -2873,7 +2941,9 @@ mod pg {
 
     #[tokio::test]
     async fn compact_delete_002() -> Result<()> {
-        if std::env::var("POSTGRES_URL").is_err() { return Ok(()); }
+        if std::env::var("POSTGRES_URL").is_err() {
+            return Ok(());
+        }
         let _guard = init_tracing()?;
 
         let cluster_id = Uuid::now_v7();
@@ -2971,8 +3041,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -2982,7 +3052,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -3059,8 +3129,8 @@ mod lite {
 
 #[cfg(feature = "slatedb")]
 mod slatedb {
-    use std::sync::Arc;
     use super::*;
+    use std::sync::Arc;
 
     async fn storage_container(
         cluster: impl Into<String>,

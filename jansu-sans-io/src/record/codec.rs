@@ -135,9 +135,7 @@ impl Octets {
                         .map_err(|error| de::Error::custom(format!("{error:?}")))?;
 
                     while length >= 1 {
-                        let char = seq
-                            .next_element::<u8>()?
-                            .ok_or(de::Error::custom("byte"))?;
+                        let char = seq.next_element::<u8>()?.ok_or(de::Error::custom("byte"))?;
 
                         r.put_u8(char);
                         length -= 1;
@@ -350,9 +348,7 @@ where
                 };
                 debug!("length: {length}");
                 let capacity = length.try_into().map_err(|e| {
-                    <A::Error as de::Error>::custom(format!(
-                        "length: {length}, caused: {e:?}"
-                    ))
+                    <A::Error as de::Error>::custom(format!("length: {length}, caused: {e:?}"))
                 })?;
                 (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
                     match seq.next_element::<T>()? {
@@ -454,9 +450,7 @@ impl<T> Sequence<T> {
                 };
                 debug!("length: {length}");
                 let capacity = length.try_into().map_err(|e| {
-                    <A::Error as de::Error>::custom(format!(
-                        "length: {length}, caused: {e:?}"
-                    ))
+                    <A::Error as de::Error>::custom(format!("length: {length}, caused: {e:?}"))
                 })?;
                 (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
                     match seq.next_element::<T>()? {

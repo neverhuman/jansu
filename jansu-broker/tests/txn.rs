@@ -1789,8 +1789,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -1800,7 +1800,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,

@@ -89,16 +89,15 @@ async fn message_descriptor_singular_to_field() -> Result<()> {
     let location = format!("file://{}", temp_dir.path().to_str().unwrap());
     let database = "pqr";
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -127,10 +126,9 @@ async fn message_descriptor_singular_to_field() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -193,16 +191,15 @@ async fn taxi_plain() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -220,10 +217,9 @@ async fn taxi_plain() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -286,16 +282,15 @@ async fn taxi_normalized() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -324,10 +319,9 @@ async fn taxi_normalized() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -390,16 +384,15 @@ async fn taxi_normalized_with_separator() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -438,10 +431,9 @@ async fn taxi_normalized_with_separator() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -504,16 +496,15 @@ async fn taxi_normalized_partition_on_value_dot_vendor_id() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -552,10 +543,9 @@ async fn taxi_normalized_partition_on_value_dot_vendor_id() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -618,16 +608,15 @@ async fn taxi_date_generated_field() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -656,10 +645,9 @@ async fn taxi_date_generated_field() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -722,16 +710,15 @@ async fn taxi_partition_on_date_generated_field() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -770,10 +757,9 @@ async fn taxi_partition_on_date_generated_field() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -836,16 +822,15 @@ async fn taxi_partition_on_value_vendor_id_is_an_error() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -917,16 +902,15 @@ async fn taxi_partition_on_vendor_id_generated_field() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_message(None)
@@ -994,10 +978,9 @@ async fn taxi_partition_on_vendor_id_generated_field() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -1062,16 +1045,15 @@ async fn repeated_string() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -1089,10 +1071,9 @@ async fn repeated_string() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -1150,16 +1131,15 @@ async fn customer_schema_migration() -> Result<()> {
     let location = format!("file://{}", temp_dir.path().to_str().unwrap());
     let database = "pqr";
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -1182,10 +1162,9 @@ async fn customer_schema_migration() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -1228,16 +1207,15 @@ async fn customer_schema_migration() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch_002).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let offset = 654323456;
 
@@ -1248,10 +1226,9 @@ async fn customer_schema_migration() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };
@@ -1295,16 +1272,15 @@ async fn customer_schema_migration() -> Result<()> {
 
     schema_registry.validate(topic, &record_batch_003).await?;
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let offset = 765434567;
 
@@ -1315,10 +1291,9 @@ async fn customer_schema_migration() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };

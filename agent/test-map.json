@@ -48,6 +48,10 @@
       "command": "just score",
       "purpose": "verify claude jankurai skill routing"
     },
+    ".config/": {
+      "command": "just fast",
+      "purpose": "verify local nextest config routing"
+    },
     ".cursor/": {
       "command": "just score",
       "purpose": "verify .cursor path routing"
@@ -439,10 +443,6 @@
     "python/ai-service/": {
       "command": "just score",
       "purpose": "verify Python AI service routing and containment"
-    },
-    "phase08-libsql-produce-leader-epoch.db": {
-      "command": "just fast",
-      "purpose": "generic proof for DB artifact"
     },
     "rust-toolchain.toml": {
       "command": "just fast",

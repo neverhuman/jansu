@@ -704,7 +704,7 @@ where
         .record(
             Record::builder()
                 .timestamp_delta(0)
-                .value(Some(value.clone().into())),
+                .value(Some(value.clone())),
         )
         .build()
         .and_then(TryInto::try_into)
@@ -805,7 +805,7 @@ where
                 .replica_id(-1)
                 .topics(Some(
                     [ListOffsetsTopic::default()
-                        .name(topic_name.into())
+                        .name(topic_name)
                         .partitions(Some(
                             [
                                 ListOffsetsPartition::default()
@@ -914,49 +914,47 @@ async fn full_stack_round_trips_list_offsets_v9() -> Result<()> {
         BytesLayer,
         BytesFrameLayer::default(),
     )
-        .into_layer(FrameService::new::<(), Error>(
-            move |_, req: Frame| {
-                assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
-                assert_eq!(9, req.api_version()?);
+        .into_layer(FrameService::new::<(), Error>(move |_, req: Frame| {
+            assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
+            assert_eq!(9, req.api_version()?);
 
-                Ok(Frame {
-                    size: 0,
-                    header: Header::Response {
-                        correlation_id: req.correlation_id()?,
-                    },
-                    body: jansu_sans_io::Body::ListOffsetsResponse(
-                        jansu_sans_io::ListOffsetsResponse::default()
-                            .throttle_time_ms(Some(0))
-                            .topics(Some(
-                                [ListOffsetsTopicResponse::default()
-                                    .name("topic".into())
-                                    .partitions(Some(
-                                        [
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(0)
-                                                .error_code(0)
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(1_725_000_000_000))
-                                                .offset(Some(12))
-                                                .leader_epoch(Some(1)),
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(1)
-                                                .error_code(i16::from(
-                                                    ErrorCode::UnknownTopicOrPartition,
-                                                ))
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(-1))
-                                                .offset(Some(-1))
-                                                .leader_epoch(Some(-1)),
-                                        ]
-                                        .into(),
-                                    ))]
-                                .into(),
-                            )),
-                    ),
-                })
-            },
-        ));
+            Ok(Frame {
+                size: 0,
+                header: Header::Response {
+                    correlation_id: req.correlation_id()?,
+                },
+                body: jansu_sans_io::Body::ListOffsetsResponse(
+                    jansu_sans_io::ListOffsetsResponse::default()
+                        .throttle_time_ms(Some(0))
+                        .topics(Some(
+                            [ListOffsetsTopicResponse::default()
+                                .name("topic".into())
+                                .partitions(Some(
+                                    [
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(0)
+                                            .error_code(0)
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(1_725_000_000_000))
+                                            .offset(Some(12))
+                                            .leader_epoch(Some(1)),
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(1)
+                                            .error_code(i16::from(
+                                                ErrorCode::UnknownTopicOrPartition,
+                                            ))
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(-1))
+                                            .offset(Some(-1))
+                                            .leader_epoch(Some(-1)),
+                                    ]
+                                    .into(),
+                                ))]
+                            .into(),
+                        )),
+                ),
+            })
+        }));
 
     let response = service
         .serve(
@@ -1197,7 +1195,7 @@ async fn storage_route_round_trips_list_offsets_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .num_partitions(2)
@@ -1279,7 +1277,7 @@ async fn storage_route_round_trips_produced_leader_epoch_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .name(topic_name.into())
@@ -1608,8 +1606,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -1619,7 +1617,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,

@@ -927,7 +927,7 @@ CREATE TABLE IF NOT EXISTS partition_assignment (
     leader INTEGER NOT NULL,
     leader_epoch INTEGER NOT NULL DEFAULT 0,
 
-    -- Store as JSON for SQLite/libSQL portability.
+    -- Store as JSON for RedlineDB portability.
     replicas TEXT NOT NULL,
     isr TEXT NOT NULL,
     offline_replicas TEXT NOT NULL DEFAULT '[]',
@@ -1776,7 +1776,7 @@ Every one of these operations must be transactionally safe:
 7. Begin leader epoch.
 8. Truncate.
 
-For SQL storage, use `SELECT ... FOR UPDATE` where PostgreSQL supports it. For SQLite/libSQL, use `BEGIN IMMEDIATE` to serialize writers.
+For SQL storage, use `SELECT ... FOR UPDATE` where PostgreSQL supports it. For RedlineDB, use `BEGIN IMMEDIATE` to serialize writers.
 
 ## 13.2 Append as leader
 

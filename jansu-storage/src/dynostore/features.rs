@@ -36,7 +36,10 @@ impl DynoStore {
         ])
     }
 
-    pub(super) async fn register_broker_inner(&self, _broker_registration: BrokerRegistrationRequest) -> Result<()> {
+    pub(super) async fn register_broker_inner(
+        &self,
+        _broker_registration: BrokerRegistrationRequest,
+    ) -> Result<()> {
         Ok(())
     }
 
@@ -104,7 +107,11 @@ impl DynoStore {
     }
 
     #[instrument(skip_all, fields(topic = %topic.name))]
-    pub(super) async fn create_topic_inner(&self, topic: CreatableTopic, _validate_only: bool) -> Result<Uuid> {
+    pub(super) async fn create_topic_inner(
+        &self,
+        topic: CreatableTopic,
+        _validate_only: bool,
+    ) -> Result<Uuid> {
         Meta::validate_topic_configs(topic.configs.as_deref())?;
 
         match self
@@ -177,7 +184,7 @@ impl DynoStore {
             for partition in topic.partitions.as_ref().unwrap_or(&vec![]) {
                 let partition_index = partition.partition_index;
                 let offset = partition.offset;
-                
+
                 let topition = Topition::new(topic.name.as_str(), partition_index);
 
                 // Update low watermark
@@ -189,12 +196,14 @@ impl DynoStore {
                             .to_owned()
                     })?;
 
-                    watermark.with_mut(&self.object_store, |watermark| {
-                        if watermark.low.unwrap_or(0) < offset {
-                            watermark.low = Some(offset);
-                        }
-                        Ok(watermark.low.unwrap_or(0))
-                    }).await?
+                    watermark
+                        .with_mut(&self.object_store, |watermark| {
+                            if watermark.low.unwrap_or(0) < offset {
+                                watermark.low = Some(offset);
+                            }
+                            Ok(watermark.low.unwrap_or(0))
+                        })
+                        .await?
                 };
 
                 // Delete objects < offset
@@ -206,22 +215,24 @@ impl DynoStore {
                 let locations = self
                     .object_store
                     .list(Some(&location))
-                    .filter_map(move |m| {
-                        async move {
-                            m.map_or(None, |m| {
-                                let Some(part) = m.location.parts().next_back() else { return None; };
-                                if let Ok(record_offset) = i64::from_str(&part.as_ref()[0..20]) {
-                                    if record_offset < offset {
-                                        return Some(Ok(m.location.clone()));
-                                    }
-                                }
-                                None
-                            })
-                        }
+                    .filter_map(move |m| async move {
+                        m.map_or(None, |m| {
+                            let part = m.location.parts().next_back()?;
+                            if let Ok(record_offset) = i64::from_str(&part.as_ref()[0..20])
+                                && record_offset < offset
+                            {
+                                return Some(Ok(m.location.clone()));
+                            }
+                            None
+                        })
                     })
                     .boxed();
 
-                _ = self.object_store.delete_stream(locations).try_collect::<Vec<Path>>().await;
+                _ = self
+                    .object_store
+                    .delete_stream(locations)
+                    .try_collect::<Vec<Path>>()
+                    .await;
 
                 partitions.push(
                     DeleteRecordsPartitionResult::default()
@@ -334,7 +345,6 @@ impl DynoStore {
 
         let compacted = self.policy_compact().await?;
         debug!(compacted);
-
 
         let prefix = Path::from(format!("clusters/{}/groups/consumers/", self.cluster));
         let mut list_stream = self.object_store.list(Some(&prefix));

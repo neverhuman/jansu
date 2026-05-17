@@ -21,8 +21,8 @@ use apache_avro::{
 use arrow::array::{
     ArrayBuilder, BooleanBuilder, Date32Builder, Float32Builder, Float64Builder, Int32Builder,
     Int64Builder, LargeBinaryBuilder, ListBuilder, MapBuilder, NullBuilder, StringBuilder,
-    StructBuilder, Time32MillisecondBuilder, Time64MicrosecondBuilder,
-    TimestampMicrosecondBuilder, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
+    StructBuilder, Time32MillisecondBuilder, Time64MicrosecondBuilder, TimestampMicrosecondBuilder,
+    TimestampMillisecondBuilder, TimestampNanosecondBuilder,
 };
 use tracing::{debug, error};
 
@@ -191,9 +191,7 @@ pub(super) fn append_struct_builder(
             (AvroSchema::Duration, _) => {
                 return Err(Error::NotImplemented {
                     kind: "avro_to_arrow",
-                    detail: format!(
-                        "Avro Duration struct field {name:?} is not supported"
-                    ),
+                    detail: format!("Avro Duration struct field {name:?} is not supported"),
                 });
             }
             (AvroSchema::Ref { name: ref_name }, _) => {

@@ -15,12 +15,12 @@
 //! Storage error type and conversions.
 
 use bytes::{Bytes, TryGetError};
-#[cfg(any(feature = "libsql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 use deadpool::managed::PoolError;
 use glob::{GlobError, PatternError};
 use governor::InsufficientCapacity;
 use jansu_sans_io::{Body, ErrorCode, add_partitions_to_txn_request::AddPartitionsToTxnRequest};
-#[cfg(any(feature = "libsql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 use std::error;
 use std::{
     array::TryFromSliceError,
@@ -48,7 +48,7 @@ pub enum Error {
 
     ChronoParse(#[from] chrono::ParseError),
 
-    #[cfg(any(feature = "postgres", feature = "libsql"))]
+    #[cfg(feature = "postgres")]
     DeadPoolBuild(#[from] deadpool::managed::BuildError),
 
     Decode(Bytes),
@@ -76,9 +76,6 @@ pub enum Error {
         last_offset: Option<i64>,
     },
 
-    #[cfg(feature = "libsql")]
-    LibSql(Arc<libsql::Error>),
-
     LessThanMaxTime {
         time: i64,
         max_time: Option<i64>,
@@ -103,13 +100,16 @@ pub enum Error {
     PhantomCached(),
     Poison,
 
-    #[cfg(any(feature = "libsql", feature = "postgres"))]
+    #[cfg(feature = "postgres")]
     Pool(Arc<Box<dyn error::Error + Send + Sync>>),
 
     #[cfg(feature = "slatedb")]
     Postcard(#[from] postcard::Error),
 
     Regex(#[from] regex::Error),
+
+    #[cfg(feature = "redlinedb")]
+    RedlineDb(Arc<::redlinedb::Error>),
 
     SansIo(#[from] jansu_sans_io::Error),
 
@@ -138,15 +138,9 @@ pub enum Error {
 
     TryGet(Arc<TryGetError>),
 
-    #[cfg(feature = "turso")]
-    Turso(Arc<turso::Error>),
-
     UnexpectedBody(Box<Body>),
 
     UnexpectedServiceResponse(Box<Response>),
-
-    #[cfg(feature = "turso")]
-    UnexpectedValue(turso::Value),
 
     UnknownCacheKey(String),
 
@@ -185,7 +179,7 @@ impl From<AcquireError> for Error {
     }
 }
 
-#[cfg(any(feature = "libsql", feature = "postgres"))]
+#[cfg(feature = "postgres")]
 impl<E> From<PoolError<E>> for Error
 where
     E: error::Error + Send + Sync + 'static,
@@ -195,10 +189,10 @@ where
     }
 }
 
-#[cfg(feature = "libsql")]
-impl From<libsql::Error> for Error {
-    fn from(value: libsql::Error) -> Self {
-        Self::LibSql(Arc::new(value))
+#[cfg(feature = "redlinedb")]
+impl From<::redlinedb::Error> for Error {
+    fn from(value: ::redlinedb::Error) -> Self {
+        Self::RedlineDb(Arc::new(value))
     }
 }
 
@@ -206,13 +200,6 @@ impl From<libsql::Error> for Error {
 impl From<slatedb::Error> for Error {
     fn from(value: slatedb::Error) -> Self {
         Self::Slate(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "turso")]
-impl From<turso::Error> for Error {
-    fn from(value: turso::Error) -> Self {
-        Self::Turso(Arc::new(value))
     }
 }
 

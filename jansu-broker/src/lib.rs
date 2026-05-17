@@ -87,9 +87,6 @@ pub enum Error {
     Json(Arc<serde_json::Error>),
     KafkaProtocol(#[from] jansu_sans_io::Error),
 
-    #[cfg(feature = "libsql")]
-    LibSql(Arc<libsql::Error>),
-
     Message(String),
     Model(#[from] jansu_model::Error),
 
@@ -114,9 +111,6 @@ pub enum Error {
     TokioPostgres(Arc<tokio_postgres::error::Error>),
     TryFromInt(#[from] TryFromIntError),
 
-    #[cfg(feature = "turso")]
-    Turso(Arc<turso::Error>),
-
     UnsupportedApiService(i16),
     UnsupportedStorageUrl(Url),
     UnsupportedTracingFormat(String),
@@ -125,34 +119,6 @@ pub enum Error {
     Uuid(#[from] uuid::Error),
     SchemaValidation,
     Send(Arc<SendError<CancelKind>>),
-}
-
-#[cfg(feature = "libsql")]
-impl From<libsql::Error> for Error {
-    fn from(value: libsql::Error) -> Self {
-        Self::from(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "libsql")]
-impl From<Arc<libsql::Error>> for Error {
-    fn from(value: Arc<libsql::Error>) -> Self {
-        Self::LibSql(value)
-    }
-}
-
-#[cfg(feature = "turso")]
-impl From<turso::Error> for Error {
-    fn from(value: turso::Error) -> Self {
-        Self::from(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "turso")]
-impl From<Arc<turso::Error>> for Error {
-    fn from(value: Arc<turso::Error>) -> Self {
-        Self::Turso(value)
-    }
 }
 
 impl From<PatternError> for Error {

@@ -37,7 +37,7 @@ use jansu_sans_io::{
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     delete_groups_response::DeletableGroupResult,
     delete_records_request::DeleteRecordsTopic,
-    delete_records_response::{DeleteRecordsTopicResult, DeleteRecordsPartitionResult},
+    delete_records_response::{DeleteRecordsPartitionResult, DeleteRecordsTopicResult},
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
     describe_topic_partitions_response::{
@@ -311,7 +311,12 @@ impl Meta {
                             let mut list = configuration
                                 .get(change.name.as_str())
                                 .and_then(|v| v.as_deref())
-                                .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
+                                .map(|s| {
+                                    s.split(',')
+                                        .map(str::trim)
+                                        .filter(|s| !s.is_empty())
+                                        .collect::<Vec<_>>()
+                                })
                                 .unwrap_or(Vec::new());
 
                             if !list.contains(&new_val.as_str()) {
@@ -326,9 +331,14 @@ impl Meta {
                             let list = configuration
                                 .get(change.name.as_str())
                                 .and_then(|v| v.as_deref())
-                                .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
+                                .map(|s| {
+                                    s.split(',')
+                                        .map(str::trim)
+                                        .filter(|s| !s.is_empty() && *s != del_val.as_str())
+                                        .collect::<Vec<_>>()
+                                })
                                 .unwrap_or(Vec::new());
-                                
+
                             if list.is_empty() {
                                 _ = configuration.remove(change.name.as_str());
                             } else {
@@ -346,11 +356,7 @@ impl Meta {
                     configuration
                         .into_iter()
                         .fold(Vec::new(), |mut acc, (key, value)| {
-                            acc.push(
-                                CreatableTopicConfig::default()
-                                    .name(key)
-                                    .value(value),
-                            );
+                            acc.push(CreatableTopicConfig::default().name(key).value(value));
                             acc
                         }),
                 );

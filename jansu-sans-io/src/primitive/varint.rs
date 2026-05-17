@@ -150,9 +150,7 @@ impl VarInt {
                 let mut done = false;
 
                 while !done {
-                    let byte = seq
-                        .next_element::<u8>()?
-                        .ok_or(de::Error::custom("u8"))?;
+                    let byte = seq.next_element::<u8>()?.ok_or(de::Error::custom("u8"))?;
 
                     if byte & CONTINUATION == CONTINUATION {
                         let intermediate = u32::from(byte & MASK);
@@ -345,9 +343,7 @@ impl LongVarInt {
                 let mut done = false;
 
                 while !done {
-                    let byte = seq
-                        .next_element::<u8>()?
-                        .ok_or(de::Error::custom("u8"))?;
+                    let byte = seq.next_element::<u8>()?.ok_or(de::Error::custom("u8"))?;
 
                     if byte & CONTINUATION == CONTINUATION {
                         let intermediate = u64::from(byte & MASK);
@@ -497,9 +493,7 @@ impl UnsignedVarInt {
                 let mut done = false;
 
                 while !done {
-                    let byte = seq
-                        .next_element::<u8>()?
-                        .ok_or(de::Error::custom("byte"))?;
+                    let byte = seq.next_element::<u8>()?.ok_or(de::Error::custom("byte"))?;
 
                     debug!("byte: {byte}");
 

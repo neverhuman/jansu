@@ -783,13 +783,15 @@ fn datafusion_projection(col_list: &str) -> String {
     stmt
 }
 
-fn validate_generated_col_name(col_name: &str) -> crate::Result<()> {
+fn validate_generated_col_name(col_name: &str) -> Result<()> {
     let upper = col_name.to_uppercase();
-    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
-        .iter()
-        .any(|kw| upper.contains(kw))
+    if [
+        "DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC",
+    ]
+    .iter()
+    .any(|kw| upper.contains(kw))
     {
-        Err(crate::Error::Message(format!(
+        Err(Error::Message(format!(
             "generated column name contains disallowed keyword: {col_name}"
         )))
     } else {

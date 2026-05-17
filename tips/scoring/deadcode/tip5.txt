@@ -194,7 +194,7 @@ These are not “dead code” in the narrow sense, but they create the same repo
 138. Generated coverage reports.
 139. Local test output files.
 140. Logs.
-141. Temporary SQLite/db files.
+141. Temporary RedlineDB/db files.
 142. Binary dumps.
 143. Screenshots from manual QA.
 144. Old benchmark output.

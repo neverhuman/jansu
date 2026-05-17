@@ -76,7 +76,7 @@ async fn non_txn_idempotent_unknown_producer_id() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -146,7 +146,7 @@ async fn non_txn_idempotent() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -326,7 +326,7 @@ async fn non_txn_idempotent_duplicate_sequence() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -457,7 +457,7 @@ async fn non_txn_idempotent_sequence_out_of_order() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -591,7 +591,7 @@ async fn list_offsets() -> Result<(), Error> {
         .cluster_id(cluster_id)
         .node_id(node_id)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -849,7 +849,7 @@ mod doctest_template {
     use rama::{Context, Layer as _, Service as _, layer::MapStateLayer};
     use url::Url;
 
-    use crate::common::{Error, init_tracing};
+    use crate::common::{self, Error, init_tracing};
 
     #[tokio::test]
     async fn req() -> Result<(), Error> {
@@ -864,7 +864,7 @@ mod doctest_template {
             .cluster_id(CLUSTER_ID)
             .node_id(NODE_ID)
             .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-            .storage(Url::parse("memory://jansu/")?)
+            .storage(common::default_storage_url()?)
             .build()
             .await?;
 

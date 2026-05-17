@@ -27,13 +27,13 @@ Append-only tracker for gaps surfaced by veox-native integration work.
 - Resolved: Kafka-equivalent timestamp seek / lookup parity for explicitly
   produced record timestamps now includes the end-of-log after-last case in the
   in-memory path.
-- Resolved: backend-specific end-of-log timestamp behavior for `libsql` and
+- Resolved: backend-specific end-of-log timestamp behavior for `redlinedb` and
   `slatedb` now matches the dynostore contract on the after-last timestamp
   case.
 - Resolved: `DescribeConfigs` now returns 22 Kafka-standard topic config
   defaults (cleanup.policy, retention.ms, segment.bytes, max.message.bytes,
   min.insync.replicas, compression.type, etc.) via centralized service-layer
-  defaults. All backends (dynostore, slatedb, libsql, pg) return identical
+  defaults. All backends (dynostore, slatedb, redlinedb, pg) return identical
   config sets.
 - Resolved: Synonym expansion now covers all 22 topic config keys with
   proper broker-level alias names (e.g., segment.bytes → log.segment.bytes).

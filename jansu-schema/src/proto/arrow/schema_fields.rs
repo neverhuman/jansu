@@ -1,4 +1,4 @@
-use super::{append, ARROW_LIST_FIELD_NAME, GOOGLE_PROTOBUF_TIMESTAMP, NULLABLE, SORTED_MAP_KEYS};
+use super::{ARROW_LIST_FIELD_NAME, GOOGLE_PROTOBUF_TIMESTAMP, NULLABLE, SORTED_MAP_KEYS, append};
 use crate::proto::{MessageKind, Schema};
 use arrow::{
     array::{
@@ -11,7 +11,7 @@ use arrow::{
 use parquet::arrow::PARQUET_FIELD_ID_META_KEY;
 use protobuf::reflect::{MessageDescriptor, RuntimeFieldType, RuntimeType};
 use std::collections::BTreeMap;
-use tracing::{debug, error};
+use tracing::debug;
 
 impl Schema {
     fn new_list_field(
@@ -53,7 +53,11 @@ impl Schema {
                 .collect(),
         )
     }
-    pub(super) fn field(&self, ids: &BTreeMap<String, i32>, message_kind: MessageKind) -> Option<Field> {
+    pub(super) fn field(
+        &self,
+        ids: &BTreeMap<String, i32>,
+        message_kind: MessageKind,
+    ) -> Option<Field> {
         debug!(?message_kind);
 
         self.message_by_package_relative_name(message_kind)

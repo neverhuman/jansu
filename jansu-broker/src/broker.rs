@@ -29,12 +29,12 @@ use crate::{
 };
 use console::Term;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use jansu_model::AgentException;
 use jansu_sans_io::{ErrorCode, RootMessageMeta};
 use jansu_schema::{Registry, lake::House};
 use jansu_storage::{
     AdvertisedListenerStorage, ArcDynStorage, BrokerRegistrationRequest, Storage, StorageContainer,
 };
-use jansu_model::AgentException;
 use rama::{Context, Service};
 use rsasl::config::SASLConfig;
 use rustls::ServerConfig;
@@ -105,7 +105,7 @@ impl BrokerHandle {
     pub async fn join(mut self) -> Result<ErrorCode> {
         let join = self.join.take().expect("broker handle join task missing");
 
-        Ok(join.await??)
+        join.await?
     }
 }
 
@@ -180,10 +180,9 @@ where
         let token = self.cancellation.clone();
 
         _ = set.spawn(async move {
-            self.serve(started)
-                .await
-                .inspect_err(|err| error!(?err))
-                .ok();
+            if let Err(err) = self.serve(started).await {
+                error!(?err);
+            }
         });
 
         let kind = tokio::select! {
@@ -314,7 +313,9 @@ where
         E: std::fmt::Debug,
     {
         update(bootstrap).map_err(|err| {
-            Error::Custom(format!("unable to update bootstrap {kind} for {bootstrap}: {err:?}"))
+            Error::Custom(format!(
+                "unable to update bootstrap {kind} for {bootstrap}: {err:?}"
+            ))
         })
     }
 
@@ -343,21 +344,25 @@ where
                 debug!(?host, port);
 
                 match host {
-                    url::Host::Domain(domain) => match SocketAddr::from_str(&format!("{domain}:{port}")) {
-                        Ok(addr) => addr,
-                        Err(err) => {
-                            return Err(broker_agent_exception(
-                                "BROKER_BIND_PARSE_FAIL",
-                                "bind the broker listener",
-                                format!("unable to parse listener address {domain}:{port}: {err}"),
-                                &[
-                                    "use an IP literal or a resolvable host name in the listener URL",
-                                    "avoid embedding the port in the host segment",
-                                ],
-                                "fix the listener URL and rerun cargo test -p jansu-broker --lib --no-run",
-                            ));
+                    url::Host::Domain(domain) => {
+                        match SocketAddr::from_str(&format!("{domain}:{port}")) {
+                            Ok(addr) => addr,
+                            Err(err) => {
+                                return Err(broker_agent_exception(
+                                    "BROKER_BIND_PARSE_FAIL",
+                                    "bind the broker listener",
+                                    format!(
+                                        "unable to parse listener address {domain}:{port}: {err}"
+                                    ),
+                                    &[
+                                        "use an IP literal or a resolvable host name in the listener URL",
+                                        "avoid embedding the port in the host segment",
+                                    ],
+                                    "fix the listener URL and rerun cargo test -p jansu-broker --lib --no-run",
+                                ));
+                            }
                         }
-                    },
+                    }
                     url::Host::Ipv4(ipv4_addr) => SocketAddr::from((IpAddr::V4(ipv4_addr), port)),
                     url::Host::Ipv6(ipv6_addr) => SocketAddr::from((IpAddr::V6(ipv6_addr), port)),
                 }
@@ -374,10 +379,7 @@ where
         self.serve_listener(
             started,
             listener,
-            AdvertisedListenerStorage::new(
-                self.storage.clone(),
-                self.advertised_listener.clone(),
-            ),
+            AdvertisedListenerStorage::new(self.storage.clone(), self.advertised_listener.clone()),
         )
         .await
     }

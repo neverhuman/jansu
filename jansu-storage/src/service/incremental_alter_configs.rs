@@ -70,7 +70,10 @@ use crate::{Error, Result, Storage};
 ///
 /// assert_eq!(
 ///     ErrorCode::None,
-///     ErrorCode::try_from(response.topics.unwrap_or(Vec::new())[0].error_code)?
+///     ErrorCode::try_from(match response.topics {
+///         Some(topics) => topics,
+///         None => Vec::new(),
+///     }[0].error_code)?
 /// );
 ///
 /// let config_name = "cleanup.policy";
@@ -97,7 +100,10 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// assert!(response.results.unwrap_or(Vec::new())[0].configs.is_none());
+/// assert!(match response.results {
+///     Some(results) => results,
+///     None => Vec::new(),
+/// }[0].configs.is_none());
 ///
 /// let alter_configs = {
 ///     let storage = storage.clone();
@@ -139,11 +145,17 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let results = response.results.as_deref().unwrap_or(&[]);
+/// let results = match response.results.as_deref() {
+///     Some(results) => results,
+///     None => &[],
+/// };
 /// assert_eq!(1, results.len());
 /// assert_eq!(resource_name, results[0].resource_name.as_str());
 ///
-/// let configs = results[0].configs.as_deref().unwrap_or(&[]);
+/// let configs = match results[0].configs.as_deref() {
+///     Some(configs) => configs,
+///     None => &[],
+/// };
 /// assert_eq!(1, configs.len());
 /// assert_eq!(Some(config_value), configs[0].value.as_deref());
 /// # Ok(())
@@ -171,7 +183,12 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for resource in req.resources.unwrap_or(Vec::new()) {
+        let resources = match req.resources {
+            Some(resources) => resources,
+            None => Vec::new(),
+        };
+
+        for resource in resources {
             responses.push(ctx.state().incremental_alter_resource(resource).await?);
         }
 

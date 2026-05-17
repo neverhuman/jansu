@@ -1,4 +1,4 @@
-Absolutely — I would **not** use the generic 18-milestone “from scratch” roadmap as-is. Jansu is already much farther along in the protocol/server/storage skeleton, but it also has a very specific architectural identity: **stateless Kafka-compatible brokers backed by PostgreSQL, SQLite/libSQL, S3, or memory**, with schema/data-lake integrations. The plan has to preserve that advantage while closing the semantic gaps that make Kafka feel “boringly interchangeable” to existing clients. Jansu’s README already positions it as a drop-in Kafka replacement and shows regular Kafka CLI/librdkafka usage, but it also documents the current simplification that all brokers are effectively node `111` / leader / ISR for partitions. ([GitHub][1])
+Absolutely — I would **not** use the generic 18-milestone “from scratch” roadmap as-is. Jansu is already much farther along in the protocol/server/storage skeleton, but it also has a very specific architectural identity: **stateless Kafka-compatible brokers backed by PostgreSQL, RedlineDB, S3, or memory**, with schema/data-lake integrations. The plan has to preserve that advantage while closing the semantic gaps that make Kafka feel “boringly interchangeable” to existing clients. Jansu’s README already positions it as a drop-in Kafka replacement and shows regular Kafka CLI/librdkafka usage, but it also documents the current simplification that all brokers are effectively node `111` / leader / ISR for partitions. ([GitHub][1])
 
 The key strategic point: **“Kafka-compatible” and “100% drop-in Kafka replacement” are different bars.** Jansu’s current docs intentionally advertise a consensus-free/stateless model: no broker storage replication, every broker as leader/coordinator, and no ISR concept in the Kafka sense. That is a brilliant simplification for many workloads, but true drop-in parity requires either faithfully emulating those observable Kafka semantics or introducing a strict Kafka-parity mode. ([Jansu][2])
 
@@ -196,7 +196,7 @@ Create a `jansu-log` layer with these invariants:
 
 Then map backends to that contract:
 
-* SQLite/libSQL implementation
+* RedlineDB implementation
 * PostgreSQL implementation
 * S3/dynostore implementation
 * memory test implementation
@@ -261,7 +261,7 @@ Jansu already has maintenance concepts and storage-specific cleanup work, but dr
 * Ensure retention does not break committed offsets unexpectedly
 * Add backend-specific performance budgets
 
-**Exit gate:** Switching a topic from SQLite to Postgres to S3 does not silently change retention/compaction semantics.
+**Exit gate:** Switching a topic from RedlineDB to Postgres to S3 does not silently change retention/compaction semantics.
 
 ---
 
@@ -643,7 +643,7 @@ Kafka parity mode
 
 This lets Jansu win twice: keep the elegant “no JVM, no broker-replication tax” path, while building the hard compatibility layer needed for conservative Kafka users.
 
-Kafka’s own tiered-storage model distinguishes local broker log storage from remote storage such as S3, with separate local/remote retention behavior and remote-log metadata semantics. That is a useful reference point: Jansu’s S3/Postgres/SQLite story can be stronger than Kafka’s, but the Kafka-parity mode still has to expose Kafka-compatible log, retention, and metadata behavior. ([Apache Kafka][8])
+Kafka’s own tiered-storage model distinguishes local broker log storage from remote storage such as S3, with separate local/remote retention behavior and remote-log metadata semantics. That is a useful reference point: Jansu’s S3/Postgres/RedlineDB story can be stronger than Kafka’s, but the Kafka-parity mode still has to expose Kafka-compatible log, retention, and metadata behavior. ([Apache Kafka][8])
 
 ---
 
@@ -662,7 +662,7 @@ That is the fastest path from “promising Kafka-compatible Rust broker” to �
 
 The long-term dream is absolutely compelling: a safe, fast, Rust-native Kafka replacement with storage backends people already trust. But the winning path is ruthless semantic honesty: **advertise only what is certified, certify everything users depend on, and keep the stateless Jansu architecture as the differentiator rather than pretending Kafka’s internals do not matter.**
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://docs.jansu.io/docs/features "Features - Docs"
 [3]: https://docs.rs/jansu-sans-io/latest/jansu_sans_io/ "jansu_sans_io - Rust"
 [4]: https://github.com/jansu-io/jansu/blob/main/Cargo.toml "jansu/Cargo.toml at main · jansu-io/jansu · GitHub"

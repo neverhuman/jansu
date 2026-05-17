@@ -18,11 +18,10 @@ default = []
 delta = ["jansu-schema/delta"]
 dynostore = []
 iceberg = ["jansu-schema/iceberg"]
-libsql = []
 parquet = ["jansu-schema/parquet"]
 postgres = []
+redlinedb = []
 slatedb = []
-turso = []
 
 [dependencies]
 bytes.workspace = true

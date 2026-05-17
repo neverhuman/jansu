@@ -507,8 +507,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -522,7 +522,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -707,8 +707,8 @@ mod slatedb {
     }
 }
 
-#[cfg(feature = "turso")]
-mod turso {
+#[cfg(feature = "redlinedb")]
+mod redlinedb_secondary {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -722,7 +722,7 @@ mod turso {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Turso,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -734,9 +734,6 @@ mod turso {
     #[tokio::test]
     async fn create_describe_topic_partitions_by_id() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -752,9 +749,6 @@ mod turso {
     #[tokio::test]
     async fn create_describe_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -770,9 +764,6 @@ mod turso {
     #[tokio::test]
     async fn describe_non_existing_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);
@@ -788,9 +779,6 @@ mod turso {
     #[tokio::test]
     async fn create_delete() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = format!("cluster-{}", Uuid::now_v7());
         let broker_id = rng().random_range(0..i32::MAX);
@@ -806,9 +794,6 @@ mod turso {
     #[tokio::test]
     async fn create_with_config_delete() -> Result<()> {
         let _guard = init_tracing()?;
-        if std::env::var("JANSU_TEST_TURSO").is_err() {
-            return Ok(());
-        }
 
         let cluster_id = Uuid::now_v7();
         let broker_id = rng().random_range(0..i32::MAX);

@@ -23,7 +23,6 @@ mod describe_acls;
 mod describe_cluster;
 mod describe_configs;
 mod describe_groups;
-pub(crate) mod topic_config_defaults;
 mod describe_topic_partitions;
 mod describe_user_scram_credentials;
 mod fetch;
@@ -38,6 +37,7 @@ mod list_partition_reassignments;
 mod metadata;
 mod offset_for_leader_epoch;
 mod produce;
+pub(crate) mod topic_config_defaults;
 mod txn;
 
 use std::{
@@ -383,9 +383,9 @@ where
     }
 }
 
-pub mod channel_request;
+mod channel_request;
 pub use channel_request::{ChannelRequestLayer, ChannelRequestService};
-pub mod request_channel;
+mod request_channel;
 pub use request_channel::RequestChannelService;
-pub mod request_storage;
+mod request_storage;
 pub use request_storage::RequestStorageService;

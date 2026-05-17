@@ -47,8 +47,10 @@ impl Postgres {
         }
     }
 
-
-    pub(super) async fn leader_epoch_history_storage(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
+    pub(super) async fn leader_epoch_history_storage(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<LeaderEpochRecord>> {
         debug!(cluster = self.cluster, ?topition);
 
         let c = self.connection().await?;

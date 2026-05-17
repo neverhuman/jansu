@@ -17,11 +17,11 @@ use lazy_static::lazy_static;
 use proc_macro2::{Ident, Span};
 use serde_json::Value;
 
+use crate::Error;
+use crate::Result;
 use crate::kind::Kind;
 use crate::version::VersionRange;
 use crate::wv::{As, AsOption, Wv};
-use crate::Error;
-use crate::Result;
 
 fn is_reserved_keyword(s: &str) -> bool {
     lazy_static! {

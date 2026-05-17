@@ -47,8 +47,8 @@ launch flow and produces an artefact archive containing:
 
 1. A backup snapshot of the PostgreSQL `jansu` schema, taken with
    `pg_dump` against the staging instance.
-2. A backup snapshot of the libSQL store for any deployment that uses
-   the SQLite backend.
+2. A backup snapshot of the RedlineDB store for any deployment that uses
+   the RedlineDB backend.
 3. A listing of the S3 bucket contents at the moment of the snapshot
    (object key, byte size, last-modified timestamp).
 4. The output of `cargo run -p jansu --bin jansu -- topic list` against
@@ -247,7 +247,7 @@ sign-off is recorded in the launch-readiness checklist.
 1. Build the launch binary on an approved developer workstation by
    running `just launch` (recipe at `justfile:23`). The recipe
    builds with the full feature set
-   (`delta,dynostore,iceberg,libsql,parquet,postgres,slatedb`).
+   (`delta,dynostore,iceberg,redlinedb,parquet,postgres,slatedb`).
 2. Verify the launch binary against the staging environment using
    the standard smoke-test corpus.
 3. Compute SHA-256 digests for every artefact and record them in the

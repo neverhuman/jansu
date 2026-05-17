@@ -195,7 +195,8 @@ impl DynoStore {
 
                         (Some(producer_id), Some(producer_epoch)) => {
                             if let Some(pd) = meta.producers.get_mut(&producer_id) {
-                                let current_epoch = pd.sequences.last_key_value().map(|(k, _)| *k).unwrap_or(0);
+                                let current_epoch =
+                                    pd.sequences.last_key_value().map(|(k, _)| *k).unwrap_or(0);
                                 if producer_epoch != current_epoch {
                                     Ok(ProducerIdResponse {
                                         id: -1,
@@ -203,8 +204,15 @@ impl DynoStore {
                                         error: ErrorCode::ProducerFenced,
                                     })
                                 } else {
-                                    let new_epoch = if current_epoch == i16::MAX { 0 } else { current_epoch + 1 };
-                                    assert_eq!(None, pd.sequences.insert(new_epoch, BTreeMap::new()));
+                                    let new_epoch = if current_epoch == i16::MAX {
+                                        0
+                                    } else {
+                                        current_epoch + 1
+                                    };
+                                    assert_eq!(
+                                        None,
+                                        pd.sequences.insert(new_epoch, BTreeMap::new())
+                                    );
                                     Ok(ProducerIdResponse {
                                         id: producer_id,
                                         epoch: new_epoch,
@@ -262,7 +270,9 @@ impl DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
+                                for partition_index in
+                                    topic.partitions.iter().flat_map(|p| p.iter())
+                                {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -288,7 +298,9 @@ impl DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
+                                for partition_index in
+                                    topic.partitions.iter().flat_map(|p| p.iter())
+                                {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -314,7 +326,9 @@ impl DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
+                                for partition_index in
+                                    topic.partitions.iter().flat_map(|p| p.iter())
+                                {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -338,7 +352,9 @@ impl DynoStore {
                             for topic in topics {
                                 let mut results_by_partition = vec![];
 
-                                for partition_index in topic.partitions.iter().flat_map(|p| p.iter()) {
+                                for partition_index in
+                                    topic.partitions.iter().flat_map(|p| p.iter())
+                                {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(*partition_index)
@@ -453,7 +469,7 @@ impl DynoStore {
                                                                 .produces
                                                                 .get(&topic.name)
                                                                 .is_some_and(|partitions| partitions.contains_key(p));
-                                                            
+
                                                             AddPartitionsToTxnPartitionResult::default()
                                                                 .partition_index(*p)
                                                                 .partition_error_code(
@@ -466,7 +482,7 @@ impl DynoStore {
                                                                 .or_default()
                                                                 .entry(*p)
                                                                 .or_default();
-                                                                
+
                                                             AddPartitionsToTxnPartitionResult::default()
                                                                 .partition_index(*p)
                                                                 .partition_error_code(ErrorCode::None.into())
@@ -487,16 +503,15 @@ impl DynoStore {
                                 make_topic_results(ErrorCode::TransactionalIdNotFound)
                             };
 
-                            if !verify_only {
-                                if let Some(transaction) = meta.transactions.get_mut(&transaction_id) {
-                                    if let Some(mut current_epoch) = transaction.epochs.last_entry() {
-                                        if &producer_epoch == current_epoch.key() {
-                                            let txn_detail = current_epoch.get_mut();
-                                            txn_detail.started_at = Some(SystemTime::now());
-                                            txn_detail.state = Some(TxnState::Begin);
-                                        }
-                                    }
-                                }
+                            if !verify_only
+                                && let Some(transaction) =
+                                    meta.transactions.get_mut(&transaction_id)
+                                && let Some(mut current_epoch) = transaction.epochs.last_entry()
+                                && &producer_epoch == current_epoch.key()
+                            {
+                                let txn_detail = current_epoch.get_mut();
+                                txn_detail.started_at = Some(SystemTime::now());
+                                txn_detail.state = Some(TxnState::Begin);
                             }
 
                             results.push(

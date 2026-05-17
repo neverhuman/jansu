@@ -94,7 +94,7 @@ against the new version before the bump lands on `main`.
   valid.
 - `libfuzzer-sys = "0.4"` - fuzz runtime; pin lives at
   `Cargo.toml:111`.
-- `libsql = "0.9.18"` - libSQL backend; security-bearing because a
+- `redlinedb = "=1.0.1"` - RedlineDB backend; security-bearing because a
   bug here would let a crafted SQL statement bypass parameter
   binding.
 - `lz4 = "1.28.1"` - record-batch decompression.

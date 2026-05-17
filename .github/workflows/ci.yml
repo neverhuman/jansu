@@ -54,10 +54,12 @@ jobs:
     steps:
       - run: sudo mkdir /mnt/build
       - run: sudo chmod a+rwxt /mnt/build
-      - run: echo "PG_IMAGE_DASH=${POSTGRES_IMAGE/:/-}" >> $GITHUB_ENV
-      - run: echo ${PG_IMAGE_DASH}
+      - run: echo "PG_IMAGE_DASH=${POSTGRES_IMAGE/:/-}" >> "$GITHUB_ENV"
+      - run: echo "${PG_IMAGE_DASH}"
       - run: df -h
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
@@ -88,6 +90,8 @@ jobs:
           - ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
@@ -103,6 +107,8 @@ jobs:
           - ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
@@ -117,6 +123,8 @@ jobs:
           - ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
@@ -132,11 +140,13 @@ jobs:
           - ubuntu-latest
         storage:
           - dynostore
-          - libsql
+          - redlinedb
           - postgres
           - slatedb
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
@@ -152,7 +162,7 @@ jobs:
           - ubuntu-latest
         storage:
           - dynostore
-          - libsql
+          - redlinedb
           - postgres
           - slatedb
         lake:
@@ -161,6 +171,8 @@ jobs:
           - parquet
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
@@ -176,7 +188,11 @@ jobs:
           - ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
+        with:
+          cache: false
       - run: sudo apt-get install -y libclang-dev libkrb5-dev
       - run: cargo package --workspace
       - run: find target/package -name "*.crate" -exec sha256sum {} \; | tee target/package/checksums.sha256
@@ -185,6 +201,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: crate-ci/typos@a8d8e187146634c459c27ade2d3e338569378720
         with:
           config: typos.toml
@@ -192,6 +210,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - run: |
           git archive --format=tar.gz HEAD >${{runner.temp}}/src.tar.gz
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -211,6 +231,8 @@ jobs:
           - ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
         id: meta
         with:
@@ -247,7 +269,7 @@ jobs:
         storage:
           - s3://jansu/
           - postgres://postgres:postgres@db
-          - sqlite://jansu.db
+          - redlinedb://jansu.redline
         kafka:
           - apache/kafka:3.9.0
           - apache/kafka:3.8.1
@@ -278,10 +300,12 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           repository: jansu-io/example-java
           path: integration
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           sparse-checkout: |
             etc/initdb.d/010-schema.sql
           sparse-checkout-cone-mode: false
@@ -293,10 +317,6 @@ jobs:
         env:
           JANSU_IMAGE: ghcr.io/jansu-io/jansu:${{steps.meta.outputs.version}}
       - run: docker compose --ansi never exec minio /usr/bin/mc ready local
-        working-directory: integration
-        env:
-          JANSU_IMAGE: ghcr.io/jansu-io/jansu:${{steps.meta.outputs.version}}
-      # Alias set removed for security: relying on pre-configured MinIO credentials
         working-directory: integration
         env:
           JANSU_IMAGE: ghcr.io/jansu-io/jansu:${{steps.meta.outputs.version}}
@@ -323,5 +343,7 @@ jobs:
     needs: [test]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - name: Run security lane
         run: ./tools/security-lane.sh

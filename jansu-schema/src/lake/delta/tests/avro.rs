@@ -48,10 +48,10 @@ async fn record_of_primitive_data_types() -> Result<()> {
         )];
 
         for value in values {
-            batch =
-                batch.record(Record::builder().value(
-                    schema_write(schema.value.as_ref().unwrap(), value.into())?.into(),
-                ))
+            batch = batch.record(
+                Record::builder()
+                    .value(schema_write(schema.value.as_ref().unwrap(), value.into())?.into()),
+            )
         }
 
         let object_store = InMemory::new();
@@ -78,16 +78,15 @@ async fn record_of_primitive_data_types() -> Result<()> {
     let location = format!("file://{}", temp_dir.path().to_str().unwrap());
     let database = "pqr";
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -116,10 +115,9 @@ async fn record_of_primitive_data_types() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };

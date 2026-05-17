@@ -127,7 +127,7 @@ async fn produce_record_at(
         .record(
             Record::builder()
                 .timestamp_delta(0)
-                .value(Some(Bytes::from_static(value).into())),
+                .value(Some(Bytes::from_static(value))),
         )
         .build()
         .and_then(TryInto::try_into)
@@ -280,11 +280,7 @@ async fn empty_partition_offsets_are_zero() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("empty-partition-offsets");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_empty_offsets(&*storage, &topic).await
 }
@@ -294,11 +290,7 @@ async fn produce_assigns_contiguous_offsets() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("produce-contiguous-offsets");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_contiguous_offsets(&*storage, &topic).await
 }
@@ -308,11 +300,7 @@ async fn fetch_reads_written_records() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("fetch-written-records");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_fetch_counts(&*storage, &topic).await
 }
@@ -322,11 +310,7 @@ async fn timestamp_lookup_returns_first_middle_and_end_offsets() -> Result<(), E
     let _guard = init_tracing()?;
 
     let topic = topic_name("timestamp-lookup");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_timestamp_lookup(&*storage, &topic).await
 }
@@ -388,20 +372,19 @@ async fn dynostore_log_contract() -> Result<(), Error> {
     .await
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_log_contract() -> Result<(), Error> {
+async fn redlinedb_log_contract() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     backend_contract(
         || {
-            let storage_path = "phase06-storage-log-contract-libsql.db";
-            let _ = std::fs::remove_file(storage_path);
-            let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
-
-            Ok((None, storage_url))
+            Ok((
+                None,
+                common::redlinedb_storage_url("phase06-storage-log-contract-redlinedb")?,
+            ))
         },
-        "libsql",
+        "redlinedb",
     )
     .await
 }

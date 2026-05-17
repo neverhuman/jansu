@@ -17,7 +17,10 @@
 use super::*;
 
 impl DynoStore {
-    pub(super) async fn metadata_inner(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
+    pub(super) async fn metadata_inner(
+        &self,
+        topics: Option<&[TopicId]>,
+    ) -> Result<MetadataResponse> {
         let brokers = vec![
             MetadataResponseBroker::default()
                 .node_id(self.node)
@@ -354,7 +357,10 @@ impl DynoStore {
         Ok(responses)
     }
 
-    pub(super) async fn list_groups_inner(&self, _states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
+    pub(super) async fn list_groups_inner(
+        &self,
+        _states_filter: Option<&[String]>,
+    ) -> Result<Vec<ListedGroup>> {
         let location = Path::from(format!("clusters/{}/groups/consumers/", self.cluster,));
         let list_result = self
             .object_store

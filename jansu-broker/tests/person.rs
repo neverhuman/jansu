@@ -281,8 +281,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::{env, sync::Arc};
 
     use common::{StorageType, init_tracing};
@@ -309,7 +309,7 @@ mod lite {
             .map(Some)?;
 
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,

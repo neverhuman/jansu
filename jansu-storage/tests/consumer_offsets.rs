@@ -101,18 +101,16 @@ where
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_offset_commit_fetch_round_trip() -> Result<(), Error> {
+async fn redlinedb_offset_commit_fetch_round_trip() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let group_id = format!("group-{}", Uuid::now_v7());
     let topic = format!("topic-{}", Uuid::now_v7());
-    let storage_path = format!("consumer-offsets-{}.db", Uuid::now_v7());
-    let _ = std::fs::remove_file(&storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("consumer-offsets")?;
 
     let storage = build_storage(&cluster_id, node_id, storage_url).await?;
     register_broker(&*storage, &cluster_id, node_id).await?;
@@ -158,18 +156,16 @@ async fn libsql_offset_commit_fetch_round_trip() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_offset_commit_expires_records() -> Result<(), Error> {
+async fn redlinedb_offset_commit_expires_records() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let group_id = format!("group-{}", Uuid::now_v7());
     let topic = format!("topic-{}", Uuid::now_v7());
-    let storage_path = format!("consumer-offsets-{}.db", Uuid::now_v7());
-    let _ = std::fs::remove_file(&storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("consumer-offsets")?;
 
     let storage = build_storage(&cluster_id, node_id, storage_url).await?;
     register_broker(&*storage, &cluster_id, node_id).await?;

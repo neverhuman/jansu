@@ -42,7 +42,6 @@ impl Postgres {
         Ok(())
     }
 
-
     pub(super) async fn delete_user_scram_credential_storage(
         &self,
         user: &str,
@@ -59,7 +58,6 @@ impl Postgres {
         .inspect_err(|err| error!(?err, ?user, ?mechanism,))
         .and(Ok(()))
     }
-
 
     pub(super) async fn upsert_user_scram_credential_storage(
         &self,
@@ -86,7 +84,6 @@ impl Postgres {
         .inspect_err(|err| error!(?err, ?username, ?mechanism,))
         .and(Ok(()))
     }
-
 
     pub(super) async fn user_scram_credential_storage(
         &self,
@@ -121,21 +118,17 @@ impl Postgres {
         .inspect_err(|err| error!(?err, ?user, ?mechanism,))
     }
 
-
     pub(super) async fn cluster_id_storage(&self) -> Result<String> {
         Ok(self.cluster.clone())
     }
-
 
     pub(super) async fn node_storage(&self) -> Result<i32> {
         Ok(self.node)
     }
 
-
     pub(super) async fn advertised_listener_storage(&self) -> Result<Url> {
         Ok(self.advertised_listener.clone())
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn ping_storage(&self) -> Result<()> {

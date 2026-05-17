@@ -6,12 +6,11 @@ use super::*;
 async fn grade() -> Result<()> {
     let _guard = init_tracing()?;
 
-    let definition =
-        Bytes::from_static(include_bytes!("../../../../../etc/schema/grade.json"));
+    let definition = Bytes::from_static(include_bytes!("../../../../../etc/schema/grade.json"));
 
-    let kv = if let Value::Array(values) = serde_json::from_slice::<Value>(include_bytes!(
-        "../../../../../etc/data/grades.json"
-    ))? {
+    let kv = if let Value::Array(values) =
+        serde_json::from_slice::<Value>(include_bytes!("../../../../../etc/data/grades.json"))?
+    {
         values
             .into_iter()
             .map(|value| {
@@ -65,16 +64,15 @@ async fn grade() -> Result<()> {
     let location = format!("file://{}", temp_dir.path().to_str().unwrap());
     let database = "pqr";
 
-    let lake_house =
-        Url::parse(location.as_ref())
-            .map_err(Into::into)
-            .and_then(|location| {
-                Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
-                    .location(location)
-                    .database(Some(database.into()))
-                    .schema_registry(schema_registry)
-                    .build()
-            })?;
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
 
     let config = DescribeConfigsResult::default()
         .error_code(ErrorCode::None.into())
@@ -92,10 +90,9 @@ async fn grade() -> Result<()> {
         .inspect_err(|err| debug!(?err))?;
 
     let table = {
-        let mut table = DeltaTableBuilder::from_url(Url::parse(&format!(
-            "{location}/{database}.{topic}"
-        ))?)?
-        .build()?;
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
         table.load().await?;
         table
     };

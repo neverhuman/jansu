@@ -56,12 +56,14 @@ impl Engine {
         // NOTE: This is stored permanently - no cleanup mechanism exists yet
         let broker_info = BrokerInfo {
             broker_id: self.node,
-            host: self
-                .advertised_listener
-                .host_str()
-                .unwrap_or("0.0.0.0")
-                .into(),
-            port: self.advertised_listener.port().unwrap_or(9092).into(),
+            host: match self.advertised_listener.host_str() {
+                Some(host) => host.into(),
+                None => "0.0.0.0".into(),
+            },
+            port: match self.advertised_listener.port() {
+                Some(port) => port.into(),
+                None => 9092.into(),
+            },
             rack: broker_registration.rack,
         };
 
@@ -88,12 +90,14 @@ impl Engine {
         if stored_brokers.is_empty() {
             // Return self as the only broker if no registrations yet
             let broker_id = self.node;
-            let host = self
-                .advertised_listener
-                .host_str()
-                .unwrap_or("0.0.0.0")
-                .into();
-            let port = self.advertised_listener.port().unwrap_or(9092).into();
+            let host = match self.advertised_listener.host_str() {
+                Some(host) => host.into(),
+                None => "0.0.0.0".into(),
+            };
+            let port = match self.advertised_listener.port() {
+                Some(port) => port.into(),
+                None => 9092.into(),
+            };
 
             Ok(vec![
                 DescribeClusterBroker::default()
@@ -402,11 +406,11 @@ impl Engine {
 
                 if let Some(metadata) = topics.get_mut(&resource.resource_name[..]) {
                     // Build current config map
-                    let mut configuration: BTreeMap<String, Option<String>> = metadata
-                        .topic
-                        .configs
-                        .as_deref()
-                        .unwrap_or(&[])
+                    let existing_configs = match metadata.topic.configs.as_deref() {
+                        Some(configs) => configs,
+                        None => &[],
+                    };
+                    let mut configuration: BTreeMap<String, Option<String>> = existing_configs
                         .iter()
                         .fold(BTreeMap::new(), |mut acc, item| {
                             _ = acc.insert(item.name.clone(), item.value.clone());
@@ -414,42 +418,60 @@ impl Engine {
                         });
 
                     // Apply changes
-                    for change in resource.configs.as_deref().unwrap_or(&[]) {
+                    let changes = match resource.configs.as_deref() {
+                        Some(changes) => changes,
+                        None => &[],
+                    };
+
+                    for change in changes {
                         match OpType::try_from(change.config_operation)? {
                             OpType::Set => {
-                                _ = configuration
-                                    .insert(change.name.clone(), change.value.clone());
+                                _ = configuration.insert(change.name.clone(), change.value.clone());
                             }
                             OpType::Delete => {
                                 _ = configuration.remove(change.name.as_str());
                             }
                             OpType::Append => {
                                 if let Some(new_val) = &change.value {
-                                    let mut list = configuration
+                                    let mut list = match configuration
                                         .get(change.name.as_str())
                                         .and_then(|v| v.as_deref())
-                                        .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>())
-                                        .unwrap_or(Vec::new());
+                                    {
+                                        Some(s) => s
+                                            .split(',')
+                                            .map(str::trim)
+                                            .filter(|s| !s.is_empty())
+                                            .collect::<Vec<_>>(),
+                                        None => Vec::new(),
+                                    };
 
                                     if !list.contains(&new_val.as_str()) {
                                         list.push(new_val.as_str());
                                     }
 
-                                    _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                                    _ = configuration
+                                        .insert(change.name.clone(), Some(list.join(",")));
                                 }
                             }
                             OpType::Subtract => {
                                 if let Some(del_val) = &change.value {
-                                    let list = configuration
+                                    let list = match configuration
                                         .get(change.name.as_str())
                                         .and_then(|v| v.as_deref())
-                                        .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect::<Vec<_>>())
-                                        .unwrap_or(Vec::new());
-                                        
+                                    {
+                                        Some(s) => s
+                                            .split(',')
+                                            .map(str::trim)
+                                            .filter(|s| !s.is_empty() && *s != del_val.as_str())
+                                            .collect::<Vec<_>>(),
+                                        None => Vec::new(),
+                                    };
+
                                     if list.is_empty() {
                                         _ = configuration.remove(change.name.as_str());
                                     } else {
-                                        _ = configuration.insert(change.name.clone(), Some(list.join(",")));
+                                        _ = configuration
+                                            .insert(change.name.clone(), Some(list.join(",")));
                                     }
                                 }
                             }
@@ -461,9 +483,7 @@ impl Engine {
                         configuration
                             .into_iter()
                             .map(|(key, value)| {
-                                CreatableTopicConfig::default()
-                                    .name(key)
-                                    .value(value)
+                                CreatableTopicConfig::default().name(key).value(value)
                             })
                             .collect(),
                     );

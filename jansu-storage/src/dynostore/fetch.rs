@@ -25,13 +25,16 @@ impl DynoStore {
         max_bytes: u32,
         isolation_level: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>> {
-        let high_watermark = self.offset_stage_inner(topition).await.map(|offset_stage| {
-            if isolation_level == IsolationLevel::ReadCommitted {
-                offset_stage.last_stable
-            } else {
-                offset_stage.high_watermark
-            }
-        })?;
+        let high_watermark = self
+            .offset_stage_inner(topition)
+            .await
+            .map(|offset_stage| {
+                if isolation_level == IsolationLevel::ReadCommitted {
+                    offset_stage.last_stable
+                } else {
+                    offset_stage.high_watermark
+                }
+            })?;
 
         debug!(high_watermark);
 

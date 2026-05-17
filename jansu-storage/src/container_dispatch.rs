@@ -17,21 +17,21 @@
 use async_trait::async_trait;
 use jansu_sans_io::{
     ConfigResource, ErrorCode, IsolationLevel, ListOffset, ScramMechanism,
-    create_topics_request::CreatableTopic,
-    delete_groups_response::DeletableGroupResult,
-    delete_records_request::DeleteRecordsTopic,
-    delete_records_response::DeleteRecordsTopicResult,
+    create_topics_request::CreatableTopic, delete_groups_response::DeletableGroupResult,
+    delete_records_request::DeleteRecordsTopic, delete_records_response::DeleteRecordsTopicResult,
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::DescribeConfigsResult,
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
     incremental_alter_configs_request::AlterConfigsResource,
     incremental_alter_configs_response::AlterConfigsResourceResponse,
-    list_groups_response::ListedGroup,
-    record::deflated,
+    list_groups_response::ListedGroup, record::deflated,
     txn_offset_commit_response::TxnOffsetCommitResponseTopic,
 };
 use opentelemetry::KeyValue;
-use std::{collections::BTreeMap, time::{Duration, SystemTime}};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, SystemTime},
+};
 use tracing::instrument;
 use url::Url;
 use uuid::Uuid;
@@ -39,11 +39,10 @@ use uuid::Uuid;
 use crate::{
     GroupDetail, LeaderEpochRecord, ListOffsetResponse, MetadataResponse, NamedGroupDetail,
     OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse, Result,
-    ScramCredential, Storage, StorageContainer, TopicId, Topition, TxnAddPartitionsRequest,
-    TxnAddPartitionsResponse, TxnOffsetCommitRequest, UpdateError, Version,
-    capabilities::StorageCapabilities,
+    STORAGE_CONTAINER_ERRORS, STORAGE_CONTAINER_REQUESTS, ScramCredential, Storage,
+    StorageContainer, TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse,
+    TxnOffsetCommitRequest, UpdateError, Version, capabilities::StorageCapabilities,
     topic::BrokerRegistrationRequest,
-    STORAGE_CONTAINER_ERRORS, STORAGE_CONTAINER_REQUESTS,
 };
 
 #[async_trait]
@@ -55,27 +54,34 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
         let a = [KeyValue::new("method", "register_broker")];
-        self.dispatch_register_broker(broker_registration).await
+        self.dispatch_register_broker(broker_registration)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn offset_fetch_records(
-        &self, group_id: Option<&str>, topics: &[Topition], require_stable: Option<bool>,
+        &self,
+        group_id: Option<&str>,
+        topics: &[Topition],
+        require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
         let a = [KeyValue::new("method", "offset_fetch_records")];
-        self.dispatch_offset_fetch_records(group_id, topics, require_stable).await
+        self.dispatch_offset_fetch_records(group_id, topics, require_stable)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn incremental_alter_resource(
-        &self, resource: AlterConfigsResource,
+        &self,
+        resource: AlterConfigsResource,
     ) -> Result<AlterConfigsResourceResponse> {
         let a = [KeyValue::new("method", "incremental_alter_resource")];
-        self.dispatch_incremental_alter_resource(resource).await
+        self.dispatch_incremental_alter_resource(resource)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -83,17 +89,20 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
         let a = [KeyValue::new("method", "create_topic")];
-        self.dispatch_create_topic(topic, validate_only).await
+        self.dispatch_create_topic(topic, validate_only)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn delete_records(
-        &self, topics: &[DeleteRecordsTopic],
+        &self,
+        topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
         let a = [KeyValue::new("method", "delete_records")];
-        self.dispatch_delete_records(topics).await
+        self.dispatch_delete_records(topics)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -101,7 +110,8 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
         let a = [KeyValue::new("method", "delete_topic")];
-        self.dispatch_delete_topic(topic).await
+        self.dispatch_delete_topic(topic)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -109,28 +119,38 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
         let a = [KeyValue::new("method", "brokers")];
-        self.dispatch_brokers().await
+        self.dispatch_brokers()
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn produce(
-        &self, transaction_id: Option<&str>, topition: &Topition, batch: deflated::Batch,
+        &self,
+        transaction_id: Option<&str>,
+        topition: &Topition,
+        batch: deflated::Batch,
     ) -> Result<i64> {
         let a = [KeyValue::new("method", "produce")];
-        self.dispatch_produce(transaction_id, topition, batch).await
+        self.dispatch_produce(transaction_id, topition, batch)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn fetch(
-        &self, topition: &'_ Topition, offset: i64, min_bytes: u32,
-        max_bytes: u32, isolation: IsolationLevel,
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>> {
         let a = [KeyValue::new("method", "fetch")];
-        self.dispatch_fetch(topition, offset, min_bytes, max_bytes, isolation).await
+        self.dispatch_fetch(topition, offset, min_bytes, max_bytes, isolation)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -138,28 +158,35 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
         let a = [KeyValue::new("method", "offset_stage")];
-        self.dispatch_offset_stage(topition).await
+        self.dispatch_offset_stage(topition)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn list_offsets(
-        &self, isolation_level: IsolationLevel, offsets: &[(Topition, ListOffset)],
+        &self,
+        isolation_level: IsolationLevel,
+        offsets: &[(Topition, ListOffset)],
     ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
         let a = [KeyValue::new("method", "list_offsets")];
-        self.dispatch_list_offsets(isolation_level, offsets).await
+        self.dispatch_list_offsets(isolation_level, offsets)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn offset_commit(
-        &self, group_id: &str, retention_time_ms: Option<Duration>,
+        &self,
+        group_id: &str,
+        retention_time_ms: Option<Duration>,
         offsets: &[(Topition, OffsetCommitRequest)],
     ) -> Result<Vec<(Topition, ErrorCode)>> {
         let a = [KeyValue::new("method", "offset_commit")];
-        self.dispatch_offset_commit(group_id, retention_time_ms, offsets).await
+        self.dispatch_offset_commit(group_id, retention_time_ms, offsets)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -167,27 +194,35 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn committed_offset_topitions(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
         let a = [KeyValue::new("method", "committed_offset_topitions")];
-        self.dispatch_committed_offset_topitions(group_id).await
+        self.dispatch_committed_offset_topitions(group_id)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn offset_fetch(
-        &self, group_id: Option<&str>, topics: &[Topition], require_stable: Option<bool>,
+        &self,
+        group_id: Option<&str>,
+        topics: &[Topition],
+        require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, i64>> {
         let a = [KeyValue::new("method", "offset_fetch")];
-        self.dispatch_offset_fetch(group_id, topics, require_stable).await
+        self.dispatch_offset_fetch(group_id, topics, require_stable)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn offset_for_leader_epoch(
-        &self, topition: &Topition, leader_epoch: i32,
+        &self,
+        topition: &Topition,
+        leader_epoch: i32,
     ) -> Result<Option<(i32, i64)>> {
         let a = [KeyValue::new("method", "offset_for_leader_epoch")];
-        self.dispatch_offset_for_leader_epoch(topition, leader_epoch).await
+        self.dispatch_offset_for_leader_epoch(topition, leader_epoch)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -195,7 +230,8 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn leader_epoch_history(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
         let a = [KeyValue::new("method", "leader_epoch_history")];
-        self.dispatch_leader_epoch_history(topition).await
+        self.dispatch_leader_epoch_history(topition)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -203,27 +239,36 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn metadata(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
         let a = [KeyValue::new("method", "metadata")];
-        self.dispatch_metadata(topics).await
+        self.dispatch_metadata(topics)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn describe_config(
-        &self, name: &str, resource: ConfigResource, keys: Option<&[String]>,
+        &self,
+        name: &str,
+        resource: ConfigResource,
+        keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
         let a = [KeyValue::new("method", "describe_config")];
-        self.dispatch_describe_config(name, resource, keys).await
+        self.dispatch_describe_config(name, resource, keys)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn describe_topic_partitions(
-        &self, topics: Option<&[TopicId]>, partition_limit: i32, cursor: Option<Topition>,
+        &self,
+        topics: Option<&[TopicId]>,
+        partition_limit: i32,
+        cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
         let a = [KeyValue::new("method", "describe_topic_partitions")];
-        self.dispatch_describe_topic_partitions(topics, partition_limit, cursor).await
+        self.dispatch_describe_topic_partitions(topics, partition_limit, cursor)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -231,49 +276,65 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
         let a = [KeyValue::new("method", "list_groups")];
-        self.dispatch_list_groups(states_filter).await
+        self.dispatch_list_groups(states_filter)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn delete_groups(
-        &self, group_ids: Option<&[String]>,
+        &self,
+        group_ids: Option<&[String]>,
     ) -> Result<Vec<DeletableGroupResult>> {
         let a = [KeyValue::new("method", "delete_groups")];
-        self.dispatch_delete_groups(group_ids).await
+        self.dispatch_delete_groups(group_ids)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn describe_groups(
-        &self, group_ids: Option<&[String]>, include_authorized_operations: bool,
+        &self,
+        group_ids: Option<&[String]>,
+        include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
         let a = [KeyValue::new("method", "describe_groups")];
-        self.dispatch_describe_groups(group_ids, include_authorized_operations).await
+        self.dispatch_describe_groups(group_ids, include_authorized_operations)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn update_group(
-        &self, group_id: &str, detail: GroupDetail, version: Option<Version>,
+        &self,
+        group_id: &str,
+        detail: GroupDetail,
+        version: Option<Version>,
     ) -> Result<Version, UpdateError<GroupDetail>> {
         let a = [KeyValue::new("method", "update_group")];
-        self.dispatch_update_group(group_id, detail, version).await
+        self.dispatch_update_group(group_id, detail, version)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn init_producer(
-        &self, transaction_id: Option<&str>, transaction_timeout_ms: i32,
-        producer_id: Option<i64>, producer_epoch: Option<i16>,
+        &self,
+        transaction_id: Option<&str>,
+        transaction_timeout_ms: i32,
+        producer_id: Option<i64>,
+        producer_epoch: Option<i16>,
     ) -> Result<ProducerIdResponse> {
         let a = [KeyValue::new("method", "init_producer")];
         self.dispatch_init_producer(
-            transaction_id, transaction_timeout_ms, producer_id, producer_epoch,
+            transaction_id,
+            transaction_timeout_ms,
+            producer_id,
+            producer_epoch,
         )
         .await
         .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
@@ -282,42 +343,54 @@ impl Storage for StorageContainer {
 
     #[instrument(skip_all)]
     async fn txn_add_offsets(
-        &self, transaction_id: &str, producer_id: i64,
-        producer_epoch: i16, group_id: &str,
+        &self,
+        transaction_id: &str,
+        producer_id: i64,
+        producer_epoch: i16,
+        group_id: &str,
     ) -> Result<ErrorCode> {
         let a = [KeyValue::new("method", "txn_add_offsets")];
-        self.dispatch_txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id).await
+        self.dispatch_txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn txn_add_partitions(
-        &self, partitions: TxnAddPartitionsRequest,
+        &self,
+        partitions: TxnAddPartitionsRequest,
     ) -> Result<TxnAddPartitionsResponse> {
         let a = [KeyValue::new("method", "txn_add_partitions")];
-        self.dispatch_txn_add_partitions(partitions).await
+        self.dispatch_txn_add_partitions(partitions)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn txn_offset_commit(
-        &self, offsets: TxnOffsetCommitRequest,
+        &self,
+        offsets: TxnOffsetCommitRequest,
     ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
         let a = [KeyValue::new("method", "txn_offset_commit")];
-        self.dispatch_txn_offset_commit(offsets).await
+        self.dispatch_txn_offset_commit(offsets)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
 
     #[instrument(skip_all)]
     async fn txn_end(
-        &self, transaction_id: &str, producer_id: i64,
-        producer_epoch: i16, committed: bool,
+        &self,
+        transaction_id: &str,
+        producer_id: i64,
+        producer_epoch: i16,
+        committed: bool,
     ) -> Result<ErrorCode> {
         let a = [KeyValue::new("method", "txn_end")];
-        self.dispatch_txn_end(transaction_id, producer_id, producer_epoch, committed).await
+        self.dispatch_txn_end(transaction_id, producer_id, producer_epoch, committed)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -325,7 +398,8 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn maintain(&self, now: SystemTime) -> Result<()> {
         let a = [KeyValue::new("method", "maintain")];
-        self.dispatch_maintain(now).await
+        self.dispatch_maintain(now)
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }
@@ -346,19 +420,28 @@ impl Storage for StorageContainer {
     }
 
     async fn delete_user_scram_credential(
-        &self, user: &str, mechanism: ScramMechanism,
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
     ) -> Result<()> {
-        self.dispatch_delete_user_scram_credential(user, mechanism).await
+        self.dispatch_delete_user_scram_credential(user, mechanism)
+            .await
     }
 
     async fn upsert_user_scram_credential(
-        &self, user: &str, mechanism: ScramMechanism, credential: ScramCredential,
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
+        credential: ScramCredential,
     ) -> Result<()> {
-        self.dispatch_upsert_user_scram_credential(user, mechanism, credential).await
+        self.dispatch_upsert_user_scram_credential(user, mechanism, credential)
+            .await
     }
 
     async fn user_scram_credential(
-        &self, user: &str, mechanism: ScramMechanism,
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
     ) -> Result<Option<ScramCredential>> {
         self.dispatch_user_scram_credential(user, mechanism).await
     }
@@ -366,7 +449,8 @@ impl Storage for StorageContainer {
     #[instrument(skip_all)]
     async fn ping(&self) -> Result<()> {
         let a = [KeyValue::new("method", "ping")];
-        self.dispatch_ping().await
+        self.dispatch_ping()
+            .await
             .inspect(|_| STORAGE_CONTAINER_REQUESTS.add(1, &a))
             .inspect_err(|_| STORAGE_CONTAINER_ERRORS.add(1, &a))
     }

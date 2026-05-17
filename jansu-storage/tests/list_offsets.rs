@@ -39,7 +39,7 @@ async fn req() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -101,7 +101,7 @@ async fn response_frame_round_trips_for_mixed_partition_errors() -> Result<(), E
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -187,7 +187,7 @@ async fn response_frame_round_trips_for_exact_mixed_partition_errors() -> Result
         .cluster_id(CLUSTER_ID)
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -261,7 +261,7 @@ async fn response_frame_round_trips_for_produced_leader_epoch() -> Result<(), Er
         .cluster_id(CLUSTER_ID)
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 

@@ -807,8 +807,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -821,7 +821,14 @@ mod lite {
         node: i32,
         advertised_listener: Url,
     ) -> Result<Arc<Box<dyn Storage>>> {
-        common::storage_container(StorageType::Lite, cluster, node, advertised_listener, None).await
+        common::storage_container(
+            StorageType::RedlineDb,
+            cluster,
+            node,
+            advertised_listener,
+            None,
+        )
+        .await
     }
 
     #[tokio::test]

@@ -46,4 +46,4 @@ Phase **08** — `AUDIT-004` (Fetch ReadCommitted non-txn proof)
 
 ## Next Recommended Action
 
-- Broker `simple_non_txn` extension or slate/libsql parity test for same assertion if desired; else transactional abort coverage with Phase 12.
+- Broker `simple_non_txn` extension or slate/redlinedb parity test for same assertion if desired; else transactional abort coverage with Phase 12.

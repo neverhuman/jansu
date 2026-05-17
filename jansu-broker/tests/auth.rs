@@ -580,7 +580,9 @@ async fn auth_handshake_scram_512_bad_password_v1() -> Result<()> {
 
             Ok(State::Finished(message_sent)) => {
                 debug!(?message_sent);
-                panic!("Authentication should have failed with bad password but reached State::Finished");
+                panic!(
+                    "Authentication should have failed with bad password but reached State::Finished"
+                );
             }
 
             Err(SessionError::MechanismError(_mechanism)) => break,

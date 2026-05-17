@@ -26,7 +26,9 @@ use tracing::debug;
 use crate::{Error, Result, TxnState};
 
 use super::engine::Engine;
-use super::types::{BatchKey, OffsetCommitKey, OffsetCommitValue, Transactions, Watermark, WatermarkKey};
+use super::types::{
+    BatchKey, OffsetCommitKey, OffsetCommitValue, Transactions, Watermark, WatermarkKey,
+};
 
 impl Engine {
     pub(super) async fn impl_txn_end(

@@ -42,7 +42,7 @@ pub(super) fn init_tracing() -> Result<DefaultGuard> {
     ))
 }
 
-mod sql;
-mod proto;
 mod avro;
 mod json;
+mod proto;
+mod sql;

@@ -228,8 +228,7 @@ impl Engine {
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
         let _ = (partition_limit, cursor);
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
+        let mut responses = Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
 
         for topic in topics.unwrap_or(&[]) {
             match self.topic_metadata(topic).await {

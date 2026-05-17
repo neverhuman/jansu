@@ -101,9 +101,11 @@ impl DynoStore {
                                     .unwrap_or(None),
                             },
                             // Timestamp is after all records: return high_watermark with last timestamp.
-                            None => match watermark.timestamps.as_ref().and_then(|ts| {
-                                ts.last_key_value().map(|(ts, off)| (*ts, *off))
-                            }) {
+                            None => match watermark
+                                .timestamps
+                                .as_ref()
+                                .and_then(|ts| ts.last_key_value().map(|(ts, off)| (*ts, *off)))
+                            {
                                 Some((ts, off)) => ListOffsetResponse {
                                     error_code: ErrorCode::None,
                                     offset: Some(off + 1),
@@ -276,7 +278,10 @@ impl DynoStore {
         Ok(responses)
     }
 
-    pub(super) async fn committed_offset_topitions_inner(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
+    pub(super) async fn committed_offset_topitions_inner(
+        &self,
+        group_id: &str,
+    ) -> Result<BTreeMap<Topition, i64>> {
         let mut topitions = vec![];
 
         {
@@ -410,7 +415,10 @@ impl DynoStore {
             .await
     }
 
-    pub(super) async fn leader_epoch_history_inner(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
+    pub(super) async fn leader_epoch_history_inner(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<LeaderEpochRecord>> {
         let key = format!("{}:{}", topition.topic(), topition.partition());
 
         self.meta
@@ -428,10 +436,12 @@ impl DynoStore {
                     .get(&key)
                     .into_iter()
                     .flat_map(|epochs| {
-                        epochs.iter().map(|(epoch, start_offset)| LeaderEpochRecord {
-                            epoch: *epoch,
-                            start_offset: *start_offset,
-                        })
+                        epochs
+                            .iter()
+                            .map(|(epoch, start_offset)| LeaderEpochRecord {
+                                epoch: *epoch,
+                                start_offset: *start_offset,
+                            })
                     })
                     .collect();
 
@@ -456,5 +466,4 @@ impl DynoStore {
                     .collect()
             })
     }
-
 }

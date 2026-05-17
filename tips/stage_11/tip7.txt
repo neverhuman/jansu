@@ -901,7 +901,7 @@ Files likely touched, adjusted to the repo’s exact migration naming convention
 ```text
 jansu-storage/src/sql/replication.rs
 jansu-storage/src/ddl/postgres/replication.sql
-jansu-storage/src/ddl/sqlite/replication.sql
+jansu-storage/src/ddl/redlinedb/replication.sql
 jansu-storage/src/pg.rs
 jansu-storage/src/lite.rs
 jansu-storage/src/limbo.rs
@@ -915,7 +915,7 @@ For unsupported storage backends during the first implementation pass, return a 
 ```text
 memory://      for tests
 file://        for production local replicated logs
-sqlite://      for local metadata
+redlinedb://      for local metadata
 postgres://    for shared cluster metadata
 ```
 
@@ -2519,5 +2519,5 @@ That split keeps the work shippable, testable, and compatible with the current J
 [2]: https://kafka.apache.org/25/design/protocol/?utm_source=chatgpt.com "Protocol | Apache Kafka"
 [3]: https://kafka.apache.org/33/design/protocol/?utm_source=chatgpt.com "Protocol | Apache Kafka"
 [4]: https://docs.rs/crate/jansu-storage/latest/source/src/lib.rs "jansu-storage 0.6.0 - Docs.rs"
-[5]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[5]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 

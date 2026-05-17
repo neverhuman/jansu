@@ -12,314 +12,312 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-    use object_store::{PutPayload, memory::InMemory};
-    use serde::{Deserialize, Serialize};
-    use tracing::subscriber::DefaultGuard;
-    use tracing_subscriber::EnvFilter;
+use object_store::{PutPayload, memory::InMemory};
+use serde::{Deserialize, Serialize};
+use tracing::subscriber::DefaultGuard;
+use tracing_subscriber::EnvFilter;
 
-    use crate::Error;
+use crate::Error;
 
-    use super::*;
+use super::*;
 
-    #[derive(
-        Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-    )]
-    struct X(i32);
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+struct X(i32);
 
-    fn init_tracing() -> Result<DefaultGuard> {
-        use std::{fs::File, sync::Arc, thread};
+fn init_tracing() -> Result<DefaultGuard> {
+    use std::{fs::File, sync::Arc, thread};
 
-        Ok(tracing::subscriber::set_default(
-            tracing_subscriber::fmt()
-                .with_level(true)
-                .with_line_number(true)
-                .with_thread_names(false)
-                .with_env_filter(EnvFilter::from_default_env().add_directive(
-                    format!("{}=debug", env!("CARGO_PKG_NAME").replace("-", "_")).parse()?,
-                ))
-                .with_writer(
-                    thread::current()
-                        .name()
-                        .ok_or(Error::Message(String::from("unnamed thread")))
-                        .and_then(|name| {
-                            File::create(format!("../logs/{}/{name}.log", env!("CARGO_PKG_NAME"),))
-                                .map_err(Into::into)
-                        })
-                        .map(Arc::new)?,
-                )
-                .finish(),
-        ))
-    }
-
-    #[tokio::test]
-    async fn with_does_not_exist() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
-
-        let object_store = InMemory::new();
-
-        let o = OptiCon::path(path.clone());
-
-        assert_eq!(1, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
-
-        assert!(matches!(
-            object_store.get(&path).await,
-            Err(object_store::Error::NotFound { .. })
-        ));
-
-        assert_eq!(1, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
-
-        assert!(matches!(
-            object_store.get(&path).await,
-            Err(object_store::Error::NotFound { .. })
-        ));
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn with_mut_does_not_exist() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
-
-        let object_store = InMemory::new();
-
-        let o = OptiCon::path(path.clone());
-
-        let expected = 1;
-        assert_eq!(
-            expected,
-            o.with_mut(&object_store, |x: &mut X| {
-                x.0 += 1;
-                Ok(x.0)
-            })
-            .await?
-        );
-
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(expected, data.0);
-
-        let expected = 2;
-        assert_eq!(
-            expected,
-            o.with_mut(&object_store, |x: &mut X| {
-                x.0 += 1;
-                Ok(x.0)
-            })
-            .await?
-        );
-
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(expected, data.0);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn with_did_exist() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
-
-        let object_store = InMemory::new();
-
-        _ = object_store
-            .put(
-                &path,
-                serde_json::to_vec(&X(6))
-                    .map(Bytes::from)
-                    .map(PutPayload::from)?,
+    Ok(tracing::subscriber::set_default(
+        tracing_subscriber::fmt()
+            .with_level(true)
+            .with_line_number(true)
+            .with_thread_names(false)
+            .with_env_filter(EnvFilter::from_default_env().add_directive(
+                format!("{}=debug", env!("CARGO_PKG_NAME").replace("-", "_")).parse()?,
+            ))
+            .with_writer(
+                thread::current()
+                    .name()
+                    .ok_or(Error::Message(String::from("unnamed thread")))
+                    .and_then(|name| {
+                        File::create(format!("../logs/{}/{name}.log", env!("CARGO_PKG_NAME"),))
+                            .map_err(Into::into)
+                    })
+                    .map(Arc::new)?,
             )
-            .await?;
+            .finish(),
+    ))
+}
 
-        let o = OptiCon::path(path.clone());
+#[tokio::test]
+async fn with_does_not_exist() -> Result<()> {
+    let _guard = init_tracing()?;
 
-        assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
 
-        object_store.delete(&path).await?;
+    let object_store = InMemory::new();
 
-        assert_eq!(1, o.with(&object_store, |x| Ok(x.0 + 1)).await?);
+    let o = OptiCon::path(path.clone());
 
-        assert!(matches!(
-            object_store.get(&path).await,
-            Err(object_store::Error::NotFound { .. })
-        ));
+    assert_eq!(1, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
 
-        assert_eq!(1, o.with(&object_store, |x| Ok(x.0 + 1)).await?);
+    assert!(matches!(
+        object_store.get(&path).await,
+        Err(object_store::Error::NotFound { .. })
+    ));
 
-        assert!(matches!(
-            object_store.get(&path).await,
-            Err(object_store::Error::NotFound { .. })
-        ));
+    assert_eq!(1, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
 
-        Ok(())
-    }
+    assert!(matches!(
+        object_store.get(&path).await,
+        Err(object_store::Error::NotFound { .. })
+    ));
 
-    #[tokio::test]
-    async fn with_mut_did_exist() -> Result<()> {
-        let _guard = init_tracing()?;
+    Ok(())
+}
 
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
+#[tokio::test]
+async fn with_mut_does_not_exist() -> Result<()> {
+    let _guard = init_tracing()?;
 
-        let object_store = InMemory::new();
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
 
-        _ = object_store
-            .put(
-                &path,
-                serde_json::to_vec(&X(6))
-                    .map(Bytes::from)
-                    .map(PutPayload::from)?,
-            )
-            .await?;
+    let object_store = InMemory::new();
 
-        let o = OptiCon::path(path.clone());
+    let o = OptiCon::path(path.clone());
 
-        let expected = 7;
-        assert_eq!(
-            expected,
-            o.with_mut(&object_store, |x: &mut X| {
-                x.0 += 1;
-                Ok(x.0)
-            })
-            .await?
-        );
+    let expected = 1;
+    assert_eq!(
+        expected,
+        o.with_mut(&object_store, |x: &mut X| {
+            x.0 += 1;
+            Ok(x.0)
+        })
+        .await?
+    );
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(expected, data.0);
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(expected, data.0);
 
-        object_store.delete(&path).await?;
+    let expected = 2;
+    assert_eq!(
+        expected,
+        o.with_mut(&object_store, |x: &mut X| {
+            x.0 += 1;
+            Ok(x.0)
+        })
+        .await?
+    );
 
-        let expected = 1;
-        assert_eq!(
-            expected,
-            o.with_mut(&object_store, |x| {
-                x.0 += 1;
-                Ok(x.0)
-            })
-            .await?
-        );
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(expected, data.0);
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(expected, data.0);
+    Ok(())
+}
 
-        let expected = 2;
-        assert_eq!(
-            expected,
-            o.with_mut(&object_store, |x| {
-                x.0 += 1;
-                Ok(x.0)
-            })
-            .await?
-        );
+#[tokio::test]
+async fn with_did_exist() -> Result<()> {
+    let _guard = init_tracing()?;
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(expected, data.0);
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
 
-        Ok(())
-    }
+    let object_store = InMemory::new();
 
-    #[tokio::test]
-    async fn with_already_exists() -> Result<()> {
-        let _guard = init_tracing()?;
+    _ = object_store
+        .put(
+            &path,
+            serde_json::to_vec(&X(6))
+                .map(Bytes::from)
+                .map(PutPayload::from)?,
+        )
+        .await?;
 
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
+    let o = OptiCon::path(path.clone());
 
-        let object_store = InMemory::new();
+    assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
 
-        _ = object_store
-            .put(
-                &path,
-                serde_json::to_vec(&X(6))
-                    .map(Bytes::from)
-                    .map(PutPayload::from)?,
-            )
-            .await?;
+    object_store.delete(&path).await?;
 
-        let o = OptiCon::path(path.clone());
+    assert_eq!(1, o.with(&object_store, |x| Ok(x.0 + 1)).await?);
 
-        assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
+    assert!(matches!(
+        object_store.get(&path).await,
+        Err(object_store::Error::NotFound { .. })
+    ));
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(6, data.0);
+    assert_eq!(1, o.with(&object_store, |x| Ok(x.0 + 1)).await?);
 
-        assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
+    assert!(matches!(
+        object_store.get(&path).await,
+        Err(object_store::Error::NotFound { .. })
+    ));
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(6, data.0);
+    Ok(())
+}
 
-        Ok(())
-    }
+#[tokio::test]
+async fn with_mut_did_exist() -> Result<()> {
+    let _guard = init_tracing()?;
 
-    #[tokio::test]
-    async fn with_mut_already_exists() -> Result<()> {
-        let _guard = init_tracing()?;
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
 
-        let id = "test";
-        let path = Path::from(format!("/abc/{id}.json"));
+    let object_store = InMemory::new();
 
-        let object_store = InMemory::new();
+    _ = object_store
+        .put(
+            &path,
+            serde_json::to_vec(&X(6))
+                .map(Bytes::from)
+                .map(PutPayload::from)?,
+        )
+        .await?;
 
-        _ = object_store
-            .put(
-                &path,
-                serde_json::to_vec(&X(6))
-                    .map(Bytes::from)
-                    .map(PutPayload::from)?,
-            )
-            .await?;
+    let o = OptiCon::path(path.clone());
 
-        let o = OptiCon::path(path.clone());
+    let expected = 7;
+    assert_eq!(
+        expected,
+        o.with_mut(&object_store, |x: &mut X| {
+            x.0 += 1;
+            Ok(x.0)
+        })
+        .await?
+    );
 
-        assert_eq!(
-            42,
-            o.with_mut(&object_store, |x: &mut X| {
-                x.0 += 1;
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(expected, data.0);
 
-                Ok(6 * x.0)
-            })
-            .await?
-        );
+    object_store.delete(&path).await?;
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(7, data.0);
+    let expected = 1;
+    assert_eq!(
+        expected,
+        o.with_mut(&object_store, |x| {
+            x.0 += 1;
+            Ok(x.0)
+        })
+        .await?
+    );
 
-        assert_eq!(
-            48,
-            o.with_mut(&object_store, |x: &mut X| {
-                x.0 += 1;
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(expected, data.0);
 
-                Ok(6 * x.0)
-            })
-            .await?
-        );
+    let expected = 2;
+    assert_eq!(
+        expected,
+        o.with_mut(&object_store, |x| {
+            x.0 += 1;
+            Ok(x.0)
+        })
+        .await?
+    );
 
-        let get_result = object_store.get(&path).await?;
-        let encoded = get_result.bytes().await?;
-        let data = serde_json::from_slice::<X>(&encoded)?;
-        assert_eq!(8, data.0);
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(expected, data.0);
 
-        Ok(())
-    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn with_already_exists() -> Result<()> {
+    let _guard = init_tracing()?;
+
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
+
+    let object_store = InMemory::new();
+
+    _ = object_store
+        .put(
+            &path,
+            serde_json::to_vec(&X(6))
+                .map(Bytes::from)
+                .map(PutPayload::from)?,
+        )
+        .await?;
+
+    let o = OptiCon::path(path.clone());
+
+    assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
+
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(6, data.0);
+
+    assert_eq!(7, o.with(&object_store, |x: &X| Ok(x.0 + 1)).await?);
+
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(6, data.0);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn with_mut_already_exists() -> Result<()> {
+    let _guard = init_tracing()?;
+
+    let id = "test";
+    let path = Path::from(format!("/abc/{id}.json"));
+
+    let object_store = InMemory::new();
+
+    _ = object_store
+        .put(
+            &path,
+            serde_json::to_vec(&X(6))
+                .map(Bytes::from)
+                .map(PutPayload::from)?,
+        )
+        .await?;
+
+    let o = OptiCon::path(path.clone());
+
+    assert_eq!(
+        42,
+        o.with_mut(&object_store, |x: &mut X| {
+            x.0 += 1;
+
+            Ok(6 * x.0)
+        })
+        .await?
+    );
+
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(7, data.0);
+
+    assert_eq!(
+        48,
+        o.with_mut(&object_store, |x: &mut X| {
+            x.0 += 1;
+
+            Ok(6 * x.0)
+        })
+        .await?
+    );
+
+    let get_result = object_store.get(&path).await?;
+    let encoded = get_result.bytes().await?;
+    let data = serde_json::from_slice::<X>(&encoded)?;
+    assert_eq!(8, data.0);
+
+    Ok(())
+}

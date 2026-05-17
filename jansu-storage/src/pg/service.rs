@@ -18,7 +18,10 @@ use super::*;
 
 impl Postgres {
     #[instrument(skip_all)]
-    pub(super) async fn register_broker_storage(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
+    pub(super) async fn register_broker_storage(
+        &self,
+        broker_registration: BrokerRegistrationRequest,
+    ) -> Result<()> {
         debug!(cluster = self.cluster, ?broker_registration);
 
         let c = self.connection().await?;
@@ -35,18 +38,19 @@ impl Postgres {
         Ok(())
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn brokers_storage(&self) -> Result<Vec<DescribeClusterBroker>> {
         debug!(cluster = self.cluster);
 
         let broker_id = self.node;
-        let host = self
-            .advertised_listener
-            .host_str()
-            .unwrap_or("0.0.0.0")
-            .into();
-        let port = self.advertised_listener.port().unwrap_or(9092).into();
+        let host = match self.advertised_listener.host_str() {
+            Some(host) => host.into(),
+            None => "0.0.0.0".into(),
+        };
+        let port = match self.advertised_listener.port() {
+            Some(port) => port.into(),
+            None => 9092.into(),
+        };
         let rack = None;
 
         Ok(vec![
@@ -58,9 +62,12 @@ impl Postgres {
         ])
     }
 
-
     #[instrument(skip_all)]
-    pub(super) async fn create_topic_storage(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
+    pub(super) async fn create_topic_storage(
+        &self,
+        topic: CreatableTopic,
+        validate_only: bool,
+    ) -> Result<Uuid> {
         debug!(cluster = self.cluster, ?topic, validate_only);
 
         let mut c = self.connection().await?;
@@ -150,7 +157,6 @@ impl Postgres {
         Ok(topic_uuid)
     }
 
-
     #[instrument(skip_all)]
     pub(super) async fn delete_records_storage(
         &self,
@@ -203,53 +209,63 @@ impl Postgres {
                             error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
                         })?;
 
-                    _ = self.tx_prepare_execute(
-                        &tx,
-                        "watermark_update_low.sql",
-                        &[
-                            &self.cluster,
-                            &topic.name,
-                            &partition.partition_index,
-                            &partition.offset,
-                        ]
-                    ).await?;
+                    _ = self
+                        .tx_prepare_execute(
+                            &tx,
+                            "watermark_update_low.sql",
+                            &[
+                                &self.cluster,
+                                &topic.name,
+                                &partition.partition_index,
+                                &partition.offset,
+                            ],
+                        )
+                        .await?;
 
-                    let partition_result = self.tx_prepare_query_opt(
-                        &tx,
-                        "watermark_select_no_update.sql",
-                        &[&self.cluster, &topic.name, &partition.partition_index],
-                    )
-                    .await
-                    .inspect_err(|err| {
-                        let cluster = self.cluster.as_str();
-                        let topic = topic.name.as_str();
-                        let partition_index = partition.partition_index;
-                        let offset = partition.offset;
+                    let partition_result = self
+                        .tx_prepare_query_opt(
+                            &tx,
+                            "watermark_select_no_update.sql",
+                            &[&self.cluster, &topic.name, &partition.partition_index],
+                        )
+                        .await
+                        .inspect_err(|err| {
+                            let cluster = self.cluster.as_str();
+                            let topic = topic.name.as_str();
+                            let partition_index = partition.partition_index;
+                            let offset = partition.offset;
 
-                        error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
-                    })
-                    .map_or(
-                        Ok(DeleteRecordsPartitionResult::default()
-                            .partition_index(partition.partition_index)
-                            .low_watermark(0)
-                            .error_code(ErrorCode::UnknownServerError.into())),
-                        |row| {
-                            row.map_or(
-                                Ok(DeleteRecordsPartitionResult::default()
-                                    .partition_index(partition.partition_index)
-                                    .low_watermark(0)
-                                    .error_code(ErrorCode::UnknownServerError.into())),
-                                |row| {
-                                    row.try_get::<_, Option<i64>>(0).map(|low_watermark| {
-                                        DeleteRecordsPartitionResult::default()
-                                            .partition_index(partition.partition_index)
-                                            .low_watermark(low_watermark.unwrap_or(0))
-                                            .error_code(ErrorCode::None.into())
-                                    }).map_err(Error::from)
-                                },
-                            )
-                        },
-                    )?;
+                            error!(?err, ?cluster, ?topic, ?partition_index, ?offset)
+                        })
+                        .map_or(
+                            Ok(DeleteRecordsPartitionResult::default()
+                                .partition_index(partition.partition_index)
+                                .low_watermark(0)
+                                .error_code(ErrorCode::UnknownServerError.into())),
+                            |row| {
+                                row.map_or(
+                                    Ok(DeleteRecordsPartitionResult::default()
+                                        .partition_index(partition.partition_index)
+                                        .low_watermark(0)
+                                        .error_code(ErrorCode::UnknownServerError.into())),
+                                    |row| {
+                                        row.try_get::<_, Option<i64>>(0)
+                                            .map(|low_watermark| {
+                                                let low_watermark = match low_watermark {
+                                                    Some(value) => value,
+                                                    None => 0,
+                                                };
+
+                                                DeleteRecordsPartitionResult::default()
+                                                    .partition_index(partition.partition_index)
+                                                    .low_watermark(low_watermark)
+                                                    .error_code(ErrorCode::None.into())
+                                            })
+                                            .map_err(Error::from)
+                                    },
+                                )
+                            },
+                        )?;
 
                     partition_responses.push(partition_result);
                 }
@@ -261,12 +277,11 @@ impl Postgres {
                     .partitions(Some(partition_responses)),
             );
         }
-        
+
         tx.commit().await.inspect_err(|err| error!(?err))?;
 
         Ok(responses)
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn delete_topic_storage(&self, topic: &TopicId) -> Result<ErrorCode> {
@@ -332,7 +347,6 @@ impl Postgres {
 
         Ok(ErrorCode::None)
     }
-
 
     #[instrument(skip_all)]
     pub(super) async fn incremental_alter_resource_storage(
@@ -406,19 +420,42 @@ impl Postgres {
                         }
                         OpType::Append => {
                             let c = self.connection().await?;
-                            let rows = self
+                            let rows = match self
                                 .prepare_query(
                                     &c,
                                     "topic_configuration_select.sql",
                                     &[&self.cluster, &resource.resource_name, &config.name],
                                 )
                                 .await
-                                .unwrap_or(Vec::new());
+                            {
+                                Ok(rows) => rows,
+                                Err(err) => {
+                                    error!(?err);
+                                    error_code = ErrorCode::UnknownServerError;
+                                    break;
+                                }
+                            };
 
-                            let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
+                            let current_value = match rows.first() {
+                                Some(row) => match row.try_get(0) {
+                                    Ok(value) => value,
+                                    Err(err) => {
+                                        error!(?err);
+                                        None
+                                    }
+                                },
+                                None => None,
+                            };
 
                             if let Some(new_val) = &config.value {
-                                let mut list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).collect()).unwrap_or(Vec::new());
+                                let mut list: Vec<&str> = match current_value.as_deref() {
+                                    Some(s) => s
+                                        .split(',')
+                                        .map(str::trim)
+                                        .filter(|s| !s.is_empty())
+                                        .collect(),
+                                    None => Vec::new(),
+                                };
                                 if !list.contains(&new_val.as_str()) {
                                     list.push(new_val.as_str());
                                 }
@@ -446,20 +483,43 @@ impl Postgres {
                         }
                         OpType::Subtract => {
                             let c = self.connection().await?;
-                            let rows = self
+                            let rows = match self
                                 .prepare_query(
                                     &c,
                                     "topic_configuration_select.sql",
                                     &[&self.cluster, &resource.resource_name, &config.name],
                                 )
                                 .await
-                                .unwrap_or(Vec::new());
+                            {
+                                Ok(rows) => rows,
+                                Err(err) => {
+                                    error!(?err);
+                                    error_code = ErrorCode::UnknownServerError;
+                                    break;
+                                }
+                            };
 
-                            let current_value: Option<String> = rows.first().and_then(|r| r.try_get(0).unwrap_or(None));
+                            let current_value = match rows.first() {
+                                Some(row) => match row.try_get(0) {
+                                    Ok(value) => value,
+                                    Err(err) => {
+                                        error!(?err);
+                                        None
+                                    }
+                                },
+                                None => None,
+                            };
 
                             if let Some(del_val) = &config.value {
-                                let list: Vec<&str> = current_value.as_deref().map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty() && *s != del_val.as_str()).collect()).unwrap_or(Vec::new());
-                                
+                                let list: Vec<&str> = match current_value.as_deref() {
+                                    Some(s) => s
+                                        .split(',')
+                                        .map(str::trim)
+                                        .filter(|s| !s.is_empty() && *s != del_val.as_str())
+                                        .collect(),
+                                    None => Vec::new(),
+                                };
+
                                 if list.is_empty() {
                                     if self
                                         .prepare_execute(

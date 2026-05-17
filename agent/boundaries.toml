@@ -76,9 +76,7 @@ forbidden_web_imports = [
     "pg",
     "postgres",
     "mysql",
-    "better-sqlite3",
     "@aws-sdk/client-s3",
 ]
 generated_contract_paths = ["contracts/generated"]
 web_paths = []
-

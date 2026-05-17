@@ -1,5 +1,5 @@
 use super::*;
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RequestStorageService<G> {
     storage: G,
 }
@@ -248,6 +248,6 @@ where
     }
 }
 
-
 #[cfg(test)]
+#[path = "request_storage_tests.rs"]
 mod request_storage_tests;

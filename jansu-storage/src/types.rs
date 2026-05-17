@@ -14,7 +14,9 @@
 
 use jansu_sans_io::{
     ErrorCode,
-    add_partitions_to_txn_request::{AddPartitionsToTxnRequest, AddPartitionsToTxnTopic, AddPartitionsToTxnTransaction},
+    add_partitions_to_txn_request::{
+        AddPartitionsToTxnRequest, AddPartitionsToTxnTopic, AddPartitionsToTxnTransaction,
+    },
     add_partitions_to_txn_response::{AddPartitionsToTxnResult, AddPartitionsToTxnTopicResult},
     txn_offset_commit_request::TxnOffsetCommitRequestTopic,
 };

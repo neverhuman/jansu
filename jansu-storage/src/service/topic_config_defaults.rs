@@ -208,10 +208,12 @@ pub(crate) fn synonyms_for(name: &str, value: Option<&str>) -> Option<Vec<Descri
         .find(|def| def.name == name)
         .and_then(|def| def.synonym)
         .map(|synonym_name| {
-            vec![DescribeConfigsSynonym::default()
-                .name(synonym_name.into())
-                .value(value.map(Into::into))
-                .source(ConfigSource::DefaultConfig.into())]
+            vec![
+                DescribeConfigsSynonym::default()
+                    .name(synonym_name.into())
+                    .value(value.map(Into::into))
+                    .source(ConfigSource::DefaultConfig.into()),
+            ]
         })
 }
 
@@ -224,14 +226,8 @@ mod tests {
         let defaults = build_default_configs();
         assert!(defaults.contains_key("cleanup.policy"));
         assert!(defaults.contains_key("retention.ms"));
-        assert_eq!(
-            defaults["cleanup.policy"].value.as_deref(),
-            Some("delete")
-        );
-        assert_eq!(
-            defaults["retention.ms"].value.as_deref(),
-            Some("604800000")
-        );
+        assert_eq!(defaults["cleanup.policy"].value.as_deref(), Some("delete"));
+        assert_eq!(defaults["retention.ms"].value.as_deref(), Some("604800000"));
     }
 
     #[test]

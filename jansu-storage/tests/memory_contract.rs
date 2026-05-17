@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg(feature = "dynostore")]
+
 mod common;
 
 use crate::common::{Error, build_storage, create_topic, init_tracing, register_broker};

@@ -1,17 +1,17 @@
 {
-  "report_fingerprint": "sha256:d1da67ee8f7639eae09a3f3117884811414f468ef9d3306204b151e4facaf9ff",
-  "input_fingerprint": "sha256:f29a4b5ff2dc8675b2d6eca2fc9729d79a33224bd39882133a3c1cf903be72a6",
+  "report_fingerprint": "sha256:8a250f396a9c087f04e829f54eceaaf5a76740a50a6211094c2c2715d15dd27e",
+  "input_fingerprint": "sha256:0494bcbde740870560a6ba2bf3ced4e976854046e4d65c60978f9deceba53ae5",
   "policy_fingerprint": "sha256:3da5971b2eee15ae20edb9f0c9c082d8cdfa741dc434a84fec937f834de4b7bc",
   "manifest_fingerprints": {
-    "owner_map": "sha256:906487d7ffca26a6c13cd3f11b39306282389a30e8994a7c1a632b3b0ef93687",
-    "test_map": "sha256:7817be80c49e2d2fdc05d53839c144a74e1e35ab6d36c7f9f8aa45c0d4cb1a5a",
+    "owner_map": "sha256:a9bf122274ffb8561a058b96e4a66eeb1a52045662f2567ddfb83c3935619913",
+    "test_map": "sha256:8bc2b85d9bf6517c90899b75d81911f1a526d3dbf00c7bcf7370b6a628979b7f",
     "generated_zones": "sha256:b7a9d955e30ee5d92ca7020be1f6c9ac87f90da2ed248fc1baf0f72523d97915",
-    "boundaries": "sha256:90988d9de819c8fe4d700c2706e385226a283cf83573462a84c7694034f78fdf",
+    "boundaries": "sha256:ed4dad06db2473f85483ebf992fb9adc5d65e46146262506b7c75afe5217eab7",
     "proof_lanes": "sha256:6aedeb106e8486031e5ddd76703b8261d7b5178e74e5ec4bf690b34489b7ac4f",
     "standard_version": "sha256:7453c97b6b9ed3c9535b03655eddbe5cfc52f46ab15339264de93534d2db94c5"
   },
   "dirty_worktree": true,
-  "generated_at": "1778971088",
+  "generated_at": "1778992384",
   "schema_url": "schemas/repo-score.schema.json",
   "standard": "jankurai",
   "standard_version": "0.9.0",
@@ -25,9 +25,9 @@
   "conformance_decision": "pass",
   "conformance_blockers": [],
   "repo": ".",
-  "run_id": "1778971088",
-  "started_at": "1778971088",
-  "elapsed_ms": 5614,
+  "run_id": "1778992384",
+  "started_at": "1778992384",
+  "elapsed_ms": 5050,
   "scope": {
     "mode": "full",
     "paths": []
@@ -35,7 +35,7 @@
   "score": 85,
   "raw_score": 85,
   "decision": {
-    "status": "advisory",
+    "status": "pass",
     "minimum_score": 85,
     "passed": true,
     "hard_findings": 0,
@@ -54,7 +54,7 @@
     }
   },
   "git": {
-    "head": "60b4d05",
+    "head": "8a303a4",
     "base": null,
     "changed_files": 0,
     "mode": "full",
@@ -71,7 +71,7 @@
       "medium",
       "low"
     ],
-    "mode": "advisory",
+    "mode": "standard",
     "standard_version": "0.9.0",
     "auditor_version": "1.4.1",
     "schema_version": "1.9.0",
@@ -351,8 +351,8 @@
         "security lane present",
         "canonical security lane wrapper present",
         "agent-readiness audit gate found in CI",
-        "rust bad-behavior advisory signals: 1099",
-        "sql bad-behavior advisory signals: 8",
+        "rust bad-behavior advisory signals: 1031",
+        "sql bad-behavior advisory signals: 7",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
         "secret scanning command is operational"
@@ -365,11 +365,11 @@
       "score": 55,
       "weighted_points": 6.6,
       "evidence": [
-        "largest authored code file: jansu-sans-io/src/ser.rs (970 LOC)",
+        "largest authored code file: jansu-schema/src/json.rs (908 LOC)",
         "code file exceeds 500 LOC",
-        "copy-code advisory classes found: 119 (advisory only, no score impact)",
-        "rust bad-behavior advisory signals: 1099",
-        "sql bad-behavior advisory signals: 8",
+        "copy-code advisory classes found: 95 (advisory only, no score impact)",
+        "rust bad-behavior advisory signals: 1031",
+        "sql bad-behavior advisory signals: 7",
         "docker bad-behavior advisory signals: 1",
         "ci bad-behavior advisory signals: 3",
         "no hard bad-behavior findings across detector-backed language families"
@@ -1040,7 +1040,7 @@
     "artifact": {
       "path": "target/jankurai/security/evidence.json",
       "envelope_exit_code": 0,
-      "elapsed_ms": 92976,
+      "elapsed_ms": 261040,
       "wrapper_strict": false,
       "profile": "local",
       "commands_ran": 1,
@@ -1049,14 +1049,14 @@
       "required_commands_skipped": 0,
       "required_commands_failed": 0,
       "blocking_commands": [],
-      "generated_at": "1778971035",
-      "git_head": "60b4d058668e7d36b7792681c770b2e93a2d6943"
+      "generated_at": "1778991918",
+      "git_head": "8a303a49b6951bf950fb23e92a05a43d629a7d44"
     }
   },
   "boundaries": {
     "artifact": {
       "path": "agent/boundaries.toml",
-      "content_fingerprint": "sha256:90988d9de819c8fe4d700c2706e385226a283cf83573462a84c7694034f78fdf",
+      "content_fingerprint": "sha256:ed4dad06db2473f85483ebf992fb9adc5d65e46146262506b7c75afe5217eab7",
       "stack_id": "rust-postgres-kafka-native",
       "stack_version": "0.5.0",
       "adapter_path_count": 2,
@@ -1070,7 +1070,7 @@
   "copy_code": {
     "schema_version": "1.1.0",
     "generated_by": "jankurai copy-code",
-    "generated_at": "2026-05-16T22:38:02.946678+00:00",
+    "generated_at": "2026-05-17T04:32:59.232184+00:00",
     "repo": ".",
     "auditor_version": "1.4.1",
     "status": "review",
@@ -1108,20 +1108,20 @@
       ]
     },
     "summary": {
-      "files_scanned": 972,
-      "files_considered": 260,
-      "active_files": 260,
+      "files_scanned": 1295,
+      "files_considered": 254,
+      "active_files": 254,
       "exact_file_classes": 0,
       "hard_classes": 0,
-      "warning_classes": 119,
+      "warning_classes": 95,
       "hard_instances": 0,
-      "warning_instances": 391,
-      "duplicate_lines": 527,
-      "duplicate_tokens": 2363,
-      "duplicate_bytes": 17654,
-      "total_redundant_lines": 850,
-      "total_redundant_tokens": 2959,
-      "total_redundant_bytes": 23982
+      "warning_instances": 312,
+      "duplicate_lines": 306,
+      "duplicate_tokens": 1837,
+      "duplicate_bytes": 10963,
+      "total_redundant_lines": 562,
+      "total_redundant_tokens": 2349,
+      "total_redundant_bytes": 16341
     },
     "classes": [
       {
@@ -1251,71 +1251,71 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 252,
-            "end_line": 255,
+            "start_line": 250,
+            "end_line": 253,
             "unit_name": "deserialize_string"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 276,
-            "end_line": 279,
+            "start_line": 272,
+            "end_line": 275,
             "unit_name": "deserialize_bytes"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 283,
-            "end_line": 286,
+            "start_line": 279,
+            "end_line": 282,
             "unit_name": "deserialize_byte_buf"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 290,
-            "end_line": 293,
+            "start_line": 286,
+            "end_line": 289,
             "unit_name": "deserialize_option"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 304,
-            "end_line": 307,
+            "start_line": 300,
+            "end_line": 303,
             "unit_name": "deserialize_unit"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 337,
-            "end_line": 340,
+            "start_line": 333,
+            "end_line": 336,
             "unit_name": "deserialize_seq"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 347,
-            "end_line": 350,
+            "start_line": 343,
+            "end_line": 346,
             "unit_name": "deserialize_tuple"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 372,
-            "end_line": 375,
+            "start_line": 368,
+            "end_line": 371,
             "unit_name": "deserialize_map"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 407,
-            "end_line": 410,
+            "start_line": 403,
+            "end_line": 406,
             "unit_name": "deserialize_identifier"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 414,
-            "end_line": 417,
+            "start_line": 410,
+            "end_line": 413,
             "unit_name": "deserialize_ignored_any"
           }
         ]
@@ -1329,13 +1329,13 @@
         "duplicate_lines": 4,
         "duplicate_tokens": 5,
         "duplicate_bytes": 56,
-        "instance_count": 18,
-        "total_redundant_lines": 68,
-        "total_redundant_tokens": 85,
-        "total_redundant_bytes": 952,
+        "instance_count": 9,
+        "total_redundant_lines": 32,
+        "total_redundant_tokens": 40,
+        "total_redundant_bytes": 448,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "80bf8bc1300cd25f",
+        "fingerprint": "5395ae70a549beb6",
         "reason": "same body appears under different names across files",
         "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
         "instances": [
@@ -1401,247 +1401,56 @@
             "start_line": 432,
             "end_line": 436,
             "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 574,
-            "end_line": 578,
-            "unit_name": "serialize_some"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 782,
-            "end_line": 786,
-            "unit_name": "serialize_element"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 801,
-            "end_line": 805,
-            "unit_name": "serialize_element"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 820,
-            "end_line": 824,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 839,
-            "end_line": 843,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 858,
-            "end_line": 862,
-            "unit_name": "serialize_key"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 867,
-            "end_line": 871,
-            "unit_name": "serialize_value"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 885,
-            "end_line": 889,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 927,
-            "end_line": 931,
-            "unit_name": "serialize_field"
           }
         ]
       },
       {
-        "id": "copy-code-body-rust-5fdcb234f09d0253",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 55,
-        "duplicate_tokens": 111,
-        "duplicate_bytes": 1360,
-        "instance_count": 2,
-        "total_redundant_lines": 55,
-        "total_redundant_tokens": 111,
-        "total_redundant_bytes": 1360,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "4837d25447cd157b",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-storage/src/limbo/tests.rs",
-            "language": "rust",
-            "start_line": 197,
-            "end_line": 252,
-            "unit_name": "create_topic_libsql_compat"
-          },
-          {
-            "path": "jansu-storage/src/lite/tests.rs",
-            "language": "rust",
-            "start_line": 197,
-            "end_line": 252,
-            "unit_name": "create_topic"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-e6bbbf9b0fc13cfd",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 48,
-        "duplicate_tokens": 113,
-        "duplicate_bytes": 1239,
-        "instance_count": 2,
-        "total_redundant_lines": 48,
-        "total_redundant_tokens": 113,
-        "total_redundant_bytes": 1239,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "1a6298b7e60246ae",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-storage/src/limbo/tests.rs",
-            "language": "rust",
-            "start_line": 255,
-            "end_line": 303,
-            "unit_name": "create_topic_in_tx_libsql_compat"
-          },
-          {
-            "path": "jansu-storage/src/lite/tests.rs",
-            "language": "rust",
-            "start_line": 255,
-            "end_line": 303,
-            "unit_name": "create_topic_in_tx"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-8bd4679d8bbeb415",
+        "id": "copy-code-unit-rust-54356abc24277c2b",
         "kind": "exact_unit_same_name",
         "severity": "warning",
         "confidence": "high",
         "language": "rust",
-        "unit_name": "init_tracing",
-        "duplicate_lines": 23,
-        "duplicate_tokens": 58,
-        "duplicate_bytes": 941,
-        "instance_count": 2,
-        "total_redundant_lines": 23,
-        "total_redundant_tokens": 58,
-        "total_redundant_bytes": 941,
+        "unit_name": "copy_opts",
+        "duplicate_lines": 5,
+        "duplicate_tokens": 10,
+        "duplicate_bytes": 124,
+        "instance_count": 4,
+        "total_redundant_lines": 15,
+        "total_redundant_tokens": 30,
+        "total_redundant_bytes": 372,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "1b01c4dec667ea96",
+        "fingerprint": "2e5f2b0b6d2e657c",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
-            "path": "jansu-storage/src/dynostore/opticon/tests.rs",
+            "path": "jansu-storage/src/dynostore/metadata.rs",
             "language": "rust",
-            "start_line": 29,
-            "end_line": 52,
-            "unit_name": "init_tracing"
+            "start_line": 391,
+            "end_line": 396,
+            "unit_name": "copy_opts"
           },
           {
-            "path": "jansu-storage/src/sql.rs",
+            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
             "language": "rust",
-            "start_line": 517,
-            "end_line": 540,
-            "unit_name": "init_tracing"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-f3f77088a21e8e51",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "init_tracing",
-        "duplicate_lines": 23,
-        "duplicate_tokens": 58,
-        "duplicate_bytes": 853,
-        "instance_count": 2,
-        "total_redundant_lines": 23,
-        "total_redundant_tokens": 58,
-        "total_redundant_bytes": 853,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "93dc92cf0c124c89",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-storage/src/limbo/tests.rs",
-            "language": "rust",
-            "start_line": 21,
-            "end_line": 44,
-            "unit_name": "init_tracing"
+            "start_line": 119,
+            "end_line": 124,
+            "unit_name": "copy_opts"
           },
           {
-            "path": "jansu-storage/src/lite/tests.rs",
+            "path": "jansu-storage/src/dynostore/metron.rs",
             "language": "rust",
-            "start_line": 21,
-            "end_line": 44,
-            "unit_name": "init_tracing"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-7bc22ed151a0d3f3",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "init_tracing",
-        "duplicate_lines": 22,
-        "duplicate_tokens": 49,
-        "duplicate_bytes": 901,
-        "instance_count": 2,
-        "total_redundant_lines": 22,
-        "total_redundant_tokens": 49,
-        "total_redundant_bytes": 901,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "1acc2a356d75a5fe",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-client/src/lib.rs",
-            "language": "rust",
-            "start_line": 836,
-            "end_line": 858,
-            "unit_name": "init_tracing"
+            "start_line": 256,
+            "end_line": 261,
+            "unit_name": "copy_opts"
           },
           {
-            "path": "jansu-proxy/src/lib.rs",
+            "path": "jansu-storage/src/gcs/limit.rs",
             "language": "rust",
-            "start_line": 368,
-            "end_line": 390,
-            "unit_name": "init_tracing"
+            "start_line": 186,
+            "end_line": 191,
+            "unit_name": "copy_opts"
           }
         ]
       },
@@ -1668,8 +1477,8 @@
           {
             "path": "jansu-broker/src/lib.rs",
             "language": "rust",
-            "start_line": 255,
-            "end_line": 258,
+            "start_line": 221,
+            "end_line": 224,
             "unit_name": "from"
           },
           {
@@ -1710,132 +1519,6 @@
         ]
       },
       {
-        "id": "copy-code-body-rust-f4921751ca6b5f3b",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 1,
-        "duplicate_tokens": 3,
-        "duplicate_bytes": 37,
-        "instance_count": 15,
-        "total_redundant_lines": 14,
-        "total_redundant_tokens": 42,
-        "total_redundant_bytes": 518,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "a2ef3aa2fcf45e92",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/record/codec.rs",
-            "language": "rust",
-            "start_line": 573,
-            "end_line": 574,
-            "unit_name": "octets_none"
-          },
-          {
-            "path": "jansu-sans-io/src/record/codec.rs",
-            "language": "rust",
-            "start_line": 582,
-            "end_line": 583,
-            "unit_name": "octets_some"
-          },
-          {
-            "path": "jansu-sans-io/src/record/codec.rs",
-            "language": "rust",
-            "start_line": 591,
-            "end_line": 592,
-            "unit_name": "empty_var_int_seq"
-          },
-          {
-            "path": "jansu-sans-io/src/record/codec.rs",
-            "language": "rust",
-            "start_line": 600,
-            "end_line": 601,
-            "unit_name": "single_var_int_seq"
-          },
-          {
-            "path": "jansu-sans-io/src/record/codec.rs",
-            "language": "rust",
-            "start_line": 609,
-            "end_line": 610,
-            "unit_name": "multiple_var_int_seq"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 700,
-            "end_line": 701,
-            "unit_name": "populate"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 732,
-            "end_line": 733,
-            "unit_name": "abc_valid"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 749,
-            "end_line": 750,
-            "unit_name": "abc_invalid"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 771,
-            "end_line": 772,
-            "unit_name": "pqr_valid"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 787,
-            "end_line": 788,
-            "unit_name": "error_size_of"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
-            "language": "rust",
-            "start_line": 157,
-            "end_line": 158,
-            "unit_name": "get"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
-            "language": "rust",
-            "start_line": 198,
-            "end_line": 199,
-            "unit_name": "get_evict_get"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
-            "language": "rust",
-            "start_line": 246,
-            "end_line": 247,
-            "unit_name": "put_get"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
-            "language": "rust",
-            "start_line": 290,
-            "end_line": 291,
-            "unit_name": "put_delete_get"
-          },
-          {
-            "path": "jansu-storage/src/gcs/limit.rs",
-            "language": "rust",
-            "start_line": 236,
-            "end_line": 237,
-            "unit_name": "test"
-          }
-        ]
-      },
-      {
         "id": "copy-code-unit-rust-0b045293e612a06f",
         "kind": "exact_unit_same_name",
         "severity": "warning",
@@ -1851,22 +1534,22 @@
         "total_redundant_bytes": 289,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "f5cf8889e3b60d8f",
+        "fingerprint": "cf526ff04054af6a",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
-            "path": "jansu-sans-io/src/ser_part2.rs",
+            "path": "jansu-sans-io/src/ser/record_batch.rs",
             "language": "rust",
-            "start_line": 333,
-            "end_line": 347,
+            "start_line": 361,
+            "end_line": 375,
             "unit_name": "serialize_field"
           },
           {
-            "path": "jansu-sans-io/src/ser_part2.rs",
+            "path": "jansu-sans-io/src/ser/record_batch.rs",
             "language": "rust",
-            "start_line": 372,
-            "end_line": 386,
+            "start_line": 402,
+            "end_line": 416,
             "unit_name": "serialize_field"
           }
         ]
@@ -1887,7 +1570,7 @@
         "total_redundant_bytes": 245,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "5106d9a4941333f6",
+        "fingerprint": "5f55feb40743a80b",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
@@ -1906,10 +1589,10 @@
             "unit_name": "fmt"
           },
           {
-            "path": "jansu-client/src/lib.rs",
+            "path": "jansu-client/src/error.rs",
             "language": "rust",
-            "start_line": 147,
-            "end_line": 149,
+            "start_line": 25,
+            "end_line": 27,
             "unit_name": "fmt"
           },
           {
@@ -1986,152 +1669,74 @@
         ]
       },
       {
-        "id": "copy-code-unit-rust-0ac034b0ffc9b878",
+        "id": "copy-code-unit-rust-60e579c4e11dbe7b",
         "kind": "exact_unit_same_name",
         "severity": "warning",
         "confidence": "high",
         "language": "rust",
         "unit_name": "serialize_field",
-        "duplicate_lines": 4,
-        "duplicate_tokens": 5,
-        "duplicate_bytes": 56,
-        "instance_count": 4,
-        "total_redundant_lines": 12,
-        "total_redundant_tokens": 15,
-        "total_redundant_bytes": 168,
+        "duplicate_lines": 11,
+        "duplicate_tokens": 24,
+        "duplicate_bytes": 246,
+        "instance_count": 2,
+        "total_redundant_lines": 11,
+        "total_redundant_tokens": 24,
+        "total_redundant_bytes": 246,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "a7b7608bd790ef06",
+        "fingerprint": "d4b06ce10f15679e",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-sans-io/src/ser/composite.rs",
             "language": "rust",
-            "start_line": 348,
-            "end_line": 352,
+            "start_line": 59,
+            "end_line": 70,
             "unit_name": "serialize_field"
           },
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-sans-io/src/ser/composite.rs",
             "language": "rust",
-            "start_line": 367,
-            "end_line": 371,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 820,
-            "end_line": 824,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 839,
-            "end_line": 843,
+            "start_line": 78,
+            "end_line": 89,
             "unit_name": "serialize_field"
           }
         ]
       },
       {
-        "id": "copy-code-unit-rust-6338f3ff2153bcfa",
+        "id": "copy-code-unit-rust-57628da7285b0c3a",
         "kind": "exact_unit_same_name",
         "severity": "warning",
         "confidence": "high",
         "language": "rust",
         "unit_name": "serialize_element",
-        "duplicate_lines": 4,
-        "duplicate_tokens": 5,
-        "duplicate_bytes": 56,
-        "instance_count": 4,
-        "total_redundant_lines": 12,
-        "total_redundant_tokens": 15,
-        "total_redundant_bytes": 168,
+        "duplicate_lines": 11,
+        "duplicate_tokens": 18,
+        "duplicate_bytes": 175,
+        "instance_count": 2,
+        "total_redundant_lines": 11,
+        "total_redundant_tokens": 18,
+        "total_redundant_bytes": 175,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "a7b7608bd790ef06",
+        "fingerprint": "d4b06ce10f15679e",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-sans-io/src/ser/composite.rs",
             "language": "rust",
-            "start_line": 310,
-            "end_line": 314,
+            "start_line": 21,
+            "end_line": 32,
             "unit_name": "serialize_element"
           },
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-sans-io/src/ser/composite.rs",
             "language": "rust",
-            "start_line": 329,
-            "end_line": 333,
+            "start_line": 40,
+            "end_line": 51,
             "unit_name": "serialize_element"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 782,
-            "end_line": 786,
-            "unit_name": "serialize_element"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 801,
-            "end_line": 805,
-            "unit_name": "serialize_element"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-d632bd8d8885aaa2",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "serialize_field",
-        "duplicate_lines": 4,
-        "duplicate_tokens": 5,
-        "duplicate_bytes": 56,
-        "instance_count": 4,
-        "total_redundant_lines": 12,
-        "total_redundant_tokens": 15,
-        "total_redundant_bytes": 168,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "a7b7608bd790ef06",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 413,
-            "end_line": 417,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 432,
-            "end_line": 436,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 885,
-            "end_line": 889,
-            "unit_name": "serialize_field"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 927,
-            "end_line": 931,
-            "unit_name": "serialize_field"
           }
         ]
       },
@@ -2301,6 +1906,104 @@
         ]
       },
       {
+        "id": "copy-code-body-rust-f4921751ca6b5f3b",
+        "kind": "exact_unit_different_name",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 1,
+        "duplicate_tokens": 3,
+        "duplicate_bytes": 37,
+        "instance_count": 11,
+        "total_redundant_lines": 10,
+        "total_redundant_tokens": 30,
+        "total_redundant_bytes": 370,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "3229590e4b989999",
+        "reason": "same body appears under different names across files",
+        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 567,
+            "end_line": 568,
+            "unit_name": "octets_none"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 576,
+            "end_line": 577,
+            "unit_name": "octets_some"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 585,
+            "end_line": 586,
+            "unit_name": "empty_var_int_seq"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 594,
+            "end_line": 595,
+            "unit_name": "single_var_int_seq"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 603,
+            "end_line": 604,
+            "unit_name": "multiple_var_int_seq"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 700,
+            "end_line": 701,
+            "unit_name": "populate"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 732,
+            "end_line": 733,
+            "unit_name": "abc_valid"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 749,
+            "end_line": 750,
+            "unit_name": "abc_invalid"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 771,
+            "end_line": 772,
+            "unit_name": "pqr_valid"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 787,
+            "end_line": 788,
+            "unit_name": "error_size_of"
+          },
+          {
+            "path": "jansu-storage/src/gcs/limit.rs",
+            "language": "rust",
+            "start_line": 236,
+            "end_line": 237,
+            "unit_name": "test"
+          }
+        ]
+      },
+      {
         "id": "copy-code-unit-rust-88833078139dabe8",
         "kind": "exact_unit_same_name",
         "severity": "warning",
@@ -2344,81 +2047,102 @@
         ]
       },
       {
-        "id": "copy-code-unit-rust-0a7311a102d406b7",
+        "id": "copy-code-unit-rust-486dda43a041d541",
         "kind": "exact_unit_same_name",
         "severity": "warning",
         "confidence": "high",
         "language": "rust",
-        "unit_name": "serialize_newtype_variant",
-        "duplicate_lines": 10,
-        "duplicate_tokens": 21,
-        "duplicate_bytes": 215,
-        "instance_count": 2,
-        "total_redundant_lines": 10,
-        "total_redundant_tokens": 21,
-        "total_redundant_bytes": 215,
+        "unit_name": "delete_stream",
+        "duplicate_lines": 3,
+        "duplicate_tokens": 14,
+        "duplicate_bytes": 153,
+        "instance_count": 4,
+        "total_redundant_lines": 9,
+        "total_redundant_tokens": 42,
+        "total_redundant_bytes": 459,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "16c3cc1609937aa7",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 225,
-            "end_line": 235,
-            "unit_name": "serialize_newtype_variant"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 677,
-            "end_line": 687,
-            "unit_name": "serialize_newtype_variant"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-54356abc24277c2b",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "copy_opts",
-        "duplicate_lines": 5,
-        "duplicate_tokens": 10,
-        "duplicate_bytes": 124,
-        "instance_count": 3,
-        "total_redundant_lines": 10,
-        "total_redundant_tokens": 20,
-        "total_redundant_bytes": 248,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "adf54bf25a359ee7",
+        "fingerprint": "f948d7835f43c246",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
             "path": "jansu-storage/src/dynostore/metadata.rs",
             "language": "rust",
-            "start_line": 391,
-            "end_line": 396,
-            "unit_name": "copy_opts"
+            "start_line": 338,
+            "end_line": 341,
+            "unit_name": "delete_stream"
+          },
+          {
+            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
+            "language": "rust",
+            "start_line": 98,
+            "end_line": 101,
+            "unit_name": "delete_stream"
           },
           {
             "path": "jansu-storage/src/dynostore/metron.rs",
             "language": "rust",
-            "start_line": 256,
-            "end_line": 261,
-            "unit_name": "copy_opts"
+            "start_line": 181,
+            "end_line": 184,
+            "unit_name": "delete_stream"
           },
           {
             "path": "jansu-storage/src/gcs/limit.rs",
             "language": "rust",
-            "start_line": 186,
-            "end_line": 191,
-            "unit_name": "copy_opts"
+            "start_line": 162,
+            "end_line": 165,
+            "unit_name": "delete_stream"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-c654a023ff85fbb6",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "list",
+        "duplicate_lines": 3,
+        "duplicate_tokens": 10,
+        "duplicate_bytes": 116,
+        "instance_count": 4,
+        "total_redundant_lines": 9,
+        "total_redundant_tokens": 30,
+        "total_redundant_bytes": 348,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "f948d7835f43c246",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-storage/src/dynostore/metadata.rs",
+            "language": "rust",
+            "start_line": 358,
+            "end_line": 361,
+            "unit_name": "list"
+          },
+          {
+            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
+            "language": "rust",
+            "start_line": 105,
+            "end_line": 108,
+            "unit_name": "list"
+          },
+          {
+            "path": "jansu-storage/src/dynostore/metron.rs",
+            "language": "rust",
+            "start_line": 209,
+            "end_line": 212,
+            "unit_name": "list"
+          },
+          {
+            "path": "jansu-storage/src/gcs/limit.rs",
+            "language": "rust",
+            "start_line": 170,
+            "end_line": 173,
+            "unit_name": "list"
           }
         ]
       },
@@ -2514,6 +2238,56 @@
         ]
       },
       {
+        "id": "copy-code-unit-rust-928dd2959d3f42a3",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "list_with_delimiter",
+        "duplicate_lines": 3,
+        "duplicate_tokens": 8,
+        "duplicate_bytes": 96,
+        "instance_count": 4,
+        "total_redundant_lines": 9,
+        "total_redundant_tokens": 24,
+        "total_redundant_bytes": 288,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "f948d7835f43c246",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-storage/src/dynostore/metadata.rs",
+            "language": "rust",
+            "start_line": 368,
+            "end_line": 371,
+            "unit_name": "list_with_delimiter"
+          },
+          {
+            "path": "jansu-storage/src/dynostore/metadata/tests.rs",
+            "language": "rust",
+            "start_line": 112,
+            "end_line": 115,
+            "unit_name": "list_with_delimiter"
+          },
+          {
+            "path": "jansu-storage/src/dynostore/metron.rs",
+            "language": "rust",
+            "start_line": 218,
+            "end_line": 221,
+            "unit_name": "list_with_delimiter"
+          },
+          {
+            "path": "jansu-storage/src/gcs/limit.rs",
+            "language": "rust",
+            "start_line": 178,
+            "end_line": 181,
+            "unit_name": "list_with_delimiter"
+          }
+        ]
+      },
+      {
         "id": "copy-code-unit-rust-bd10b1eacd159337",
         "kind": "exact_unit_same_name",
         "severity": "warning",
@@ -2536,15 +2310,15 @@
           {
             "path": "jansu-sans-io/src/protocol_types.rs",
             "language": "rust",
-            "start_line": 496,
-            "end_line": 505,
+            "start_line": 495,
+            "end_line": 504,
             "unit_name": "from"
           },
           {
             "path": "jansu-sans-io/src/protocol_types.rs",
             "language": "rust",
-            "start_line": 509,
-            "end_line": 518,
+            "start_line": 508,
+            "end_line": 517,
             "unit_name": "from"
           }
         ]
@@ -2572,80 +2346,30 @@
           {
             "path": "jansu-sans-io/src/primitive/varint.rs",
             "language": "rust",
-            "start_line": 407,
-            "end_line": 410,
+            "start_line": 403,
+            "end_line": 406,
             "unit_name": "serialize"
           },
           {
             "path": "jansu-sans-io/src/primitive/varint.rs",
             "language": "rust",
-            "start_line": 585,
-            "end_line": 588,
+            "start_line": 579,
+            "end_line": 582,
             "unit_name": "serialize"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 374,
-            "end_line": 377,
+            "start_line": 370,
+            "end_line": 373,
             "unit_name": "serialize"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 497,
-            "end_line": 500,
+            "start_line": 491,
+            "end_line": 494,
             "unit_name": "serialize"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-846dcd450a59f1c9",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "deref",
-        "duplicate_lines": 3,
-        "duplicate_tokens": 2,
-        "duplicate_bytes": 23,
-        "instance_count": 4,
-        "total_redundant_lines": 9,
-        "total_redundant_tokens": 6,
-        "total_redundant_bytes": 69,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "3eef48d7f216ece3",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/varint.rs",
-            "language": "rust",
-            "start_line": 44,
-            "end_line": 47,
-            "unit_name": "deref"
-          },
-          {
-            "path": "jansu-storage/src/limbo/timestamp.rs",
-            "language": "rust",
-            "start_line": 23,
-            "end_line": 26,
-            "unit_name": "deref"
-          },
-          {
-            "path": "jansu-storage/src/lite/lite_timestamp.rs",
-            "language": "rust",
-            "start_line": 23,
-            "end_line": 26,
-            "unit_name": "deref"
-          },
-          {
-            "path": "jansu-storage/src/sql.rs",
-            "language": "rust",
-            "start_line": 35,
-            "end_line": 38,
-            "unit_name": "deref"
           }
         ]
       },
@@ -2820,126 +2544,6 @@
         ]
       },
       {
-        "id": "copy-code-unit-rust-e0bb9df212e2853f",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "serialize_newtype_struct",
-        "duplicate_lines": 8,
-        "duplicate_tokens": 16,
-        "duplicate_bytes": 156,
-        "instance_count": 2,
-        "total_redundant_lines": 8,
-        "total_redundant_tokens": 16,
-        "total_redundant_bytes": 156,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "33d4572047b2fb7a",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 212,
-            "end_line": 220,
-            "unit_name": "serialize_newtype_struct"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 664,
-            "end_line": 672,
-            "unit_name": "serialize_newtype_struct"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-a8cc7acd4ec90937",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 1,
-        "duplicate_tokens": 1,
-        "duplicate_bytes": 14,
-        "instance_count": 9,
-        "total_redundant_lines": 8,
-        "total_redundant_tokens": 8,
-        "total_redundant_bytes": 112,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "81ca480d03fe481e",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 93,
-            "end_line": 94,
-            "unit_name": "default"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 132,
-            "end_line": 133,
-            "unit_name": "request"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 144,
-            "end_line": 145,
-            "unit_name": "response"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 168,
-            "end_line": 169,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 284,
-            "end_line": 285,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 429,
-            "end_line": 430,
-            "unit_name": "from"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 439,
-            "end_line": 440,
-            "unit_name": "new"
-          },
-          {
-            "path": "jansu-schema/src/lib.rs",
-            "language": "rust",
-            "start_line": 446,
-            "end_line": 447,
-            "unit_name": "with_cache_expiry_after"
-          },
-          {
-            "path": "jansu-service/src/frame.rs",
-            "language": "rust",
-            "start_line": 543,
-            "end_line": 544,
-            "unit_name": "new"
-          }
-        ]
-      },
-      {
         "id": "copy-code-body-rust-c03c37084f53baaa",
         "kind": "exact_unit_different_name",
         "severity": "warning",
@@ -2961,93 +2565,16 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 311,
-            "end_line": 318,
+            "start_line": 307,
+            "end_line": 314,
             "unit_name": "deserialize_unit_struct"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 325,
-            "end_line": 332,
+            "start_line": 321,
+            "end_line": 328,
             "unit_name": "deserialize_newtype_struct"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-body-rust-b17e351a96d51a7c",
-        "kind": "exact_unit_different_name",
-        "severity": "warning",
-        "confidence": "medium",
-        "language": "rust",
-        "duplicate_lines": 1,
-        "duplicate_tokens": 1,
-        "duplicate_bytes": 14,
-        "instance_count": 8,
-        "total_redundant_lines": 7,
-        "total_redundant_tokens": 7,
-        "total_redundant_bytes": 98,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "b272922e1bedf3e3",
-        "reason": "same body appears under different names across files",
-        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
-        "instances": [
-          {
-            "path": "jansu-perf/src/lib.rs",
-            "language": "rust",
-            "start_line": 754,
-            "end_line": 755,
-            "unit_name": "force_flush"
-          },
-          {
-            "path": "jansu-perf/src/lib.rs",
-            "language": "rust",
-            "start_line": 759,
-            "end_line": 760,
-            "unit_name": "shutdown_with_timeout"
-          },
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 318,
-            "end_line": 319,
-            "unit_name": "end"
-          },
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 337,
-            "end_line": 338,
-            "unit_name": "end"
-          },
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 422,
-            "end_line": 423,
-            "unit_name": "end"
-          },
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 441,
-            "end_line": 442,
-            "unit_name": "end"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 790,
-            "end_line": 791,
-            "unit_name": "end"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 809,
-            "end_line": 810,
-            "unit_name": "end"
           }
         ]
       },
@@ -3122,207 +2649,6 @@
         ]
       },
       {
-        "id": "copy-code-unit-rust-486dda43a041d541",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "delete_stream",
-        "duplicate_lines": 3,
-        "duplicate_tokens": 14,
-        "duplicate_bytes": 153,
-        "instance_count": 3,
-        "total_redundant_lines": 6,
-        "total_redundant_tokens": 28,
-        "total_redundant_bytes": 306,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "cac0010a801d0915",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-storage/src/dynostore/metadata.rs",
-            "language": "rust",
-            "start_line": 338,
-            "end_line": 341,
-            "unit_name": "delete_stream"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metron.rs",
-            "language": "rust",
-            "start_line": 181,
-            "end_line": 184,
-            "unit_name": "delete_stream"
-          },
-          {
-            "path": "jansu-storage/src/gcs/limit.rs",
-            "language": "rust",
-            "start_line": 162,
-            "end_line": 165,
-            "unit_name": "delete_stream"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-c654a023ff85fbb6",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "list",
-        "duplicate_lines": 3,
-        "duplicate_tokens": 10,
-        "duplicate_bytes": 116,
-        "instance_count": 3,
-        "total_redundant_lines": 6,
-        "total_redundant_tokens": 20,
-        "total_redundant_bytes": 232,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "cac0010a801d0915",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-storage/src/dynostore/metadata.rs",
-            "language": "rust",
-            "start_line": 358,
-            "end_line": 361,
-            "unit_name": "list"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metron.rs",
-            "language": "rust",
-            "start_line": 209,
-            "end_line": 212,
-            "unit_name": "list"
-          },
-          {
-            "path": "jansu-storage/src/gcs/limit.rs",
-            "language": "rust",
-            "start_line": 170,
-            "end_line": 173,
-            "unit_name": "list"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-928dd2959d3f42a3",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "list_with_delimiter",
-        "duplicate_lines": 3,
-        "duplicate_tokens": 8,
-        "duplicate_bytes": 96,
-        "instance_count": 3,
-        "total_redundant_lines": 6,
-        "total_redundant_tokens": 16,
-        "total_redundant_bytes": 192,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "cac0010a801d0915",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-storage/src/dynostore/metadata.rs",
-            "language": "rust",
-            "start_line": 368,
-            "end_line": 371,
-            "unit_name": "list_with_delimiter"
-          },
-          {
-            "path": "jansu-storage/src/dynostore/metron.rs",
-            "language": "rust",
-            "start_line": 218,
-            "end_line": 221,
-            "unit_name": "list_with_delimiter"
-          },
-          {
-            "path": "jansu-storage/src/gcs/limit.rs",
-            "language": "rust",
-            "start_line": 178,
-            "end_line": 181,
-            "unit_name": "list_with_delimiter"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-fa9b831b1ec9691d",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "serialize_struct_variant",
-        "duplicate_lines": 6,
-        "duplicate_tokens": 16,
-        "duplicate_bytes": 181,
-        "instance_count": 2,
-        "total_redundant_lines": 6,
-        "total_redundant_tokens": 16,
-        "total_redundant_bytes": 181,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "d5df9427ffecc407",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 293,
-            "end_line": 299,
-            "unit_name": "serialize_struct_variant"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 758,
-            "end_line": 764,
-            "unit_name": "serialize_struct_variant"
-          }
-        ]
-      },
-      {
-        "id": "copy-code-unit-rust-e53b6c9277880df3",
-        "kind": "exact_unit_same_name",
-        "severity": "warning",
-        "confidence": "high",
-        "language": "rust",
-        "unit_name": "serialize_tuple_variant",
-        "duplicate_lines": 6,
-        "duplicate_tokens": 16,
-        "duplicate_bytes": 180,
-        "instance_count": 2,
-        "total_redundant_lines": 6,
-        "total_redundant_tokens": 16,
-        "total_redundant_bytes": 180,
-        "effective_severity": "warning",
-        "hard_fail": false,
-        "fingerprint": "d5df9427ffecc407",
-        "reason": "same-name semantic unit copied across multiple files",
-        "recommended_action": "keep the named unit in one owner and call it from the other sites",
-        "instances": [
-          {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
-            "language": "rust",
-            "start_line": 268,
-            "end_line": 274,
-            "unit_name": "serialize_tuple_variant"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 726,
-            "end_line": 732,
-            "unit_name": "serialize_tuple_variant"
-          }
-        ]
-      },
-      {
         "id": "copy-code-unit-rust-231644d5c82bc4d4",
         "kind": "exact_unit_same_name",
         "severity": "warning",
@@ -3338,7 +2664,7 @@
         "total_redundant_bytes": 123,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "9b3c9df1ceb363e9",
+        "fingerprint": "1ff0128d8e8c4b7a",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
@@ -3350,10 +2676,10 @@
             "unit_name": "from"
           },
           {
-            "path": "jansu-client/src/lib.rs",
+            "path": "jansu-client/src/error.rs",
             "language": "rust",
-            "start_line": 153,
-            "end_line": 155,
+            "start_line": 31,
+            "end_line": 33,
             "unit_name": "from"
           },
           {
@@ -3388,15 +2714,15 @@
         "total_redundant_bytes": 117,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "7d49ac405e6c7e17",
+        "fingerprint": "1ae51d858777c791",
         "reason": "same-name semantic unit copied across multiple files",
         "recommended_action": "keep the named unit in one owner and call it from the other sites",
         "instances": [
           {
-            "path": "jansu-client/src/lib.rs",
+            "path": "jansu-client/src/error.rs",
             "language": "rust",
-            "start_line": 168,
-            "end_line": 170,
+            "start_line": 46,
+            "end_line": 48,
             "unit_name": "from"
           },
           {
@@ -3416,8 +2742,8 @@
           {
             "path": "jansu-storage/src/error.rs",
             "language": "rust",
-            "start_line": 226,
-            "end_line": 228,
+            "start_line": 213,
+            "end_line": 215,
             "unit_name": "from"
           }
         ]
@@ -3502,8 +2828,8 @@
           {
             "path": "jansu-storage/src/error.rs",
             "language": "rust",
-            "start_line": 165,
-            "end_line": 167,
+            "start_line": 159,
+            "end_line": 161,
             "unit_name": "fmt"
           }
         ]
@@ -3537,15 +2863,15 @@
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 437,
-            "end_line": 440,
+            "start_line": 433,
+            "end_line": 436,
             "unit_name": "next_element_seed"
           },
           {
             "path": "jansu-sans-io/src/primitive/tagged/de.rs",
             "language": "rust",
-            "start_line": 474,
-            "end_line": 477,
+            "start_line": 470,
+            "end_line": 473,
             "unit_name": "next_element_seed"
           }
         ]
@@ -3573,22 +2899,22 @@
           {
             "path": "jansu-sans-io/src/primitive/varint.rs",
             "language": "rust",
-            "start_line": 416,
-            "end_line": 419,
+            "start_line": 412,
+            "end_line": 415,
             "unit_name": "deserialize"
           },
           {
             "path": "jansu-sans-io/src/primitive/varint.rs",
             "language": "rust",
-            "start_line": 594,
-            "end_line": 597,
+            "start_line": 588,
+            "end_line": 591,
             "unit_name": "deserialize"
           },
           {
             "path": "jansu-sans-io/src/record/codec.rs",
             "language": "rust",
-            "start_line": 511,
-            "end_line": 514,
+            "start_line": 505,
+            "end_line": 508,
             "unit_name": "deserialize"
           }
         ]
@@ -3695,8 +3021,8 @@
           {
             "path": "jansu-broker/src/lib.rs",
             "language": "rust",
-            "start_line": 261,
-            "end_line": 264,
+            "start_line": 227,
+            "end_line": 230,
             "unit_name": "from"
           },
           {
@@ -3716,65 +3042,629 @@
         ]
       },
       {
-        "id": "copy-code-body-rust-ec9093758a12e194",
+        "id": "copy-code-unit-rust-846dcd450a59f1c9",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "deref",
+        "duplicate_lines": 3,
+        "duplicate_tokens": 2,
+        "duplicate_bytes": 23,
+        "instance_count": 3,
+        "total_redundant_lines": 6,
+        "total_redundant_tokens": 4,
+        "total_redundant_bytes": 46,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "3b0cba69ca7f3713",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/primitive/varint.rs",
+            "language": "rust",
+            "start_line": 44,
+            "end_line": 47,
+            "unit_name": "deref"
+          },
+          {
+            "path": "jansu-storage/src/redlinedb/redline_timestamp.rs",
+            "language": "rust",
+            "start_line": 23,
+            "end_line": 26,
+            "unit_name": "deref"
+          },
+          {
+            "path": "jansu-storage/src/sql.rs",
+            "language": "rust",
+            "start_line": 35,
+            "end_line": 38,
+            "unit_name": "deref"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-body-rust-f62cfd6a49360065",
         "kind": "exact_unit_different_name",
         "severity": "warning",
         "confidence": "medium",
         "language": "rust",
         "duplicate_lines": 1,
         "duplicate_tokens": 5,
-        "duplicate_bytes": 55,
+        "duplicate_bytes": 46,
         "instance_count": 6,
         "total_redundant_lines": 5,
         "total_redundant_tokens": 25,
-        "total_redundant_bytes": 275,
+        "total_redundant_bytes": 230,
         "effective_severity": "warning",
         "hard_fail": false,
-        "fingerprint": "f0b1804680c7938c",
+        "fingerprint": "3c9b06cd63b632c3",
         "reason": "same body appears under different names across files",
         "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
         "instances": [
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-model/src/wv.rs",
             "language": "rust",
-            "start_line": 190,
-            "end_line": 191,
-            "unit_name": "serialize_unit"
+            "start_line": 217,
+            "end_line": 218,
+            "unit_name": "as_a_str"
           },
           {
-            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "path": "jansu-model/src/wv.rs",
+            "language": "rust",
+            "start_line": 234,
+            "end_line": 235,
+            "unit_name": "as_a_string"
+          },
+          {
+            "path": "jansu-model/src/wv.rs",
+            "language": "rust",
+            "start_line": 251,
+            "end_line": 252,
+            "unit_name": "as_a_kind"
+          },
+          {
+            "path": "jansu-model/src/wv.rs",
             "language": "rust",
             "start_line": 356,
             "end_line": 357,
+            "unit_name": "as_a_u64"
+          },
+          {
+            "path": "jansu-model/src/wv.rs",
+            "language": "rust",
+            "start_line": 373,
+            "end_line": 374,
+            "unit_name": "as_a_version_range"
+          },
+          {
+            "path": "jansu-model/src/wv.rs",
+            "language": "rust",
+            "start_line": 397,
+            "end_line": 398,
+            "unit_name": "as_array_value"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-a2aa700b730c25d9",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "deserialize",
+        "duplicate_lines": 5,
+        "duplicate_tokens": 9,
+        "duplicate_bytes": 101,
+        "instance_count": 2,
+        "total_redundant_lines": 5,
+        "total_redundant_tokens": 9,
+        "total_redundant_bytes": 101,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "d7e62aa278e06ff3",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/primitive/varint.rs",
+            "language": "rust",
+            "start_line": 221,
+            "end_line": 226,
+            "unit_name": "deserialize"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 201,
+            "end_line": 206,
+            "unit_name": "deserialize"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-ab09df45f179594a",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "from",
+        "duplicate_lines": 5,
+        "duplicate_tokens": 8,
+        "duplicate_bytes": 123,
+        "instance_count": 2,
+        "total_redundant_lines": 5,
+        "total_redundant_tokens": 8,
+        "total_redundant_bytes": 123,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "235276fceda647f5",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/protocol_types.rs",
+            "language": "rust",
+            "start_line": 736,
+            "end_line": 741,
+            "unit_name": "from"
+          },
+          {
+            "path": "jansu-sans-io/src/protocol_types.rs",
+            "language": "rust",
+            "start_line": 745,
+            "end_line": 750,
+            "unit_name": "from"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-7ebd3c694e68f708",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "serialize",
+        "duplicate_lines": 5,
+        "duplicate_tokens": 8,
+        "duplicate_bytes": 89,
+        "instance_count": 2,
+        "total_redundant_lines": 5,
+        "total_redundant_tokens": 8,
+        "total_redundant_bytes": 89,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "d7e62aa278e06ff3",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/primitive/varint.rs",
+            "language": "rust",
+            "start_line": 212,
+            "end_line": 217,
+            "unit_name": "serialize"
+          },
+          {
+            "path": "jansu-sans-io/src/record/codec.rs",
+            "language": "rust",
+            "start_line": 192,
+            "end_line": 197,
+            "unit_name": "serialize"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-body-rust-a8cc7acd4ec90937",
+        "kind": "exact_unit_different_name",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 1,
+        "duplicate_tokens": 1,
+        "duplicate_bytes": 14,
+        "instance_count": 6,
+        "total_redundant_lines": 5,
+        "total_redundant_tokens": 5,
+        "total_redundant_bytes": 70,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "303f9094ce53d27f",
+        "reason": "same body appears under different names across files",
+        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/ser/context.rs",
+            "language": "rust",
+            "start_line": 64,
+            "end_line": 65,
+            "unit_name": "default"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 284,
+            "end_line": 285,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 429,
+            "end_line": 430,
+            "unit_name": "from"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 439,
+            "end_line": 440,
+            "unit_name": "new"
+          },
+          {
+            "path": "jansu-schema/src/lib.rs",
+            "language": "rust",
+            "start_line": 446,
+            "end_line": 447,
+            "unit_name": "with_cache_expiry_after"
+          },
+          {
+            "path": "jansu-service/src/frame.rs",
+            "language": "rust",
+            "start_line": 543,
+            "end_line": 544,
+            "unit_name": "new"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-body-rust-b17e351a96d51a7c",
+        "kind": "exact_unit_different_name",
+        "severity": "warning",
+        "confidence": "medium",
+        "language": "rust",
+        "duplicate_lines": 1,
+        "duplicate_tokens": 1,
+        "duplicate_bytes": 14,
+        "instance_count": 6,
+        "total_redundant_lines": 5,
+        "total_redundant_tokens": 5,
+        "total_redundant_bytes": 70,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "f1277b0240c6bece",
+        "reason": "same body appears under different names across files",
+        "recommended_action": "choose one owner for the shared body or intentionally differentiate the behavior",
+        "instances": [
+          {
+            "path": "jansu-perf/src/lib.rs",
+            "language": "rust",
+            "start_line": 748,
+            "end_line": 749,
+            "unit_name": "force_flush"
+          },
+          {
+            "path": "jansu-perf/src/lib.rs",
+            "language": "rust",
+            "start_line": 753,
+            "end_line": 754,
+            "unit_name": "shutdown_with_timeout"
+          },
+          {
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "language": "rust",
+            "start_line": 318,
+            "end_line": 319,
             "unit_name": "end"
           },
           {
-            "path": "jansu-sans-io/src/ser.rs",
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
             "language": "rust",
-            "start_line": 642,
-            "end_line": 643,
-            "unit_name": "serialize_unit"
-          },
-          {
-            "path": "jansu-sans-io/src/ser.rs",
-            "language": "rust",
-            "start_line": 828,
-            "end_line": 829,
+            "start_line": 337,
+            "end_line": 338,
             "unit_name": "end"
           },
           {
-            "path": "jansu-sans-io/src/ser.rs",
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
             "language": "rust",
-            "start_line": 847,
-            "end_line": 848,
+            "start_line": 422,
+            "end_line": 423,
             "unit_name": "end"
           },
           {
-            "path": "jansu-sans-io/src/ser.rs",
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
             "language": "rust",
-            "start_line": 875,
-            "end_line": 876,
+            "start_line": 441,
+            "end_line": 442,
             "unit_name": "end"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-e0ae25a43ecead79",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "try_from",
+        "duplicate_lines": 4,
+        "duplicate_tokens": 17,
+        "duplicate_bytes": 143,
+        "instance_count": 2,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 17,
+        "total_redundant_bytes": 143,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "b84e32a772e46173",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/protocol_types.rs",
+            "language": "rust",
+            "start_line": 360,
+            "end_line": 364,
+            "unit_name": "try_from"
+          },
+          {
+            "path": "jansu-sans-io/src/protocol_types.rs",
+            "language": "rust",
+            "start_line": 394,
+            "end_line": 398,
+            "unit_name": "try_from"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-ae16c383dfd0df62",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "layer",
+        "duplicate_lines": 1,
+        "duplicate_tokens": 3,
+        "duplicate_bytes": 31,
+        "instance_count": 5,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 12,
+        "total_redundant_bytes": 124,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "8c566e64748a462b",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-service/src/frame.rs",
+            "language": "rust",
+            "start_line": 449,
+            "end_line": 450,
+            "unit_name": "layer"
+          },
+          {
+            "path": "jansu-service/src/frame.rs",
+            "language": "rust",
+            "start_line": 503,
+            "end_line": 504,
+            "unit_name": "layer"
+          },
+          {
+            "path": "jansu-service/src/frame.rs",
+            "language": "rust",
+            "start_line": 600,
+            "end_line": 601,
+            "unit_name": "layer"
+          },
+          {
+            "path": "jansu-service/src/stream.rs",
+            "language": "rust",
+            "start_line": 452,
+            "end_line": 453,
+            "unit_name": "layer"
+          },
+          {
+            "path": "jansu-storage/src/service/mod.rs",
+            "language": "rust",
+            "start_line": 358,
+            "end_line": 359,
+            "unit_name": "layer"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-2bd92969d37de54c",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "from",
+        "duplicate_lines": 2,
+        "duplicate_tokens": 5,
+        "duplicate_bytes": 48,
+        "instance_count": 3,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 10,
+        "total_redundant_bytes": 96,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "e5b181689acfdd72",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-client/src/error.rs",
+            "language": "rust",
+            "start_line": 52,
+            "end_line": 54,
+            "unit_name": "from"
+          },
+          {
+            "path": "jansu-proxy/src/lib.rs",
+            "language": "rust",
+            "start_line": 104,
+            "end_line": 106,
+            "unit_name": "from"
+          },
+          {
+            "path": "jansu-storage/src/error.rs",
+            "language": "rust",
+            "start_line": 233,
+            "end_line": 235,
+            "unit_name": "from"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-eae51bbfbedccab4",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "into_redline_value",
+        "duplicate_lines": 2,
+        "duplicate_tokens": 5,
+        "duplicate_bytes": 45,
+        "instance_count": 3,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 10,
+        "total_redundant_bytes": 90,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "71fd2445bb5fe0ae",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-storage/src/redlinedb/redline.rs",
+            "language": "rust",
+            "start_line": 359,
+            "end_line": 361,
+            "unit_name": "into_redline_value"
+          },
+          {
+            "path": "jansu-storage/src/redlinedb/redline.rs",
+            "language": "rust",
+            "start_line": 365,
+            "end_line": 367,
+            "unit_name": "into_redline_value"
+          },
+          {
+            "path": "jansu-storage/src/redlinedb/redline.rs",
+            "language": "rust",
+            "start_line": 395,
+            "end_line": 397,
+            "unit_name": "into_redline_value"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-518c778cb3d0601f",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "append",
+        "duplicate_lines": 4,
+        "duplicate_tokens": 10,
+        "duplicate_bytes": 67,
+        "instance_count": 2,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 10,
+        "total_redundant_bytes": 67,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "2a475bd75d8efd99",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-schema/src/avro/arrow/mod.rs",
+            "language": "rust",
+            "start_line": 72,
+            "end_line": 76,
+            "unit_name": "append"
+          },
+          {
+            "path": "jansu-schema/src/proto/arrow/mod.rs",
+            "language": "rust",
+            "start_line": 83,
+            "end_line": 87,
+            "unit_name": "append"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-0ac034b0ffc9b878",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "serialize_field",
+        "duplicate_lines": 4,
+        "duplicate_tokens": 5,
+        "duplicate_bytes": 56,
+        "instance_count": 2,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 5,
+        "total_redundant_bytes": 56,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "0fdb77ca575e4acf",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "language": "rust",
+            "start_line": 348,
+            "end_line": 352,
+            "unit_name": "serialize_field"
+          },
+          {
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "language": "rust",
+            "start_line": 367,
+            "end_line": 371,
+            "unit_name": "serialize_field"
+          }
+        ]
+      },
+      {
+        "id": "copy-code-unit-rust-6338f3ff2153bcfa",
+        "kind": "exact_unit_same_name",
+        "severity": "warning",
+        "confidence": "high",
+        "language": "rust",
+        "unit_name": "serialize_element",
+        "duplicate_lines": 4,
+        "duplicate_tokens": 5,
+        "duplicate_bytes": 56,
+        "instance_count": 2,
+        "total_redundant_lines": 4,
+        "total_redundant_tokens": 5,
+        "total_redundant_bytes": 56,
+        "effective_severity": "warning",
+        "hard_fail": false,
+        "fingerprint": "0fdb77ca575e4acf",
+        "reason": "same-name semantic unit copied across multiple files",
+        "recommended_action": "keep the named unit in one owner and call it from the other sites",
+        "instances": [
+          {
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "language": "rust",
+            "start_line": 310,
+            "end_line": 314,
+            "unit_name": "serialize_element"
+          },
+          {
+            "path": "jansu-sans-io/src/primitive/tagged/ser.rs",
+            "language": "rust",
+            "start_line": 329,
+            "end_line": 333,
+            "unit_name": "serialize_element"
           }
         ]
       }
@@ -3783,7 +3673,7 @@
       "hard classes are limited to exact active-source file matches and substantial exact same-name units",
       "warning classes include same-body different-name units and token/block duplication",
       "tests, fixtures, stories, config, Docker, and migrations are omitted unless --include-tests is set",
-      "showing the top 50 classes and omitting 69 lower-ranked classes"
+      "showing the top 50 classes and omitting 45 lower-ranked classes"
     ]
   },
   "profile_structure": {
@@ -4082,17 +3972,17 @@
       "problem": "`Code shape and semantic surface` scored 55 below the standard floor of 85",
       "agent_fix": "split large or ambiguous authored code into smaller semantic modules with focused tests",
       "evidence": [
-        "largest authored code file: jansu-sans-io/src/ser.rs (970 LOC)",
+        "largest authored code file: jansu-schema/src/json.rs (908 LOC)",
         "code file exceeds 500 LOC",
-        "copy-code advisory classes found: 119 (advisory only, no score impact)",
-        "rust bad-behavior advisory signals: 1099"
+        "copy-code advisory classes found: 95 (advisory only, no score impact)",
+        "rust bad-behavior advisory signals: 1031"
       ],
       "check_id": "HLT-001-DEAD-MARKER:shape",
       "hardness": "soft",
       "confidence": 0.76,
       "evidence_kind": "repository-scan",
       "rerun_command": "just fast",
-      "fingerprint": "sha256:925bdf46e321f42733fec6388bd35b933c37f2f20b793878627df0ca58ff0c5f",
+      "fingerprint": "sha256:9a503e30c6a543e094edc2e9d5ee9ee0043915f256d12a7164c3d71278f9d74d",
       "rule_id": "HLT-001-DEAD-MARKER",
       "tlr": "Entropy",
       "lane": "fast",

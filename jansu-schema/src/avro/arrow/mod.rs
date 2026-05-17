@@ -216,7 +216,9 @@ impl Schema {
 
             AvroSchema::BigDecimal => Err(Error::NotImplemented {
                 kind: "avro_to_arrow",
-                detail: String::from("BigDecimal Avro logical type is not mapped to an Arrow DataType"),
+                detail: String::from(
+                    "BigDecimal Avro logical type is not mapped to an Arrow DataType",
+                ),
             }),
 
             AvroSchema::Date => Ok(DataType::Date32),
@@ -249,7 +251,9 @@ impl Schema {
 
             AvroSchema::Ref { name } => Err(Error::NotImplemented {
                 kind: "avro_to_arrow",
-                detail: format!("Avro schema reference {name:?} cannot be resolved to an Arrow DataType"),
+                detail: format!(
+                    "Avro schema reference {name:?} cannot be resolved to an Arrow DataType"
+                ),
             }),
         }
     }

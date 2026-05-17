@@ -91,6 +91,45 @@ pub(crate) fn init_tracing() -> Result<DefaultGuard, Error> {
 }
 
 #[allow(dead_code)]
+pub(crate) fn redlinedb_storage_url(prefix: &str) -> Result<Url, Error> {
+    std::fs::create_dir_all("target/jankurai/redlinedb-tests")?;
+
+    let safe_prefix = prefix
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => ch,
+            _ => '-',
+        })
+        .collect::<String>();
+
+    Url::parse(&format!(
+        "redlinedb://target/jankurai/redlinedb-tests/{safe_prefix}-{}.redline",
+        Uuid::now_v7()
+    ))
+    .map_err(Into::into)
+}
+
+#[allow(dead_code)]
+pub(crate) fn default_storage_url() -> Result<Url, Error> {
+    #[cfg(feature = "redlinedb")]
+    {
+        redlinedb_storage_url("jansu")
+    }
+
+    #[cfg(all(not(feature = "redlinedb"), feature = "dynostore"))]
+    {
+        Url::parse("memory://jansu/").map_err(Into::into)
+    }
+
+    #[cfg(all(not(feature = "redlinedb"), not(feature = "dynostore")))]
+    {
+        Err(Error::Message(
+            "no default test storage backend enabled".into(),
+        ))
+    }
+}
+
+#[allow(dead_code)]
 pub(crate) async fn build_storage(
     cluster_id: &str,
     node_id: i32,

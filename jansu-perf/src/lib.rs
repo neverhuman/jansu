@@ -446,19 +446,13 @@ impl Producer {
 
         let response = self.client.call(req).await?;
 
-        assert!(
-            response
-                .responses
+        assert!(response.responses.into_iter().flatten().all(|topic| {
+            topic
+                .partition_responses
                 .into_iter()
                 .flatten()
-                .all(|topic| {
-                    topic
-                        .partition_responses
-                        .into_iter()
-                        .flatten()
-                        .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-                })
-        );
+                .all(|partition| partition.error_code == i16::from(ErrorCode::None))
+        }));
 
         Ok(())
     }

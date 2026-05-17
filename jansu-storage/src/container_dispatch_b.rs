@@ -16,17 +16,12 @@
 //! committed_offset_topitions through ping.
 
 use jansu_sans_io::{
-    ConfigResource, ErrorCode,
-    delete_groups_response::DeletableGroupResult,
+    ConfigResource, ErrorCode, delete_groups_response::DeletableGroupResult,
     describe_configs_response::DescribeConfigsResult,
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
-    list_groups_response::ListedGroup,
-    txn_offset_commit_response::TxnOffsetCommitResponseTopic,
+    list_groups_response::ListedGroup, txn_offset_commit_response::TxnOffsetCommitResponseTopic,
 };
-use std::{
-    collections::BTreeMap,
-    time::SystemTime,
-};
+use std::{collections::BTreeMap, time::SystemTime};
 use tracing::debug;
 
 use crate::{
@@ -44,8 +39,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.committed_offset_topitions(group_id),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.committed_offset_topitions(group_id),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.committed_offset_topitions(group_id),
 
             Self::Null(engine) => engine.committed_offset_topitions(group_id),
 
@@ -54,9 +49,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.committed_offset_topitions(group_id),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.committed_offset_topitions(group_id),
         }
         .await
     }
@@ -69,8 +61,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.metadata(topics),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.metadata(topics),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.metadata(topics),
 
             Self::Null(engine) => engine.metadata(topics),
 
@@ -79,9 +71,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.metadata(topics),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.metadata(topics),
         }
         .await
     }
@@ -96,8 +85,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.describe_config(name, resource, keys),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.describe_config(name, resource, keys),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.describe_config(name, resource, keys),
 
             Self::Null(engine) => engine.describe_config(name, resource, keys),
 
@@ -106,9 +95,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.describe_config(name, resource, keys),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.describe_config(name, resource, keys),
         }
         .await
     }
@@ -125,8 +111,10 @@ impl StorageContainer {
                 engine.describe_topic_partitions(topics, partition_limit, cursor)
             }
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.describe_topic_partitions(topics, partition_limit, cursor),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
+                engine.describe_topic_partitions(topics, partition_limit, cursor)
+            }
 
             Self::Null(engine) => engine.describe_topic_partitions(topics, partition_limit, cursor),
 
@@ -137,11 +125,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => {
-                engine.describe_topic_partitions(topics, partition_limit, cursor)
-            }
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => {
                 engine.describe_topic_partitions(topics, partition_limit, cursor)
             }
         }
@@ -156,8 +139,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.list_groups(states_filter),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.list_groups(states_filter),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.list_groups(states_filter),
 
             Self::Null(engine) => engine.list_groups(states_filter),
 
@@ -166,9 +149,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.list_groups(states_filter),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.list_groups(states_filter),
         }
         .await
     }
@@ -181,8 +161,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.delete_groups(group_ids),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.delete_groups(group_ids),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.delete_groups(group_ids),
 
             Self::Null(engine) => engine.delete_groups(group_ids),
 
@@ -191,9 +171,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.delete_groups(group_ids),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.delete_groups(group_ids),
         }
         .await
     }
@@ -209,8 +186,10 @@ impl StorageContainer {
                 engine.describe_groups(group_ids, include_authorized_operations)
             }
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.describe_groups(group_ids, include_authorized_operations),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
+                engine.describe_groups(group_ids, include_authorized_operations)
+            }
 
             Self::Null(engine) => engine.describe_groups(group_ids, include_authorized_operations),
 
@@ -221,9 +200,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.describe_groups(group_ids, include_authorized_operations),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.describe_groups(group_ids, include_authorized_operations),
         }
         .await
     }
@@ -238,8 +214,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.update_group(group_id, detail, version),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.update_group(group_id, detail, version),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.update_group(group_id, detail, version),
 
             Self::Null(engine) => engine.update_group(group_id, detail, version),
 
@@ -248,9 +224,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.update_group(group_id, detail, version),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.update_group(group_id, detail, version),
         }
         .await
     }
@@ -271,8 +244,8 @@ impl StorageContainer {
                 producer_epoch,
             ),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.init_producer(
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.init_producer(
                 transaction_id,
                 transaction_timeout_ms,
                 producer_id,
@@ -301,14 +274,6 @@ impl StorageContainer {
                 producer_id,
                 producer_epoch,
             ),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.init_producer(
-                transaction_id,
-                transaction_timeout_ms,
-                producer_id,
-                producer_epoch,
-            ),
         }
         .await
     }
@@ -326,8 +291,8 @@ impl StorageContainer {
                 engine.txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
             }
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => {
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
                 engine.txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
             }
 
@@ -344,11 +309,6 @@ impl StorageContainer {
             Self::Slate(engine) => {
                 engine.txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
             }
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => {
-                engine.txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
-            }
         }
         .await
     }
@@ -361,8 +321,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.txn_add_partitions(partitions),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.txn_add_partitions(partitions),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.txn_add_partitions(partitions),
 
             Self::Null(engine) => engine.txn_add_partitions(partitions),
 
@@ -371,9 +331,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.txn_add_partitions(partitions),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.txn_add_partitions(partitions),
         }
         .await
     }
@@ -386,8 +343,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.txn_offset_commit(offsets),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.txn_offset_commit(offsets),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.txn_offset_commit(offsets),
 
             Self::Null(engine) => engine.txn_offset_commit(offsets),
 
@@ -396,9 +353,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.txn_offset_commit(offsets),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.txn_offset_commit(offsets),
         }
         .await
     }
@@ -416,8 +370,8 @@ impl StorageContainer {
                 engine.txn_end(transaction_id, producer_id, producer_epoch, committed)
             }
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => {
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
                 engine.txn_end(transaction_id, producer_id, producer_epoch, committed)
             }
 
@@ -434,11 +388,6 @@ impl StorageContainer {
             Self::Slate(engine) => {
                 engine.txn_end(transaction_id, producer_id, producer_epoch, committed)
             }
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => {
-                engine.txn_end(transaction_id, producer_id, producer_epoch, committed)
-            }
         }
         .await
     }
@@ -448,8 +397,8 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.maintain(now),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.maintain(now),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.maintain(now),
 
             Self::Null(engine) => engine.maintain(now),
 
@@ -458,9 +407,6 @@ impl StorageContainer {
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.maintain(now),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.maintain(now),
         }
         .await
         .inspect(|maintain| {
@@ -476,16 +422,13 @@ impl StorageContainer {
             #[cfg(feature = "dynostore")]
             Self::DynoStore(engine) => engine.ping(),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(engine) => engine.ping(),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => engine.ping(),
 
             Self::Null(engine) => engine.ping(),
 
             #[cfg(feature = "postgres")]
             Self::Postgres(engine) => engine.ping(),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(engine) => engine.ping(),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.ping(),

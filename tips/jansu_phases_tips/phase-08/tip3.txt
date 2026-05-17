@@ -6,7 +6,7 @@ Phase 08 is the right immediate focus. `MASTER_PLAN.md` makes Phase 08 the highe
 
 The canonical Phase 08 scope is exact `Fetch`, `ListOffsets`, and `OffsetForLeaderEpoch`: timestamp lookups, log-start offsets, high watermark, last stable offset, leader-epoch history, fencing, long polling, topic IDs, read-committed visibility, and not advertising API 23 until those semantics exist. ([GitHub][2])
 
-The current audit state says leader-epoch truthfulness has been partially fixed, API 23 is routed but still unadvertised, SQLite/DynoStore/SlateDB initialize epoch 0 and persist storage-driven epoch transitions on produce, and the remaining blockers are broker `ListOffsets` wire-level mixed-partition decoding, differential/client proof, API 23 advertisement proof, and truncation/recovery/read-committed integration. ([GitHub][3]) The phase manifest repeats the same residual risks and names the exact Phase 08 primary paths and verification commands. ([GitHub][4])
+The current audit state says leader-epoch truthfulness has been partially fixed, API 23 is routed but still unadvertised, RedlineDB/DynoStore/SlateDB initialize epoch 0 and persist storage-driven epoch transitions on produce, and the remaining blockers are broker `ListOffsets` wire-level mixed-partition decoding, differential/client proof, API 23 advertisement proof, and truncation/recovery/read-committed integration. ([GitHub][3]) The phase manifest repeats the same residual risks and names the exact Phase 08 primary paths and verification commands. ([GitHub][4])
 
 ## What must be fixed first
 
@@ -617,7 +617,7 @@ assert first entry start_offset <= log_start_offset;
 assert last entry epoch == latest produced batch epoch where known;
 ```
 
-Add one conformance file shared by memory/DynoStore/libSQL/SlateDB/Postgres:
+Add one conformance file shared by memory/DynoStore/RedlineDB/SlateDB/Postgres:
 
 ```rust
 #[tokio::test]
@@ -665,16 +665,16 @@ env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-sans-io \
   cargo test -p jansu-sans-io --test list_offsets_v9_wire --all-features -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-list-broker \
-  cargo test -p jansu-broker --test list_offsets --no-default-features --features libsql,dynostore,slatedb -- --nocapture
+  cargo test -p jansu-broker --test list_offsets --no-default-features --features redlinedb,dynostore,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-storage-ofle \
-  cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,libsql,slatedb -- --nocapture
+  cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-storage-list \
-  cargo test -p jansu-storage --test list_offsets --no-default-features --features dynostore,libsql,slatedb -- --nocapture
+  cargo test -p jansu-storage --test list_offsets --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fetch \
-  cargo test -p jansu-broker --test fetch --no-default-features --features libsql,dynostore,slatedb -- --nocapture
+  cargo test -p jansu-broker --test fetch --no-default-features --features redlinedb,dynostore,slatedb -- --nocapture
 
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-contract \
   cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture

@@ -180,7 +180,9 @@ pub(super) fn append_list_builder(
         AvroSchema::Array(schema) => {
             return Err(Error::NotImplemented {
                 kind: "avro_to_arrow",
-                detail: format!("nested Avro array inside list builder is not supported: {schema:?}"),
+                detail: format!(
+                    "nested Avro array inside list builder is not supported: {schema:?}"
+                ),
             });
         }
         AvroSchema::Map(schema) => {
@@ -346,7 +348,9 @@ pub(super) fn append_list_builder(
         AvroSchema::Ref { name } => {
             return Err(Error::NotImplemented {
                 kind: "avro_to_arrow",
-                detail: format!("Avro schema reference {name:?} inside list builder cannot be resolved"),
+                detail: format!(
+                    "Avro schema reference {name:?} inside list builder cannot be resolved"
+                ),
             });
         }
     }

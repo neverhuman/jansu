@@ -20,9 +20,9 @@ use std::{fmt, str::FromStr};
 use syn::Expr;
 use tracing::debug;
 
-use crate::wv::{As, AsOption, Wv};
 use crate::Error;
 use crate::Result;
+use crate::wv::{As, AsOption, Wv};
 
 macro_rules! prefix_crate {
     ($e:ident) => {

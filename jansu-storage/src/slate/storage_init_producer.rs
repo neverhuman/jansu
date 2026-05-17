@@ -28,9 +28,7 @@ use tracing::debug;
 use crate::{Error, ProducerIdResponse, Result, TxnState};
 
 use super::engine::Engine;
-use super::types::{
-    BatchKey, Producers, Transactions, TxnDetail, Txn, Watermark, WatermarkKey,
-};
+use super::types::{BatchKey, Producers, Transactions, Txn, TxnDetail, Watermark, WatermarkKey};
 
 impl Engine {
     pub(super) async fn impl_init_producer(
@@ -257,7 +255,11 @@ impl Engine {
                         error: ErrorCode::ProducerFenced,
                     })
                 } else {
-                    let new_epoch = if current_epoch == i16::MAX { 0 } else { current_epoch + 1 };
+                    let new_epoch = if current_epoch == i16::MAX {
+                        0
+                    } else {
+                        current_epoch + 1
+                    };
                     _ = pd.sequences.insert(new_epoch, BTreeMap::new());
                     self.save_metadata(&tx, Self::PRODUCERS, &producers)?;
                     tx.commit().await.map_err(Error::from)?;

@@ -20,14 +20,15 @@ use field_ids::field_ids;
 use record_decoder::append_struct_builder;
 
 #[cfg(test)]
-mod tests;
+#[path = "tests.rs"]
+mod arrow_tests;
 
-use std::{collections::BTreeMap, ops::Deref};
+use std::collections::BTreeMap;
 
 use crate::{
+    ARROW_LIST_FIELD_NAME, AsArrow, Error, Result,
     lake::LakeHouseType,
     proto::{MessageKind, Schema},
-    ARROW_LIST_FIELD_NAME, AsArrow, Error, Result,
 };
 
 use arrow::{
@@ -38,8 +39,8 @@ use arrow::{
 use bytes::Bytes;
 use chrono::{DateTime, Datelike};
 
-use jansu_sans_io::{record::inflated::Batch, ErrorCode};
-use protobuf::{reflect::MessageDescriptor, CodedInputStream, MessageDyn};
+use jansu_sans_io::{ErrorCode, record::inflated::Batch};
+use protobuf::{CodedInputStream, reflect::MessageDescriptor};
 use serde_json::json;
 use tracing::{debug, error, instrument};
 
@@ -54,13 +55,15 @@ const SORTED_MAP_KEYS: bool = false;
 
 // input-boundary: topic table names validated by validate_datafusion_table_name before SQL use
 #[cfg(test)]
-fn validate_datafusion_table_name(name: &str) -> crate::Result<()> {
+fn validate_datafusion_table_name(name: &str) -> Result<()> {
     let upper = name.to_uppercase();
-    if ["DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC"]
-        .iter()
-        .any(|kw| upper.contains(kw))
+    if [
+        "DROP", "DELETE", "INSERT", "UPDATE", "CREATE", "TRUNCATE", "EXEC",
+    ]
+    .iter()
+    .any(|kw| upper.contains(kw))
     {
-        Err(crate::Error::Message(format!(
+        Err(Error::Message(format!(
             "table name contains disallowed keyword: {name}"
         )))
     } else {
@@ -69,7 +72,7 @@ fn validate_datafusion_table_name(name: &str) -> crate::Result<()> {
 }
 
 #[cfg(test)]
-fn datafusion_table_query(topic: &str) -> crate::Result<String> {
+fn datafusion_table_query(topic: &str) -> Result<String> {
     validate_datafusion_table_name(topic)?;
     let mut stmt = String::with_capacity(topic.len() + 15);
     stmt.push_str("select * from ");
@@ -100,7 +103,6 @@ impl RecordBuilder {
     }
 }
 
-
 fn fields(ids: &BTreeMap<String, i32>, schema: &Schema) -> Fields {
     let mut fields = vec![];
 
@@ -122,7 +124,6 @@ fn fields(ids: &BTreeMap<String, i32>, schema: &Schema) -> Fields {
 fn arrow_schema(ids: &BTreeMap<String, i32>, schema: &Schema) -> ArrowSchema {
     ArrowSchema::new(fields(ids, schema))
 }
-
 
 fn process_message_descriptor<'a, T>(
     descriptor: Option<MessageDescriptor>,
@@ -251,5 +252,3 @@ impl AsArrow for Schema {
         .map_err(Into::into)
     }
 }
-
-

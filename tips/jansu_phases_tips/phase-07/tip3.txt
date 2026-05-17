@@ -285,7 +285,7 @@ pub trait Storage {
 Then override `produce_partition` in storage engines that can do transactional/multi-batch atomic mutation:
 
 * Postgres: use a DB transaction around schema validation, producer-state validation, leader-epoch/log-row insert, and offset-stage update.
-* SQLite/libsql/turso: use a SQL transaction.
+* RedlineDB/redlinedb/redlinedb: use a SQL transaction.
 * SlateDB/dynostore: if there is no native transaction, prevalidate all schema and all batch semantics before mutation; document limited parity if crash-atomic multi-key commit cannot be guaranteed.
 * Null/memory: return unsupported or development-only behavior according to current capability certification.
 
@@ -1012,17 +1012,17 @@ Target final row for `ProduceRequest`:
   "profiles": {
     "jansu-native": "green",
     "kafka-parity-postgres": "green",
-    "kafka-parity-sqlite": "green",
+    "kafka-parity-redlinedb": "green",
     "kafka-parity-s3-dynostore": "yellow",
     "kafka-parity-slatedb": "green",
     "compat-preview": "green"
   },
   "storage": {
     "postgres": "production-parity",
-    "sqlite": "limited-parity",
+    "redlinedb": "limited-parity",
     "s3-dynostore": "limited-parity",
     "slatedb": "limited-parity",
-    "turso": "uncertified",
+    "redlinedb": "uncertified",
     "memory": "development-test-only"
   },
   "proof": {
@@ -1219,7 +1219,7 @@ For backend certification:
 
 ```bash
 cargo test -p jansu-broker --test produce_librdkafka_matrix --features slatedb -- --nocapture
-cargo test -p jansu-broker --test produce_librdkafka_matrix --features libsql -- --nocapture
+cargo test -p jansu-broker --test produce_librdkafka_matrix --features redlinedb -- --nocapture
 cargo test -p jansu-broker --test produce_librdkafka_matrix --features postgres -- --nocapture
 ```
 

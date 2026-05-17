@@ -88,7 +88,8 @@ impl Storage for DynoStore {
         retention_time_ms: Option<Duration>,
         offsets: &[(Topition, OffsetCommitRequest)],
     ) -> Result<Vec<(Topition, ErrorCode)>> {
-        self.offset_commit_inner(group_id, retention_time_ms, offsets).await
+        self.offset_commit_inner(group_id, retention_time_ms, offsets)
+            .await
     }
 
     async fn committed_offset_topitions(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
@@ -101,7 +102,8 @@ impl Storage for DynoStore {
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
-        self.offset_fetch_records_inner(group_id, topics, require_stable).await
+        self.offset_fetch_records_inner(group_id, topics, require_stable)
+            .await
     }
 
     async fn offset_for_leader_epoch(
@@ -109,7 +111,8 @@ impl Storage for DynoStore {
         topition: &Topition,
         leader_epoch: i32,
     ) -> Result<Option<(i32, i64)>> {
-        self.offset_for_leader_epoch_inner(topition, leader_epoch).await
+        self.offset_for_leader_epoch_inner(topition, leader_epoch)
+            .await
     }
 
     async fn leader_epoch_history(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
@@ -122,7 +125,8 @@ impl Storage for DynoStore {
         topics: &[Topition],
         _require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, i64>> {
-        self.offset_fetch_inner(group_id, topics, _require_stable).await
+        self.offset_fetch_inner(group_id, topics, _require_stable)
+            .await
     }
 
     async fn metadata(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
@@ -144,7 +148,8 @@ impl Storage for DynoStore {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        self.describe_topic_partitions_inner(topics, partition_limit, cursor).await
+        self.describe_topic_partitions_inner(topics, partition_limit, cursor)
+            .await
     }
 
     async fn list_groups(&self, _states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
@@ -163,7 +168,8 @@ impl Storage for DynoStore {
         group_ids: Option<&[String]>,
         _include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        self.describe_groups_inner(group_ids, _include_authorized_operations).await
+        self.describe_groups_inner(group_ids, _include_authorized_operations)
+            .await
     }
 
     async fn update_group(
@@ -182,7 +188,13 @@ impl Storage for DynoStore {
         producer_id: Option<i64>,
         producer_epoch: Option<i16>,
     ) -> Result<ProducerIdResponse> {
-        self.init_producer_inner(transaction_id, transaction_timeout_ms, producer_id, producer_epoch).await
+        self.init_producer_inner(
+            transaction_id,
+            transaction_timeout_ms,
+            producer_id,
+            producer_epoch,
+        )
+        .await
     }
 
     async fn txn_add_offsets(
@@ -192,7 +204,8 @@ impl Storage for DynoStore {
         producer_epoch: i16,
         group_id: &str,
     ) -> Result<ErrorCode> {
-        self.txn_add_offsets_inner(transaction_id, producer_id, producer_epoch, group_id).await
+        self.txn_add_offsets_inner(transaction_id, producer_id, producer_epoch, group_id)
+            .await
     }
 
     async fn txn_add_partitions(
@@ -216,7 +229,8 @@ impl Storage for DynoStore {
         producer_epoch: i16,
         committed: bool,
     ) -> Result<ErrorCode> {
-        self.txn_end_inner(transaction_id, producer_id, producer_epoch, committed).await
+        self.txn_end_inner(transaction_id, producer_id, producer_epoch, committed)
+            .await
     }
 
     async fn maintain(&self, now: SystemTime) -> Result<()> {
@@ -241,7 +255,8 @@ impl Storage for DynoStore {
         _user: &str,
         _mechanism: ScramMechanism,
     ) -> Result<()> {
-        self.delete_user_scram_credential_inner(_user, _mechanism).await
+        self.delete_user_scram_credential_inner(_user, _mechanism)
+            .await
     }
 
     async fn upsert_user_scram_credential(
@@ -250,7 +265,8 @@ impl Storage for DynoStore {
         _mechanism: ScramMechanism,
         _credential: ScramCredential,
     ) -> Result<()> {
-        self.upsert_user_scram_credential_inner(_user, _mechanism, _credential).await
+        self.upsert_user_scram_credential_inner(_user, _mechanism, _credential)
+            .await
     }
 
     async fn user_scram_credential(

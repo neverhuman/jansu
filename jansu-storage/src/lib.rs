@@ -16,9 +16,8 @@
 //!
 //! [`StorageContainer`] provides an abstraction over [`Storage`] and can
 //! be configured to use memory, [S3](https://en.wikipedia.org/wiki/Amazon_S3),
-//! [PostgreSQL](https://postgresql.org/),
-//! [libSQL](https://github.com/tursodatabase/libsql) and
-//! [Turso](https://github.com/tursodatabase/turso) (alpha: currently feature locked).
+//! [PostgreSQL](https://postgresql.org/) and
+//! [RedlineDB](https://github.com/neverhuman/redlineDB/).
 //!
 //! ## Memory
 //!
@@ -74,7 +73,7 @@
 //! # }
 //! ```
 //!
-//! ## libSQL (SQLite)
+//! ## RedlineDB
 //!
 //! ```no_run
 //! # use jansu_storage::{Error, StorageContainer};
@@ -85,25 +84,7 @@
 //!     .cluster_id("jansu")
 //!     .node_id(111)
 //!     .advertised_listener(Url::parse("tcp://localhost:9092")?)
-//!     .storage(Url::parse("sqlite://jansu.db")?)
-//!     .build()
-//!     .await?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## Turso
-//!
-//! ```no_run
-//! # use jansu_storage::{Error, StorageContainer};
-//! # use url::Url;
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Error> {
-//! let storage = StorageContainer::builder()
-//!     .cluster_id("jansu")
-//!     .node_id(111)
-//!     .advertised_listener(Url::parse("tcp://localhost:9092")?)
-//!     .storage(Url::parse("turso://jansu.db")?)
+//!     .storage(Url::parse("redlinedb://jansu.redline")?)
 //!     .build()
 //!     .await?;
 //! # Ok(())
@@ -160,20 +141,17 @@ pub use service::{
 #[cfg(feature = "slatedb")]
 pub mod slate;
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(any(feature = "postgres", feature = "redlinedb"))]
 pub(crate) mod sql;
 
-#[cfg(feature = "libsql")]
-mod lite;
+#[cfg(feature = "redlinedb")]
+mod redlinedb;
 
 #[cfg(feature = "dynostore")]
 mod gcs;
 
 #[cfg(feature = "dynostore")]
 mod os;
-
-#[cfg(feature = "turso")]
-mod limbo;
 
 mod error;
 pub use error::{Error, Result};
@@ -194,9 +172,7 @@ pub use topic::{BrokerRegistrationRequest, MetadataResponse, TopicId};
 pub(crate) use jansu_sans_io::NULL_TOPIC_ID;
 
 mod capabilities;
-pub use capabilities::{
-    StorageCapabilities, StorageCertification, StorageEngine, StorageFeature,
-};
+pub use capabilities::{StorageCapabilities, StorageCertification, StorageEngine, StorageFeature};
 
 // Extracted modules
 mod group;
@@ -240,16 +216,9 @@ pub enum UpdateError<T> {
     Uuid(#[from] uuid::Error),
 }
 
-#[cfg(feature = "libsql")]
-impl<T> From<libsql::Error> for UpdateError<T> {
-    fn from(value: libsql::Error) -> Self {
-        Self::Error(Error::from(value))
-    }
-}
-
-#[cfg(feature = "turso")]
-impl<T> From<turso::Error> for UpdateError<T> {
-    fn from(value: turso::Error) -> Self {
+#[cfg(feature = "redlinedb")]
+impl<T> From<::redlinedb::Error> for UpdateError<T> {
+    fn from(value: ::redlinedb::Error) -> Self {
         Self::Error(Error::from(value))
     }
 }
@@ -279,10 +248,9 @@ impl<T> From<tokio_postgres::error::Error> for UpdateError<T> {
 #[cfg_attr(
     not(any(
         feature = "dynostore",
-        feature = "libsql",
         feature = "postgres",
+        feature = "redlinedb",
         feature = "slatedb",
-        feature = "turso"
     )),
     allow(missing_copy_implementations)
 )]
@@ -295,14 +263,11 @@ pub enum StorageContainer {
     #[cfg(feature = "dynostore")]
     DynoStore(DynoStore),
 
-    #[cfg(feature = "libsql")]
-    Lite(lite::Engine),
+    #[cfg(feature = "redlinedb")]
+    RedlineDb(redlinedb::Engine),
 
     #[cfg(feature = "slatedb")]
     Slate(slate::Engine),
-
-    #[cfg(feature = "turso")]
-    Turso(limbo::Engine),
 }
 
 impl Debug for StorageContainer {
@@ -320,14 +285,13 @@ impl Debug for StorageContainer {
                 .debug_tuple(stringify!(StorageContainer::DynoStore))
                 .finish(),
 
-            #[cfg(feature = "libsql")]
-            Self::Lite(_) => f.debug_tuple(stringify!(StorageContainer::Lite)).finish(),
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(_) => f
+                .debug_tuple(stringify!(StorageContainer::RedlineDb))
+                .finish(),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(_) => f.debug_tuple(stringify!(StorageContainer::Slate)).finish(),
-
-            #[cfg(feature = "turso")]
-            Self::Turso(_) => f.debug_tuple(stringify!(StorageContainer::Turso)).finish(),
         }
     }
 }

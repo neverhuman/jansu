@@ -19,8 +19,10 @@ use jansu_broker::{BrokerHandle, broker::Broker, coordinator::group::administrat
 use jansu_client::{Client, ConnectionManager};
 use jansu_sans_io::{
     ErrorCode, HeartbeatRequest, JoinGroupRequest, LeaveGroupRequest, ProduceRequest,
-    SyncGroupRequest, create_topics_request::CreatableTopic,
-    fetch_request::{FetchPartition, FetchTopic}, join_group_request::JoinGroupRequestProtocol,
+    SyncGroupRequest,
+    create_topics_request::CreatableTopic,
+    fetch_request::{FetchPartition, FetchTopic},
+    join_group_request::JoinGroupRequestProtocol,
     produce_request::{PartitionProduceData, TopicProduceData},
     record::{
         Record,
@@ -202,7 +204,7 @@ async fn join_group(
                     .rebalance_timeout_ms(Some(30_000))
                     .member_id(member_id.clone())
                     .protocol_type("consumer".into())
-                    .protocols(Some(protocols.to_vec().into()))
+                    .protocols(Some(protocols.to_vec()))
                     .group_instance_id(None)
                     .reason(None),
             )

@@ -21,10 +21,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use jansu_sans_io::{
-    ErrorCode, IsolationLevel, ListOffset,
-    to_system_time,
-};
+use jansu_sans_io::{ErrorCode, IsolationLevel, ListOffset, to_system_time};
 use tracing::debug;
 
 use crate::{
@@ -443,9 +440,11 @@ impl Engine {
                             offset: Some(offset),
                             timestamp: to_system_time(ts).ok(),
                         },
-                        None => match watermark.timestamps.as_ref().and_then(|ts| {
-                            ts.last_key_value().map(|(ts, off)| (*ts, *off))
-                        }) {
+                        None => match watermark
+                            .timestamps
+                            .as_ref()
+                            .and_then(|ts| ts.last_key_value().map(|(ts, off)| (*ts, *off)))
+                        {
                             Some((ts, off)) => ListOffsetResponse {
                                 error_code: ErrorCode::None,
                                 offset: Some(off + 1),

@@ -2,18 +2,22 @@ use super::GOOGLE_PROTOBUF_TIMESTAMP;
 use crate::{Error, Result};
 use arrow::array::{
     ArrayBuilder, BooleanBuilder, Float32Builder, Float64Builder, Int32Builder, Int64Builder,
-    LargeBinaryBuilder, MapBuilder, StringBuilder, StructBuilder, TimestampMicrosecondBuilder, ListBuilder,
+    LargeBinaryBuilder, ListBuilder, MapBuilder, StringBuilder, StructBuilder,
+    TimestampMicrosecondBuilder,
 };
 use chrono::DateTime;
 use protobuf::{
-    reflect::{FieldDescriptor, ReflectValueRef, RuntimeFieldType},
     MessageDyn,
+    reflect::{FieldDescriptor, ReflectValueRef, RuntimeFieldType},
 };
 use protobuf_json_mapping::print_to_string;
 use std::ops::Deref;
 use tracing::{debug, error};
 
-pub(super) fn append_struct_builder(message: &dyn MessageDyn, builder: &mut StructBuilder) -> Result<()> {
+pub(super) fn append_struct_builder(
+    message: &dyn MessageDyn,
+    builder: &mut StructBuilder,
+) -> Result<()> {
     debug!(%message, ?builder);
     for (index, ref field) in message.descriptor_dyn().fields().enumerate() {
         debug!(field_name = field.name());

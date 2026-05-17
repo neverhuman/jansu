@@ -14,15 +14,15 @@ clean-workspace:
 license:
     cargo about generate about.hbs > license.html
 
-build profile="dev" features="delta,dynostore,iceberg,libsql,parquet,postgres,slatedb" bin="jansu": (cargo-build "--profile" profile "--timings" "--bin" bin "--no-default-features" "--features" features)
+build profile="dev" features="delta,dynostore,iceberg,parquet,postgres,redlinedb,slatedb" bin="jansu": (cargo-build "--profile" profile "--timings" "--bin" bin "--no-default-features" "--features" features)
 
-build-storage: clean-workspace (build "dev" "libsql") (build "dev" "postgres") (build "dev" "slatedb")
+build-storage: clean-workspace (build "dev" "redlinedb") (build "dev" "postgres") (build "dev" "slatedb")
 
 build-examples: (cargo-build "--examples")
 
-release: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "delta,dynostore,iceberg,libsql,parquet,postgres,slatedb")
+release: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "delta,dynostore,iceberg,parquet,postgres,redlinedb,slatedb")
 
-release-sqlite: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "libsql")
+release-redlinedb: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "redlinedb")
 
 test: test-workspace test-doc
 
@@ -44,6 +44,23 @@ fuzz-generate-seed: (cargo-fuzz "run" "--package" "fuzz" "--bin" "generate_seeds
 
 check:
     cargo check --workspace --all-features --all-targets
+
+security-lane:
+    bash tools/security-lane.sh
+
+launch-evidence:
+    mkdir -p target/jankurai/launch
+    docker compose config > target/jankurai/launch/compose-config.txt
+    docker compose ps --format json > target/jankurai/launch/compose-ps.json
+    curl -fsS http://127.0.0.1:9090/-/ready > target/jankurai/launch/prometheus-ready.txt
+    curl -fsS http://127.0.0.1:3000/api/health > target/jankurai/launch/grafana-health.json
+    docker compose exec -T db pg_isready -U postgres > target/jankurai/launch/db-ready.txt
+    docker compose exec -T db pg_dump -U postgres postgres > target/jankurai/launch/db-backup.sql
+    tar -czf target/jankurai/launch/data-backup.tgz data/
+    printf 'backup dump: target/jankurai/launch/db-backup.sql\nsnapshot: target/jankurai/launch/data-backup.tgz\n' > target/jankurai/launch/backup-evidence.md
+    printf 'prometheus: http://127.0.0.1:9090/-/ready\ngrafana: http://127.0.0.1:3000/api/health\nbroker: docker compose ps --format json\n' > target/jankurai/launch/monitoring-evidence.md
+    printf 'previous-tag: unknown\nrestore: docker compose down --remove-orphans --volumes; just jansu-up\n' > target/jankurai/launch/rollback-evidence.md
+    printf 'public-ports: localhost or internal network only\ndocker compose config and port checks captured above\n' > target/jankurai/launch/abuse-controls.md
 
 compatibility-contract:
     cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture
@@ -456,26 +473,26 @@ broker-memory profile="profiling": (build profile "dynostore") (jansu-broker pro
 broker-null profile="profiling": (build profile "default") (jansu-broker profile "--storage-engine=null://")
 
 clean-jansu-db:
-    rm -f jansu.db* snapshot.db
+    rm -f jansu.db* jansu.redline* snapshot.db snapshot.redline
 
 clean-lake-dir:
     rm -rf lake/*
 
-broker-sqlite-parquet profile="dev": clean-jansu-db clean-lake-dir (build profile "libsql,parquet") (jansu-broker profile "--storage-engine=sqlite://jansu.db" "parquet" "--location=file://./lake")
+broker-redlinedb-parquet profile="dev": clean-jansu-db clean-lake-dir (build profile "redlinedb,parquet") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline" "parquet" "--location=file://./lake")
 
-broker-sqlite-delta profile="profiling": docker-compose-down minio-up minio-ready-local minio-local-alias minio-lake-bucket clean-jansu-db (build profile "libsql,delta") (jansu-broker profile "--storage-engine=sqlite://jansu.db" "delta")
+broker-redlinedb-delta profile="profiling": docker-compose-down minio-up minio-ready-local minio-local-alias minio-lake-bucket clean-jansu-db (build profile "redlinedb,delta") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline" "delta")
 
-broker-sqlite profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-existing profile="profiling": (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb-existing profile="profiling": (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-no-maintenance profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine='sqlite://jansu.db'")
+broker-redlinedb-no-maintenance profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine='redlinedb://jansu.redline'")
 
-broker-sqlite-authentication profile="profiling": (build profile "libsql") (jansu-broker profile "--authentication" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb-authentication profile="profiling": (build profile "redlinedb") (jansu-broker profile "--authentication" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-maintenance-1m profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--storage-engine=sqlite://jansu.db?maintenance_interval=1m")
+broker-redlinedb-maintenance-1m profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline?maintenance_interval=1m")
 
-broker-sqlite-vacuum-into profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--storage-engine=sqlite://jansu.db?vacuum_into=snapshot.db")
+broker-redlinedb-snapshot profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline?vacuum_into=snapshot.redline")
 
 s3-up: docker-compose-down minio-up minio-ready-local minio-local-alias minio-jansu-bucket
 
@@ -497,7 +514,7 @@ samply-null profile="profiling":
 
 flamegraph-null profile="profiling": (build profile "default") (flamegraph-jansu-broker profile "--storage-engine=null://sink")
 
-flamegraph-sqlite profile="profiling": (build profile "libsql") clean-jansu-db (flamegraph-jansu-broker profile "--storage-engine=sqlite://jansu.db")
+flamegraph-redlinedb profile="profiling": (build profile "redlinedb") clean-jansu-db (flamegraph-jansu-broker profile "--storage-engine=redlinedb://jansu.redline")
 
 flamegraph-postgres profile="profiling": (build profile "postgres") docker-compose-down db-up (flamegraph-jansu-broker profile "--storage-engine=postgres://postgres:postgres@localhost")
 
@@ -513,22 +530,22 @@ flamegraph-produce profile="profiling":
     cargo build --profile {{ profile }} --bin bench_produce_v11
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench_produce_v11
 
-bench-hyperfine iterations="100000" profile="release": (build profile "libsql" "bench")
+bench-hyperfine iterations="100000" profile="release": (build profile "redlinedb" "bench")
     hyperfine -N './target/{{ replace(profile, "dev", "debug") }}/bench --iterations {{ iterations }}'
 
-bench-dhat mode="heap" profile="release": (build profile "libsql" "bench")
+bench-dhat mode="heap" profile="release": (build profile "redlinedb" "bench")
     valgrind --tool=dhat --mode={{ mode }} ./target/{{ replace(profile, "dev", "debug") }}/bench
 
-bench-flamegraph profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench
 
-bench-flamegraph-produce profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph-produce profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench --api-key=0
 
-bench-flamegraph-fetch iterations="100000" profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph-fetch iterations="100000" profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench  --iterations {{ iterations }} --api-key=1
 
-bench-perf profile="profiling": (build profile "libsql" "bench")
+bench-perf profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn perf record --call-graph dwarf ./target/{{ replace(profile, "dev", "debug") }}/bench 2>&1 >/dev/null
 
 consumer-perf num_records="1000" topic="test":
@@ -649,7 +666,7 @@ score:
 	cp agent/repo-score.md target/jankurai/repo-score.md
 doctor:
 	jankurai doctor --fail-on high
-security:
+security: security-lane
 	jankurai security run . --out target/jankurai/security/evidence.json
 rust-map:
 	jankurai rust map .

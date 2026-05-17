@@ -85,7 +85,12 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for topic in req.topics.unwrap_or(Vec::new()) {
+        let topics = match req.topics {
+            Some(topics) => topics,
+            None => Vec::new(),
+        };
+
+        for topic in topics {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
             responses.push(
                 DeletableTopicResult::default()
@@ -96,7 +101,12 @@ where
             );
         }
 
-        for topic in req.topic_names.unwrap_or(Vec::new()) {
+        let topic_names = match req.topic_names {
+            Some(topic_names) => topic_names,
+            None => Vec::new(),
+        };
+
+        for topic in topic_names {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
 
             responses.push(

@@ -3,15 +3,15 @@ Date: 2026-05-02
 Phase 06 storage capability API:
 - Added `StorageEngine`, `StorageFeature`, `StorageCertification`, and `StorageCapabilities` to `jansu-storage`.
 - Added `Storage::capabilities()` with a safe default and exact overrides for `StorageContainer`, `Arc<T>`, and storage wrappers that delegate directly.
-- Centralized Phase 06 certification helpers for postgres, memory, libSQL, dynostore, SlateDB, Turso, and null.
+- Centralized Phase 06 certification helpers for postgres, memory, RedlineDB, dynostore, SlateDB, RedlineDB, and null.
 
 Engine tier decisions:
 - PostgreSQL: `production-parity` for the Phase 06 core log invariants.
-- SQLite/libSQL: `limited-parity` for the Phase 06 core log invariants when the feature-gated path passes.
+- RedlineDB: `limited-parity` for the Phase 06 core log invariants when the feature-gated path passes.
 - S3/dynostore: `limited-parity` for the Phase 06 core log invariants when the feature-gated path passes.
 - SlateDB: `limited-parity` for the Phase 06 core log invariants when the feature-gated path passes.
 - Memory: `development-test-only`.
-- Turso: `uncertified`.
+- RedlineDB: `uncertified`.
 - Null: `unsupported`.
 
 Conformance tests added:

@@ -615,10 +615,7 @@ impl IntoIterator for PartitionBatch {
                 PartitionProduceData::default()
                     .index(index)
                     .records(Some(Frame {
-                        batches: match combine(batches) {
-                        Ok(b) => b,
-                        Err(_) => Vec::new(),
-                    },
+                        batches: combine(batches).unwrap_or_default(),
                     }))
             })
             .collect::<Vec<_>>()

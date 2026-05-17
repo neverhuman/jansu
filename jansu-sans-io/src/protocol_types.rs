@@ -16,7 +16,7 @@
 //! timestamps, compression, batch attributes, control batches,
 //! configuration enums, and SCRAM mechanisms.
 
-use crate::{de::Decoder, ser::Encoder, ByteSize, Error, Result};
+use crate::{ByteSize, Error, Result, de::Decoder, ser::Encoder};
 use bytes::{Buf, Bytes, BytesMut};
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,6 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tracing::{debug, error};
-
 
 #[derive(
     Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,

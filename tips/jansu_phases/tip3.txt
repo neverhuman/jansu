@@ -1,4 +1,4 @@
-Absolutely — the right plan is **not** “build Kafka in Rust from zero.” Jansu already has a genuinely interesting base: a Rust workspace with broker, protocol, storage, auth, schema/lakehouse, proxy, CLI, and perf crates; the README describes it as a stateless Kafka-compatible broker with PostgreSQL, SQLite/libSQL, S3, and memory storage engines, plus schema-backed topics that can write to Iceberg or Delta Lake. ([GitHub][1])
+Absolutely — the right plan is **not** “build Kafka in Rust from zero.” Jansu already has a genuinely interesting base: a Rust workspace with broker, protocol, storage, auth, schema/lakehouse, proxy, CLI, and perf crates; the README describes it as a stateless Kafka-compatible broker with PostgreSQL, RedlineDB, S3, and memory storage engines, plus schema-backed topics that can write to Iceberg or Delta Lake. ([GitHub][1])
 
 My strongest read is this:
 
@@ -207,7 +207,7 @@ Then keep existing engines as modes:
 | `jansu-log`   | Certified Kafka-parity hot path.                                                                                        |
 | PostgreSQL    | Lightweight durable mode, transactional integration mode, maybe small/medium production where throughput is acceptable. |
 | S3/dynostore  | Object-backed/stateless experiments, tiered storage, cost-optimized workloads, lakehouse ingestion.                     |
-| SQLite/libSQL | dev, edge, embedded, tests.                                                                                             |
+| RedlineDB | dev, edge, embedded, tests.                                                                                             |
 | memory        | ephemeral tests/dev only.                                                                                               |
 
 This prevents a fatal product trap: claiming “Kafka replacement” while every storage backend has different semantics and performance. The certification claim should be per engine.
@@ -495,7 +495,7 @@ Work items:
 * Rolling upgrade support.
 * Downgrade/rollback policy.
 * Backup/restore.
-* Storage schema migration system. There is already an open issue noting Jansu does not currently migrate PostgreSQL or SQLite/Turso schemas automatically. ([GitHub][5])
+* Storage schema migration system. There is already an open issue noting Jansu does not currently migrate PostgreSQL or RedlineDB schemas automatically. ([GitHub][5])
 * Docker, Helm chart, Kubernetes operator.
 * Production runbooks.
 
@@ -560,7 +560,7 @@ The fastest credible path is:
 
 Do **not** build cluster replication before Fetch and groups are exact.
 Do **not** chase every Kafka 4.2 API before `ApiVersions` is truthful.
-Do **not** claim full drop-in parity across PostgreSQL, S3, SQLite, and memory unless each engine passes the same certification suite.
+Do **not** claim full drop-in parity across PostgreSQL, S3, RedlineDB, and memory unless each engine passes the same certification suite.
 Do **not** optimize object-store performance before defining which engine is the certified Kafka-equivalent hot path.
 
 ---
@@ -573,7 +573,7 @@ The product should probably have **two identities**:
 A certified Rust Kafka replacement using `jansu-log`, real broker IDs, replication, ISR, controller/quorum, consumer groups, idempotence, transactions, security, retention, compaction, and operational tooling.
 
 **2. Jansu Storage/Lakehouse Modes**
-The existing PostgreSQL/S3/SQLite/Iceberg/Delta story remains a differentiator: lightweight Kafka-compatible ingestion, data-lake writes, stateless experiments, and database-backed deployments. But those modes should have explicit compatibility tiers.
+The existing PostgreSQL/S3/RedlineDB/Iceberg/Delta story remains a differentiator: lightweight Kafka-compatible ingestion, data-lake writes, stateless experiments, and database-backed deployments. But those modes should have explicit compatibility tiers.
 
 That lets Jansu be honest and aggressive at the same time: **Kafka replacement where exactness matters, plus storage innovation where Kafka is clumsy.**
 
@@ -591,7 +591,7 @@ The non-negotiable first milestone is this:
 
 Once `ApiVersions`, Fetch, Produce, and group coordination are exact, everything else becomes an engineering climb. Until then, every advanced feature risks being built on compatibility sand.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/lib.rs "raw.githubusercontent.com"
 [3]: https://kafka.apache.org/42/design/protocol/ "Protocol | Apache Kafka"
 [4]: https://kafka.apache.org/42/operations/kraft/ "KRaft | Apache Kafka"

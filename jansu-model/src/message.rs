@@ -16,12 +16,12 @@ use convert_case::{Case, Casing};
 use serde_json::Value;
 use syn::Type;
 
+use crate::Error;
+use crate::Result;
 use crate::field::Field;
 use crate::kind::{Listener, MessageKind};
 use crate::version::Version;
 use crate::wv::{As, AsOption, Wv};
-use crate::Error;
-use crate::Result;
 
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Message {

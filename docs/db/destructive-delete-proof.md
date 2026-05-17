@@ -829,7 +829,7 @@ the twenty-five sections enumerated here.
 - **Owning service or boundary:** `jansu-storage`, invoked from
   `jansu-broker` during `DeleteTopics` cascade.
 
-### `jansu-storage/src/lite/policy_compact_delete.sql` line 16
+### `jansu-storage/src/redlinedb/policy_compact_delete.sql` line 16
 
 - **Statement excerpt:** `delete from record`
 - **WHERE proof:**
@@ -838,13 +838,13 @@ the twenty-five sections enumerated here.
   where record.topition = $1
   and record.offset_id = $2
   ```
-  The libSQL variant of the compaction sweep takes a single
+  The RedlineDB variant of the compaction sweep takes a single
   `(topition, offset_id)` pair per invocation; the caller iterates
   the compaction candidate set in Rust and dispatches one delete per
   superseded version. Both predicates are on the outer statement, so
   this is the cleanest case in the inventory; the detector flags it
   because the `delete from record` line is still parsed in
-  isolation by the libSQL inspector pass, which does not honour the
+  isolation by the RedlineDB inspector pass, which does not honour the
   outer `where record.topition = $1` form when no nested
   sub-`select` precedes it. The detector is being defensive; the
   predicate is exhaustive.
@@ -853,10 +853,10 @@ the twenty-five sections enumerated here.
 - **Rollback strategy:** compaction removes only superseded versions;
   rollback is restore from base backup and replay of the produce
   log.
-- **Owning service or boundary:** `jansu-storage` libSQL compaction
+- **Owning service or boundary:** `jansu-storage` RedlineDB compaction
   iterator, invoked from the broker's periodic housekeeping loop.
 
-### `jansu-storage/src/lite/policy_delete.sql` line 51
+### `jansu-storage/src/sql/policy_delete.sql` line 51
 
 - **Statement excerpt:** `delete from record`
 - **WHERE proof:**
@@ -896,7 +896,7 @@ the twenty-five sections enumerated here.
   delete from record
   where (record.topition, record.offset_id) in (select * from ancient);
   ```
-  The libSQL variant uses a millisecond-based timestamp arithmetic
+  The RedlineDB variant uses a millisecond-based timestamp arithmetic
   in the `ancient` CTE instead of the PostgreSQL `extract(epoch ...)`
   form, but the semantics match the PostgreSQL counterpart: only
   records older than the per-topic retention window on partitions
@@ -906,12 +906,36 @@ the twenty-five sections enumerated here.
   delete-policy partitions for the named cluster.
 - **Rollback strategy:** restore from base backup and replay the
   produce log; the sweep is idempotent on re-run.
-- **Owning service or boundary:** `jansu-storage` libSQL retention
+- **Owning service or boundary:** `jansu-storage` RedlineDB retention
   sweeper, invoked from the broker's periodic housekeeping loop.
+
+### RedlineDB primary-key delete statements
+
+The following RedlineDB statement files are simple primary-key or
+foreign-key cascades. Each delete is constrained by a bound parameter,
+so the row set is intentionally narrow even though the statement body is
+shorter than the CTE-heavy retention proofs above:
+
+- `jansu-storage/src/redlinedb/consumer_group_delete_id.sql`
+  - `delete from consumer_group where id = $1;`
+- `jansu-storage/src/redlinedb/consumer_group_detail_delete_by_cg_id.sql`
+  - `delete from consumer_group_detail where consumer_group = $1;`
+- `jansu-storage/src/redlinedb/consumer_offset_delete_by_cg_id.sql`
+  - `delete from consumer_offset where consumer_group = $1;`
+- `jansu-storage/src/redlinedb/topic_delete_id.sql`
+  - `delete from topic where id = $1;`
+- `jansu-storage/src/redlinedb/txn_offset_commit_delete_id.sql`
+  - `delete from txn_offset_commit where id = $1;`
+- `jansu-storage/src/redlinedb/txn_offset_commit_tp_delete_id.sql`
+  - `delete from txn_offset_commit_tp where id = $1;`
+- `jansu-storage/src/redlinedb/txn_produce_offset_delete_id.sql`
+  - `delete from txn_produce_offset where id = $1;`
+- `jansu-storage/src/redlinedb/txn_topition_delete_id.sql`
+  - `delete from txn_topition where id = $1;`
 
 ## Summary
 
-Twenty-five statements were enumerated. Every statement has a visible
+Thirty-three statements were enumerated. Every statement has a visible
 parameterised row-filter, either on the outer `delete` clause or in a
 nested sub-`select` or preceding CTE block. Lock windows default to
 five seconds and are bounded in practice by per-topic, per-group, or

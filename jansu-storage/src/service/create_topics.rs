@@ -59,7 +59,10 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or(Vec::new());
+/// let topics = match response.topics {
+///     Some(topics) => topics,
+///     None => Vec::new(),
+/// };
 ///
 /// assert_eq!(1, topics.len());
 /// assert_eq!(name, topics[0].name.as_str());
@@ -90,9 +93,25 @@ where
         ctx: Context<G>,
         req: CreateTopicsRequest,
     ) -> Result<Self::Response, Self::Error> {
+        let CreateTopicsRequest {
+            topics: requested_topics,
+            validate_only,
+            ..
+        } = req;
+
+        let validate_only = match validate_only {
+            Some(validate_only) => validate_only,
+            None => false,
+        };
+
         let mut topics = vec![];
 
-        for mut topic in req.topics.unwrap_or(Vec::new()) {
+        let requested_topics = match requested_topics {
+            Some(topics) => topics,
+            None => Vec::new(),
+        };
+
+        for mut topic in requested_topics {
             let name = topic.name.clone();
 
             let num_partitions = Some(match topic.num_partitions {
@@ -111,11 +130,7 @@ where
                 otherwise => otherwise,
             });
 
-            match ctx
-                .state()
-                .create_topic(topic, req.validate_only.unwrap_or(false))
-                .await
-            {
+            match ctx.state().create_topic(topic, validate_only).await {
                 Ok(topic_id) => {
                     debug!(?topic_id);
 

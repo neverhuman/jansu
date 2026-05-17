@@ -153,21 +153,21 @@ where
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
 async fn stale_and_future_leader_epochs_are_fenced_exactly() -> Result<()> {
     let _guard = init_tracing()?;
 
     let storage_path = "phase08-fetch-leader-epoch.db";
     let _ = std::fs::remove_file(storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = Url::parse(&format!("redlinedb://{storage_path}"))?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let broker_id = rng().random_range(0..i32::MAX);
     let topic_name = alphanumeric_string(15);
 
     let sc = common::storage_container(
-        StorageType::Lite,
+        StorageType::RedlineDb,
         cluster_id.clone(),
         broker_id,
         storage_url,
@@ -552,8 +552,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -563,7 +563,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
