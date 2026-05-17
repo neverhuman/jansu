@@ -19,6 +19,7 @@ mirror_required = false
 [scan]
 excluded_paths = [
     "tips/",
+    "fuzz/",
     "jansu-storage/src/batch.rs",
     "jansu-broker/src/coordinator/group/administrator/mod.rs",
     "jansu-schema/src/proto.rs",
