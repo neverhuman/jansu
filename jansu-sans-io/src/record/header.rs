@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{ByteSize, Decode, Encode, Result, record::codec::Octets};
+use crate::{
+    ByteSize, Decode, Encode, Result,
+    record::codec::{Octets, encode_octets, octets_size_in_bytes},
+};
 use bytes::{BufMut as _, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -30,13 +33,9 @@ pub struct Header {
 
 impl ByteSize for Header {
     fn size_in_bytes(&self) -> Result<usize> {
-        Octets(self.key.clone())
-            .size_in_bytes()
-            .and_then(|key_octets| {
-                Octets(self.value.clone())
-                    .size_in_bytes()
-                    .map(|value_octets| key_octets + value_octets)
-            })
+        octets_size_in_bytes(&self.key).and_then(|key_octets| {
+            octets_size_in_bytes(&self.value).map(|value_octets| key_octets + value_octets)
+        })
     }
 }
 
@@ -45,8 +44,8 @@ impl Encode for Header {
     fn encode(&self) -> Result<Bytes> {
         let mut encoded = self.size_in_bytes().map(BytesMut::with_capacity)?;
 
-        encoded.put(Octets(self.key.clone()).encode()?);
-        encoded.put(Octets(self.value.clone()).encode()?);
+        encoded.put(encode_octets(&self.key)?);
+        encoded.put(encode_octets(&self.value)?);
 
         Ok(encoded.into())
     }

@@ -31,32 +31,51 @@ use tracing::{debug, instrument};
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Octets(pub Option<Bytes>);
 
+/// Size in bytes of an optional byte slice in `Octets` wire format.
+///
+/// Internal helper to avoid cloning the inner `Bytes` just to construct
+/// a temporary `Octets` wrapper.
+pub(crate) fn octets_size_in_bytes(bytes: &Option<Bytes>) -> Result<usize> {
+    bytes.as_ref().map_or_else(
+        || VarInt(-1).size_in_bytes(),
+        |bytes| {
+            VarInt::try_from(bytes.len())
+                .and_then(|v| v.size_in_bytes())
+                .map(|vlen| vlen + bytes.len())
+        },
+    )
+}
+
+/// Encode an optional byte slice using the `Octets` wire format.
+///
+/// Internal helper to avoid cloning the inner `Bytes` just to construct
+/// a temporary `Octets` wrapper.
+pub(crate) fn encode_octets(bytes: &Option<Bytes>) -> Result<Bytes> {
+    match bytes {
+        None => VarInt::from(-1).encode(),
+        Some(data) => {
+            let mut encoded =
+                octets_size_in_bytes(bytes).map(BytesMut::with_capacity)?;
+
+            let length = VarInt::try_from(data.len())?;
+            encoded.put(length.encode()?);
+            encoded.put_slice(data.as_ref());
+
+            Ok(encoded.into())
+        }
+    }
+}
+
 impl ByteSize for Octets {
     fn size_in_bytes(&self) -> Result<usize> {
-        match self.0.as_ref() {
-            None => VarInt(-1).size_in_bytes(),
-            Some(bytes) => VarInt::try_from(bytes.len())
-                .and_then(|v| v.size_in_bytes())
-                .map(|vlen| vlen + bytes.len()),
-        }
+        octets_size_in_bytes(&self.0)
     }
 }
 
 impl Encode for Octets {
     #[instrument(skip_all)]
     fn encode(&self) -> Result<Bytes> {
-        match self.0.clone() {
-            None => VarInt::from(-1).encode(),
-            Some(data) => {
-                let mut encoded = self.size_in_bytes().map(BytesMut::with_capacity)?;
-
-                let length = VarInt::try_from(data.len())?;
-                encoded.put(length.encode()?);
-                encoded.put(data);
-
-                Ok(encoded.into())
-            }
-        }
+        encode_octets(&self.0)
     }
 }
 
@@ -68,7 +87,7 @@ impl Decode for Octets {
         if length == -1 {
             Ok(Self(None))
         } else {
-            Ok(Self(Some(encoded.split_to(length as usize))))
+            Ok(Self(Some(encoded.split_to(usize::try_from(length)?))))
         }
     }
 }
@@ -122,7 +141,7 @@ impl Octets {
             {
                 let mut length = seq
                     .next_element::<VarInt>()?
-                    .ok_or(de::Error::custom("length"))?
+                    .ok_or_else(|| de::Error::custom("length"))?
                     .0;
 
                 debug!(?length);
@@ -135,7 +154,9 @@ impl Octets {
                         .map_err(|error| de::Error::custom(format!("{error:?}")))?;
 
                     while length >= 1 {
-                        let char = seq.next_element::<u8>()?.ok_or(de::Error::custom("byte"))?;
+                        let char = seq
+                            .next_element::<u8>()?
+                            .ok_or_else(|| de::Error::custom("byte"))?;
 
                         r.put_u8(char);
                         length -= 1;
@@ -241,19 +262,51 @@ impl<T> From<Vec<T>> for VarIntSequence<T> {
     }
 }
 
+/// Size in bytes of a slice in `VarIntSequence` wire format.
+///
+/// Internal helper to avoid cloning the slice into a temporary
+/// `VarIntSequence` wrapper.
+pub(crate) fn varint_sequence_size_in_bytes<T>(items: &[T]) -> Result<usize>
+where
+    T: ByteSize,
+{
+    items.iter().try_fold(
+        i32::try_from(items.len())
+            .map_err(Into::into)
+            .map(VarInt)
+            .and_then(|vlen| vlen.size_in_bytes())?,
+        |acc, t| t.size_in_bytes().map(|tlen| acc + tlen),
+    )
+}
+
+/// Encode a slice using the `VarIntSequence` wire format.
+///
+/// Internal helper to avoid cloning the slice into a temporary
+/// `VarIntSequence` wrapper.
+pub(crate) fn encode_varint_sequence<T>(items: &[T]) -> Result<Bytes>
+where
+    T: Encode + ByteSize,
+{
+    let mut encoded =
+        varint_sequence_size_in_bytes(items).map(BytesMut::with_capacity)?;
+
+    let length = VarInt::try_from(items.len())?;
+    encoded.put(length.encode()?);
+
+    for i in items.iter() {
+        encoded.put(i.encode()?);
+    }
+
+    Ok(encoded.into())
+}
+
 impl<T> ByteSize for VarIntSequence<T>
 where
     T: ByteSize,
 {
     #[instrument(skip_all, ret)]
     fn size_in_bytes(&self) -> Result<usize> {
-        self.0.iter().try_fold(
-            i32::try_from(self.0.len())
-                .map_err(Into::into)
-                .map(VarInt)
-                .and_then(|vlen| vlen.size_in_bytes())?,
-            |acc, t| t.size_in_bytes().map(|tlen| acc + tlen),
-        )
+        varint_sequence_size_in_bytes(&self.0)
     }
 }
 
@@ -263,16 +316,7 @@ where
 {
     #[instrument(skip_all)]
     fn encode(&self) -> Result<Bytes> {
-        let mut encoded = self.size_in_bytes().map(BytesMut::with_capacity)?;
-
-        let length = VarInt::try_from(self.0.len())?;
-        encoded.put(length.encode()?);
-
-        for i in self.0.iter() {
-            encoded.put(i.encode()?);
-        }
-
-        Ok(encoded.into())
+        encode_varint_sequence(&self.0)
     }
 }
 
@@ -285,7 +329,7 @@ where
         debug!(encoded = ?encoded[..]);
 
         let length = VarInt::decode(encoded)
-            .map(|length| length.0 as usize)
+            .and_then(|length| usize::try_from(length.0).map_err(crate::Error::from))
             .inspect(|length| debug!(length))?;
 
         let mut items = Vec::with_capacity(length);
@@ -342,23 +386,27 @@ where
             where
                 A: SeqAccess<'de>,
             {
-                let length = match seq.next_element::<VarInt>()? {
-                    Some(v) => v.0,
-                    None => return Err(<A::Error as de::Error>::custom("length")),
-                };
-                debug!("length: {length}");
-                let capacity = length.try_into().map_err(|e| {
-                    <A::Error as de::Error>::custom(format!("length: {length}, caused: {e:?}"))
-                })?;
-                (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
-                    match seq.next_element::<T>()? {
-                        Some(t) => {
-                            acc.push(t);
-                            Ok(acc)
-                        }
-                        None => Err(<A::Error as de::Error>::custom("item")),
-                    }
-                })
+                seq.next_element::<VarInt>()?
+                    .ok_or_else(|| de::Error::custom("length"))
+                    .map(|v| v.0)
+                    .inspect(|length| debug!("length: {length}"))
+                    .and_then(|length| {
+                        (0..length).try_fold(
+                            Vec::with_capacity(length.try_into().map_err(|e| {
+                                de::Error::custom(format!(
+                                    "length: {length}, caused: {e:?}"
+                                ))
+                            })?),
+                            |mut acc, _| {
+                                seq.next_element::<T>()?
+                                    .ok_or_else(|| de::Error::custom("item"))
+                                    .map(|t| {
+                                        acc.push(t);
+                                        acc
+                                    })
+                            },
+                        )
+                    })
             }
         }
 
@@ -444,23 +492,26 @@ impl<T> Sequence<T> {
             where
                 A: SeqAccess<'de>,
             {
-                let length = match seq.next_element::<i32>()? {
-                    Some(v) => v,
-                    None => return Err(<A::Error as de::Error>::custom("length")),
-                };
-                debug!("length: {length}");
-                let capacity = length.try_into().map_err(|e| {
-                    <A::Error as de::Error>::custom(format!("length: {length}, caused: {e:?}"))
-                })?;
-                (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
-                    match seq.next_element::<T>()? {
-                        Some(t) => {
-                            acc.push(t);
-                            Ok(acc)
-                        }
-                        None => Err(<A::Error as de::Error>::custom("item")),
-                    }
-                })
+                seq.next_element::<i32>()?
+                    .ok_or_else(|| de::Error::custom("length"))
+                    .inspect(|length| debug!("length: {length}"))
+                    .and_then(|length| {
+                        (0..length).try_fold(
+                            Vec::with_capacity(length.try_into().map_err(|e| {
+                                de::Error::custom(format!(
+                                    "length: {length}, caused: {e:?}"
+                                ))
+                            })?),
+                            |mut acc, _| {
+                                seq.next_element::<T>()?
+                                    .ok_or_else(|| de::Error::custom("item"))
+                                    .map(|t| {
+                                        acc.push(t);
+                                        acc
+                                    })
+                            },
+                        )
+                    })
             }
         }
 
