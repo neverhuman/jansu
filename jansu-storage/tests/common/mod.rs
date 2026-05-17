@@ -166,42 +166,6 @@ where
 }
 
 #[allow(dead_code)]
-/// Applies idempotent DDL expected by the Postgres storage backend when connecting to a
-/// database that predates `expires_at` / `leader_epoch_history` (see `etc/initdb.d/`).
-#[cfg(feature = "postgres")]
-pub(crate) async fn ensure_postgres_offset_schema(storage_url: &Url) -> Result<(), Error> {
-    use tokio_postgres::NoTls;
-
-    let (client, connection) = tokio_postgres::connect(storage_url.as_str(), NoTls)
-        .await
-        .map_err(|e| Error::Message(format!("postgres schema patch connect: {e}")))?;
-
-    drop(tokio::spawn(async move {
-        let _ = connection.await;
-    }));
-
-    client
-        .batch_execute(
-            r"
-            alter table consumer_offset add column if not exists expires_at timestamp;
-
-            create table if not exists leader_epoch_history (
-                topition int references topition (id) on delete cascade,
-                epoch int not null,
-                start_offset bigint not null,
-                last_updated timestamp default current_timestamp not null,
-                created_at timestamp default current_timestamp not null,
-                primary key (topition, epoch)
-            );
-            ",
-        )
-        .await
-        .map_err(|e| Error::Message(format!("postgres schema patch apply: {e}")))?;
-
-    Ok(())
-}
-
-#[allow(dead_code)]
 pub(crate) async fn create_topic<S>(
     storage: &S,
     topic: &str,

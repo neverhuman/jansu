@@ -22,13 +22,13 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher as _},
 };
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 use std::{collections::BTreeMap, ops::Deref, sync::LazyLock};
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 pub(crate) struct Cache(pub BTreeMap<&'static str, String>);
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 impl Deref for Cache {
     type Target = BTreeMap<&'static str, String>;
 
@@ -37,35 +37,23 @@ impl Deref for Cache {
     }
 }
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 impl Cache {
     pub(crate) fn new(inner: BTreeMap<&'static str, String>) -> Self {
         Self(inner)
     }
-
-    #[cfg(feature = "postgres")]
-    pub(crate) fn get(&self, key: &str) -> Result<&str> {
-        self.0
-            .get(key)
-            .map(|s| s.as_str())
-            .ok_or(Error::UnknownCacheKey(key.to_owned()))
-    }
 }
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 macro_rules! include_sql {
     ($e: expr) => {
         remove_comments(include_str!($e))
     };
 }
 
-#[cfg(any(feature = "redlinedb", feature = "postgres"))]
+#[cfg(feature = "redlinedb")]
 pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
     let mapping = [
-        (
-            "maintain-vacuum.sql",
-            include_sql!("sql/maintain-vacuum.sql"),
-        ),
         (
             "consumer_group_delete.sql",
             include_sql!("sql/consumer_group_delete.sql"),
@@ -286,11 +274,6 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             "offset_for_leader_epoch.sql",
             include_sql!("sql/offset_for_leader_epoch.sql"),
         ),
-        ("record_fetch_pg.sql", include_sql!("pg/record_fetch.sql")),
-        (
-            "record_fetch_pg_keyed.sql",
-            include_sql!("pg/record_fetch_keyed.sql"),
-        ),
         ("record_insert.sql", include_sql!("sql/record_insert.sql")),
         (
             "register_broker.sql",
@@ -346,10 +329,6 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
         (
             "redlinedb/topic_select_uuid.sql",
             include_sql!("redlinedb/topic_select_uuid.sql"),
-        ),
-        (
-            "pg/topic_select_uuid.sql",
-            include_sql!("pg/topic_select_uuid.sql"),
         ),
         (
             "topition_delete_by_topic.sql",

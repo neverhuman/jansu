@@ -23,7 +23,6 @@ pub enum StorageEngine {
     DynoStore,
     Memory,
     Null,
-    Postgres,
     RedlineDb,
     SlateDb,
     Unknown,
@@ -119,13 +118,6 @@ impl StorageCapabilities {
             .into_iter()
             .collect(),
         }
-    }
-
-    pub fn phase06_postgres() -> Self {
-        Self::phase06_core(
-            StorageEngine::Postgres,
-            StorageCertification::ProductionParity,
-        )
     }
 
     pub fn phase06_memory() -> Self {

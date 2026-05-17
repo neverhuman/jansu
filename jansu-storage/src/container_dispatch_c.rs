@@ -34,9 +34,6 @@ impl StorageContainer {
 
             Self::Null(_) => StorageCapabilities::phase06_null(),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(_) => StorageCapabilities::phase06_postgres(),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(_) => StorageCapabilities::phase06_slatedb(),
         }
@@ -51,9 +48,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.cluster_id().await,
 
             Self::Null(engine) => engine.cluster_id().await,
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.cluster_id().await,
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.cluster_id().await,
@@ -70,9 +64,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.node().await,
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.node().await,
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.node().await,
         }
@@ -87,9 +78,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.advertised_listener().await,
 
             Self::Null(engine) => engine.advertised_listener().await,
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.advertised_listener().await,
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.advertised_listener().await,
@@ -109,9 +97,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.delete_user_scram_credential(user, mechanism).await,
 
             Self::Null(engine) => engine.delete_user_scram_credential(user, mechanism).await,
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.delete_user_scram_credential(user, mechanism).await,
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.delete_user_scram_credential(user, mechanism).await,
@@ -145,13 +130,6 @@ impl StorageContainer {
                     .await
             }
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => {
-                engine
-                    .upsert_user_scram_credential(user, mechanism, credential)
-                    .await
-            }
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => {
                 engine
@@ -174,9 +152,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.user_scram_credential(user, mechanism).await,
 
             Self::Null(engine) => engine.user_scram_credential(user, mechanism).await,
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.user_scram_credential(user, mechanism).await,
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.user_scram_credential(user, mechanism).await,

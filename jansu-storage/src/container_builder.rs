@@ -14,8 +14,6 @@
 
 #[cfg(feature = "dynostore")]
 use crate::dynostore::DynoStore;
-#[cfg(feature = "postgres")]
-use crate::pg::Postgres;
 use console::Emoji;
 use indicatif::{ProgressBar, ProgressStyle};
 use jansu_schema::{Registry, lake::House};
@@ -145,23 +143,6 @@ impl<N, C, A, S> Builder<N, C, A, S> {
 impl Builder<i32, String, Url, Url> {
     pub async fn build(self) -> Result<Arc<Box<dyn Storage>>> {
         let storage = match self.storage.scheme() {
-            #[cfg(feature = "postgres")]
-            "postgres" | "postgresql" => Postgres::builder(self.storage.to_string().as_str())
-                .map(|builder| builder.cluster(self.cluster_id.as_str()))
-                .map(|builder| builder.node(self.node_id))
-                .map(|builder| builder.advertised_listener(self.advertised_listener.clone()))
-                .map(|builder| builder.schemas(self.schema_registry))
-                .map(|builder| builder.lake(self.lake_house.clone()))
-                .map(|builder| builder.build())
-                .map(|storage| Box::new(StorageContainer::Postgres(storage)) as Box<dyn Storage>)
-                .map(Arc::new),
-
-            #[cfg(not(feature = "postgres"))]
-            "postgres" | "postgresql" => Err(Error::FeatureNotEnabled {
-                feature: "postgres".into(),
-                message: self.storage.to_string(),
-            }),
-
             #[cfg(feature = "dynostore")]
             "s3" => {
                 use crate::batch::ProduceRequestBatcher;
@@ -368,7 +349,6 @@ impl Builder<i32, String, Url, Url> {
 
             #[cfg(not(any(
                 feature = "dynostore",
-                feature = "postgres",
                 feature = "redlinedb",
                 feature = "slatedb",
             )))]
@@ -382,7 +362,6 @@ impl Builder<i32, String, Url, Url> {
 
             #[cfg(any(
                 feature = "dynostore",
-                feature = "postgres",
                 feature = "redlinedb",
                 feature = "slatedb",
             ))]

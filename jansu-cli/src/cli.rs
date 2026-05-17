@@ -42,8 +42,6 @@ fn storage_engines() -> Vec<&'static str> {
     vec![
         #[cfg(feature = "dynostore")]
         "dynostore",
-        #[cfg(feature = "postgres")]
-        "postgres",
         #[cfg(feature = "redlinedb")]
         "redlinedb",
         #[cfg(feature = "slatedb")]

@@ -1,6 +1,6 @@
 [package]
 name = "jansu"
-description = "Apache Kafka compatible broker with S3, PostgreSQL, Apache Iceberg and Delta Lake"
+description = "Apache Kafka compatible broker with S3, RedlineDB, SlateDB, Apache Iceberg and Delta Lake"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -34,6 +34,5 @@ delta = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-sto
 dynostore = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-broker/dynostore", "jansu-cli/dynostore", "jansu-storage/dynostore"]
 iceberg = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-cli/iceberg", "jansu-schema/iceberg"]
 parquet = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-cli/parquet", "jansu-schema/parquet"]
-postgres = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-broker/postgres", "jansu-cli/postgres", "jansu-storage/postgres"]
 redlinedb = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-broker/redlinedb", "jansu-cli/redlinedb", "jansu-storage/redlinedb"]
 slatedb = ["dep:jansu-broker", "dep:jansu-cli", "dep:jansu-schema", "dep:jansu-storage", "jansu-broker/slatedb", "jansu-cli/slatedb", "jansu-storage/slatedb"]

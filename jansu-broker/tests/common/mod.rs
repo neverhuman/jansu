@@ -70,7 +70,6 @@ pub(crate) fn init_tracing() -> Result<DefaultGuard> {
 
 pub(crate) enum StorageType {
     InMemory,
-    Postgres,
     RedlineDb,
     SlateDb,
 }
@@ -86,16 +85,6 @@ where
     C: Into<String>,
 {
     match storage_type {
-        StorageType::Postgres => StorageContainer::builder()
-            .cluster_id(cluster)
-            .node_id(node)
-            .advertised_listener(advertised_listener)
-            .schema_registry(schemas)
-            .storage(Url::parse("postgres://postgres:postgres@localhost")?)
-            .build()
-            .await
-            .map_err(Into::into),
-
         StorageType::InMemory => StorageContainer::builder()
             .cluster_id(cluster)
             .node_id(node)

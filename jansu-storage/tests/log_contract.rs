@@ -396,20 +396,3 @@ async fn slatedb_log_contract() -> Result<(), Error> {
 
     backend_contract(|| Ok((None, Url::parse("slatedb://memory")?)), "slatedb").await
 }
-
-#[cfg(feature = "postgres")]
-// Run after `just db-up` then:
-// `rtk cargo test -p jansu-storage log_contract_postgres --features postgres -- --nocapture`
-#[tokio::test]
-async fn log_contract_postgres() -> Result<(), Error> {
-    let _guard = init_tracing()?;
-    if std::env::var("POSTGRES_URL").is_err() {
-        return Ok(());
-    }
-
-    backend_contract(
-        || Ok((None, Url::parse("postgres://postgres:postgres@localhost")?)),
-        "postgres",
-    )
-    .await
-}

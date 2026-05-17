@@ -43,9 +43,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.register_broker(broker_registration),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.register_broker(broker_registration),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.register_broker(broker_registration),
         }
@@ -66,9 +63,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.create_topic(topic, validate_only),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.create_topic(topic, validate_only),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.create_topic(topic, validate_only),
         }
@@ -87,9 +81,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.incremental_alter_resource(resource),
 
             Self::Null(engine) => engine.incremental_alter_resource(resource),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.incremental_alter_resource(resource),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.incremental_alter_resource(resource),
@@ -110,9 +101,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.delete_records(topics),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.delete_records(topics),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.delete_records(topics),
         }
@@ -129,9 +117,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.delete_topic(topic),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.delete_topic(topic),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.delete_topic(topic),
         }
@@ -147,9 +132,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.brokers(),
 
             Self::Null(engine) => engine.brokers(),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.brokers(),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.brokers(),
@@ -171,9 +153,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.produce(transaction_id, topition, batch),
 
             Self::Null(engine) => engine.produce(transaction_id, topition, batch),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.produce(transaction_id, topition, batch),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.produce(transaction_id, topition, batch),
@@ -202,11 +181,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.fetch(topition, offset, min_bytes, max_bytes, isolation),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => {
-                engine.fetch(topition, offset, min_bytes, max_bytes, isolation)
-            }
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.fetch(topition, offset, min_bytes, max_bytes, isolation),
         }
@@ -222,9 +196,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.offset_stage(topition),
 
             Self::Null(engine) => engine.offset_stage(topition),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.offset_stage(topition),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.offset_stage(topition),
@@ -245,9 +216,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.list_offsets(isolation_level, offsets),
 
             Self::Null(engine) => engine.list_offsets(isolation_level, offsets),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.list_offsets(isolation_level, offsets),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.list_offsets(isolation_level, offsets),
@@ -270,9 +238,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.offset_commit(group_id, retention_time_ms, offsets),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.offset_commit(group_id, retention_time_ms, offsets),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.offset_commit(group_id, retention_time_ms, offsets),
         }
@@ -293,9 +258,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.offset_fetch(group_id, topics, require_stable),
 
             Self::Null(engine) => engine.offset_fetch(group_id, topics, require_stable),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.offset_fetch(group_id, topics, require_stable),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.offset_fetch(group_id, topics, require_stable),
@@ -322,9 +284,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.offset_fetch_records(group_id, topics, require_stable),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.offset_fetch_records(group_id, topics, require_stable),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.offset_fetch_records(group_id, topics, require_stable),
         }
@@ -345,9 +304,6 @@ impl StorageContainer {
 
             Self::Null(engine) => engine.offset_for_leader_epoch(topition, leader_epoch),
 
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.offset_for_leader_epoch(topition, leader_epoch),
-
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.offset_for_leader_epoch(topition, leader_epoch),
         }
@@ -366,9 +322,6 @@ impl StorageContainer {
             Self::RedlineDb(engine) => engine.leader_epoch_history(topition),
 
             Self::Null(engine) => engine.leader_epoch_history(topition),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(engine) => engine.leader_epoch_history(topition),
 
             #[cfg(feature = "slatedb")]
             Self::Slate(engine) => engine.leader_epoch_history(topition),

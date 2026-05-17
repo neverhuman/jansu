@@ -98,17 +98,12 @@ pub enum Error {
     Pattern(Arc<PatternError>),
     Poison,
 
-    #[cfg(feature = "postgres")]
-    Pool(Arc<deadpool_postgres::PoolError>),
-
     SchemaRegistry(Arc<jansu_schema::Error>),
     Service(#[from] jansu_service::Error),
     Storage(#[from] jansu_storage::Error),
     StringUtf8(#[from] FromUtf8Error),
     Regex(#[from] regex::Error),
 
-    #[cfg(feature = "postgres")]
-    TokioPostgres(Arc<tokio_postgres::error::Error>),
     TryFromInt(#[from] TryFromIntError),
 
     UnsupportedApiService(i16),
@@ -136,20 +131,6 @@ impl From<ExporterBuildError> for Error {
 impl From<SendError<CancelKind>> for Error {
     fn from(value: SendError<CancelKind>) -> Self {
         Self::Send(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<tokio_postgres::error::Error> for Error {
-    fn from(value: tokio_postgres::error::Error) -> Self {
-        Self::from(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<Arc<tokio_postgres::error::Error>> for Error {
-    fn from(value: Arc<tokio_postgres::error::Error>) -> Self {
-        Self::TokioPostgres(value)
     }
 }
 
@@ -194,20 +175,6 @@ impl From<Arc<object_store::Error>> for Error {
 impl From<ParseError> for Error {
     fn from(value: ParseError) -> Self {
         Self::ParseFilter(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<deadpool_postgres::PoolError> for Error {
-    fn from(value: deadpool_postgres::PoolError) -> Self {
-        Self::from(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<Arc<deadpool_postgres::PoolError>> for Error {
-    fn from(value: Arc<deadpool_postgres::PoolError>) -> Self {
-        Self::Pool(value)
     }
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "jansu-storage"
-description = "Storage abstraction for PostgreSQL, RedlineDB and ObjectStore (S3 or memory)"
+description = "Storage abstraction for RedlineDB, SlateDB and ObjectStore (S3 or memory)"
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -11,9 +11,8 @@ repository.workspace = true
 version.workspace = true
 
 [features]
-default = ["dynostore", "postgres", "redlinedb", "slatedb"]
+default = ["dynostore", "redlinedb", "slatedb"]
 dynostore = ["dep:object_store"]
-postgres = ["dep:tokio-postgres", "dep:deadpool", "dep:deadpool-postgres", "dep:tokio-postgres-rustls"]
 redlinedb = ["dep:redlinedb"]
 slatedb = ["dep:object_store", "dep:postcard", "dep:slatedb"]
 
@@ -27,8 +26,6 @@ bytes.workspace = true
 cached.workspace = true
 console.workspace = true
 chrono.workspace = true
-deadpool = { workspace = true, optional = true }
-deadpool-postgres = { workspace = true, optional = true }
 futures-core.workspace = true
 futures-util.workspace = true
 futures.workspace = true
@@ -55,8 +52,6 @@ slatedb = {workspace = true, optional = true}
 jansu-sans-io.workspace = true
 jansu-schema.workspace = true
 thiserror.workspace = true
-tokio-postgres = { workspace = true, optional = true }
-tokio-postgres-rustls = { workspace = true, optional = true }
 tokio-util.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true

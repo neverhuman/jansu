@@ -11,9 +11,8 @@ repository.workspace = true
 version.workspace = true
 
 [features]
-default = ["dynostore", "postgres", "redlinedb", "slatedb"]
+default = ["dynostore", "redlinedb", "slatedb"]
 dynostore = ["dep:object_store", "jansu-storage/dynostore"]
-postgres = ["dep:deadpool-postgres", "dep:tokio-postgres", "jansu-storage/postgres"]
 redlinedb = ["jansu-storage/redlinedb"]
 slatedb = ["dep:object_store", "dep:slatedb", "jansu-storage/slatedb"]
 
@@ -25,7 +24,6 @@ async-trait.workspace = true
 bytes.workspace = true
 clap.workspace = true
 console.workspace = true
-deadpool-postgres = { workspace = true, optional = true }
 futures.workspace = true
 glob.workspace = true
 http-body-util.workspace = true
@@ -54,7 +52,6 @@ jansu-schema.workspace = true
 jansu-service.workspace = true
 jansu-storage.workspace = true
 thiserror.workspace = true
-tokio-postgres = { workspace = true, optional = true }
 tokio-rustls.workspace = true
 tokio-util.workspace = true
 tokio.workspace = true

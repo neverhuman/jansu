@@ -16,7 +16,7 @@
 //!
 //! [`StorageContainer`] provides an abstraction over [`Storage`] and can
 //! be configured to use memory, [S3](https://en.wikipedia.org/wiki/Amazon_S3),
-//! [PostgreSQL](https://postgresql.org/) and
+//! [SlateDB](https://slatedb.io/) and
 //! [RedlineDB](https://github.com/neverhuman/redlineDB/).
 //!
 //! ## Memory
@@ -55,24 +55,6 @@
 //! # }
 //! ```
 //!
-//! ## PostgreSQL
-//!
-//! ```no_run
-//! # use jansu_storage::{Error, StorageContainer};
-//! # use url::Url;
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Error> {
-//! let storage = StorageContainer::builder()
-//!     .cluster_id("jansu")
-//!     .node_id(111)
-//!     .advertised_listener(Url::parse("tcp://localhost:9092")?)
-//!     .storage(Url::parse("postgres://postgres:postgres@localhost")?)
-//!     .build()
-//!     .await?;
-//! # Ok(())
-//! # }
-//! ```
-//!
 //! ## RedlineDB
 //!
 //! ```no_run
@@ -97,9 +79,6 @@ use bytes::Bytes;
 #[cfg(feature = "dynostore")]
 use crate::dynostore::DynoStore;
 
-#[cfg(feature = "postgres")]
-use crate::pg::Postgres;
-
 use opentelemetry::{
     InstrumentationScope, global,
     metrics::{Counter, Meter},
@@ -113,9 +92,6 @@ use std::{
 
 #[cfg(feature = "dynostore")]
 mod dynostore;
-
-#[cfg(feature = "postgres")]
-mod pg;
 
 mod advertised_listener;
 pub use advertised_listener::AdvertisedListenerStorage;
@@ -141,7 +117,7 @@ pub use service::{
 #[cfg(feature = "slatedb")]
 pub mod slate;
 
-#[cfg(any(feature = "postgres", feature = "redlinedb"))]
+#[cfg(feature = "redlinedb")]
 pub(crate) mod sql;
 
 #[cfg(feature = "redlinedb")]
@@ -236,19 +212,11 @@ impl<T> From<serde_json::Error> for UpdateError<T> {
     }
 }
 
-#[cfg(feature = "postgres")]
-impl<T> From<tokio_postgres::error::Error> for UpdateError<T> {
-    fn from(value: tokio_postgres::error::Error) -> Self {
-        Self::Error(Error::from(value))
-    }
-}
-
 /// Storage Container
 #[derive(Clone)]
 #[cfg_attr(
     not(any(
         feature = "dynostore",
-        feature = "postgres",
         feature = "redlinedb",
         feature = "slatedb",
     )),
@@ -256,9 +224,6 @@ impl<T> From<tokio_postgres::error::Error> for UpdateError<T> {
 )]
 pub enum StorageContainer {
     Null(null::Engine),
-
-    #[cfg(feature = "postgres")]
-    Postgres(Postgres),
 
     #[cfg(feature = "dynostore")]
     DynoStore(DynoStore),
@@ -274,11 +239,6 @@ impl Debug for StorageContainer {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Null(_) => f.debug_tuple(stringify!(StorageContainer::Null)).finish(),
-
-            #[cfg(feature = "postgres")]
-            Self::Postgres(_) => f
-                .debug_tuple(stringify!(StorageContainer::Postgres))
-                .finish(),
 
             #[cfg(feature = "dynostore")]
             Self::DynoStore(_) => f

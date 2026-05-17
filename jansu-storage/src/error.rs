@@ -15,13 +15,9 @@
 //! Storage error type and conversions.
 
 use bytes::{Bytes, TryGetError};
-#[cfg(feature = "postgres")]
-use deadpool::managed::PoolError;
 use glob::{GlobError, PatternError};
 use governor::InsufficientCapacity;
 use jansu_sans_io::{Body, ErrorCode, add_partitions_to_txn_request::AddPartitionsToTxnRequest};
-#[cfg(feature = "postgres")]
-use std::error;
 use std::{
     array::TryFromSliceError,
     ffi::OsString,
@@ -47,9 +43,6 @@ pub enum Error {
     Api(ErrorCode),
 
     ChronoParse(#[from] chrono::ParseError),
-
-    #[cfg(feature = "postgres")]
-    DeadPoolBuild(#[from] deadpool::managed::BuildError),
 
     Decode(Bytes),
 
@@ -100,9 +93,6 @@ pub enum Error {
     PhantomCached(),
     Poison,
 
-    #[cfg(feature = "postgres")]
-    Pool(Arc<Box<dyn error::Error + Send + Sync>>),
-
     #[cfg(feature = "slatedb")]
     Postcard(#[from] postcard::Error),
 
@@ -131,8 +121,6 @@ pub enum Error {
 
     SystemTime(#[from] SystemTimeError),
 
-    #[cfg(feature = "postgres")]
-    TokioPostgres(Arc<tokio_postgres::error::Error>),
     TryFromInt(#[from] TryFromIntError),
     TryFromSlice(#[from] TryFromSliceError),
 
@@ -176,16 +164,6 @@ impl<T> From<PoisonError<T>> for Error {
 impl From<AcquireError> for Error {
     fn from(value: AcquireError) -> Self {
         Self::Acquire(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl<E> From<PoolError<E>> for Error
-where
-    E: error::Error + Send + Sync + 'static,
-{
-    fn from(value: PoolError<E>) -> Self {
-        Self::Pool(Arc::new(Box::new(value)))
     }
 }
 
@@ -250,20 +228,6 @@ impl From<serde_json::Error> for Error {
 impl From<Arc<serde_json::Error>> for Error {
     fn from(value: Arc<serde_json::Error>) -> Self {
         Self::SerdeJson(value)
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<tokio_postgres::error::Error> for Error {
-    fn from(value: tokio_postgres::error::Error) -> Self {
-        Self::from(Arc::new(value))
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl From<Arc<tokio_postgres::error::Error>> for Error {
-    fn from(value: Arc<tokio_postgres::error::Error>) -> Self {
-        Self::TokioPostgres(value)
     }
 }
 

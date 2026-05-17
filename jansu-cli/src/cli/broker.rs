@@ -74,7 +74,7 @@ pub(super) struct Arg {
     )]
     advertised_listener_url: EnvVarExp<Url>,
 
-    /// Storage engine examples are: postgres://postgres:postgres@localhost, memory://jansu/ or s3://jansu/
+    /// Storage engine examples are: memory://jansu/, redlinedb://jansu.redline, slatedb://memory or s3://jansu/
     #[arg(long, env = "STORAGE_ENGINE", default_value = "memory://jansu/")]
     storage_engine: EnvVarExp<Url>,
 

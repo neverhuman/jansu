@@ -19,7 +19,6 @@ delta = ["jansu-schema/delta"]
 dynostore = []
 iceberg = ["jansu-schema/iceberg"]
 parquet = ["jansu-schema/parquet"]
-postgres = []
 redlinedb = []
 slatedb = []
 
