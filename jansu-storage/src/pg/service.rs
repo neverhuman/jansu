@@ -436,7 +436,7 @@ impl Postgres {
                                 }
                             };
 
-                            let current_value = match rows.first() {
+                            let current_value: Option<String> = match rows.first() {
                                 Some(row) => match row.try_get(0) {
                                     Ok(value) => value,
                                     Err(err) => {
@@ -499,7 +499,7 @@ impl Postgres {
                                 }
                             };
 
-                            let current_value = match rows.first() {
+                            let current_value: Option<String> = match rows.first() {
                                 Some(row) => match row.try_get(0) {
                                     Ok(value) => value,
                                     Err(err) => {
