@@ -128,7 +128,7 @@
 //!     .and_then(|partition| partition.records.as_ref())
 //!     .map(|record_frame| record_frame.batches.as_slice())
 //!     .and_then(|batches| batches.first())
-//!     .ok_or_else(|| Error::Message(String::from("deflated batch")))?;
+//!     .ok_or(Error::NoSuchField("deflated batch"))?;
 //!
 //! // we just have raw record data at this point:
 //! assert_eq!(12, deflated.record_data.len());
