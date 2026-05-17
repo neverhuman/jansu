@@ -229,7 +229,7 @@ where
                         (
                             id.to_owned(),
                             GroupMember {
-                                join_response: member.join_response.clone(),
+                                join_response: member.join_response.to_owned(),
                                 last_contact: member.last_contact,
                             },
                         )
@@ -239,9 +239,9 @@ where
                 skip_assignment: *skip_assignment,
                 inception: *inception,
                 state: GroupState::Forming {
-                    protocol_type: state.protocol_type.clone(),
-                    protocol_name: state.protocol_name.clone(),
-                    leader: state.leader.clone(),
+                    protocol_type: state.protocol_type.to_owned(),
+                    protocol_name: state.protocol_name.to_owned(),
+                    leader: state.leader.to_owned(),
                 },
             },
             Wrapper::Formed(Inner {
@@ -262,7 +262,7 @@ where
                         (
                             id.to_owned(),
                             GroupMember {
-                                join_response: member.join_response.clone(),
+                                join_response: member.join_response.to_owned(),
                                 last_contact: member.last_contact,
                             },
                         )
@@ -272,10 +272,10 @@ where
                 skip_assignment: *skip_assignment,
                 inception: *inception,
                 state: GroupState::Formed {
-                    protocol_type: state.protocol_type.clone(),
-                    protocol_name: state.protocol_name.clone(),
-                    leader: state.leader.clone(),
-                    assignments: state.assignments.clone(),
+                    protocol_type: state.protocol_type.to_owned(),
+                    protocol_name: state.protocol_name.to_owned(),
+                    leader: state.leader.to_owned(),
+                    assignments: state.assignments.to_owned(),
                 },
             },
         }
@@ -312,7 +312,7 @@ where
                             (
                                 id.to_owned(),
                                 Member {
-                                    join_response: member.join_response.clone(),
+                                    join_response: member.join_response.to_owned(),
                                     last_contact: member.last_contact,
                                 },
                             )
@@ -344,7 +344,7 @@ where
                         (
                             id.to_owned(),
                             Member {
-                                join_response: member.join_response.clone(),
+                                join_response: member.join_response.to_owned(),
                                 last_contact: member.last_contact,
                             },
                         )
@@ -446,7 +446,7 @@ where
     fn assignments(&self) -> Option<BTreeMap<String, Bytes>> {
         match self {
             Self::Forming(..) => None,
-            Self::Formed(inner) => Some(inner.state.assignments.clone()),
+            Self::Formed(inner) => Some(inner.state.assignments.to_owned()),
         }
     }
 
@@ -471,7 +471,7 @@ where
                     info!("missed heartbeat for {group_id} in {}", inner.generation_id);
 
                     let leader = if inner.members.contains_key(&inner.state.leader) {
-                        Some(inner.state.leader.clone())
+                        Some(inner.state.leader.to_owned())
                     } else {
                         inner.members.keys().next().cloned()
                     };
@@ -775,7 +775,7 @@ where
                         generation_id: -1,
                         state: Forming::default(),
                         skip_assignment: Some(false),
-                        storage: self.storage.clone(),
+                        storage: self.storage.to_owned(),
                         inception: SystemTime::now(),
                     };
 
@@ -861,7 +861,7 @@ where
                         wrappers.insert(
                             group_id.to_owned(),
                             (
-                                Wrapper::with_storage_group_detail(self.storage.clone(), *current),
+                                Wrapper::with_storage_group_detail(self.storage.to_owned(), *current),
                                 Some(version),
                             ),
                         )
@@ -920,7 +920,7 @@ where
             let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
                 wrappers
                     .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.to_owned())), None))
             })?;
 
             debug!(?group_id, ?original, ?version, ?iteration);
@@ -987,7 +987,7 @@ where
                         wrappers.insert(
                             group_id.to_owned(),
                             (
-                                Wrapper::with_storage_group_detail(self.storage.clone(), *current),
+                                Wrapper::with_storage_group_detail(self.storage.to_owned(), *current),
                                 Some(version),
                             ),
                         )
@@ -1030,7 +1030,7 @@ where
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
                 wrappers
                     .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.to_owned())), None))
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
@@ -1064,7 +1064,7 @@ where
                         wrappers.insert(
                             group_id.to_owned(),
                             (
-                                Wrapper::with_storage_group_detail(self.storage.clone(), *current),
+                                Wrapper::with_storage_group_detail(self.storage.to_owned(), *current),
                                 Some(version),
                             ),
                         )
@@ -1102,7 +1102,7 @@ where
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
                 wrappers
                     .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.to_owned())), None))
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
@@ -1137,7 +1137,7 @@ where
                         wrappers.insert(
                             group_id.to_owned(),
                             (
-                                Wrapper::with_storage_group_detail(self.storage.clone(), *current),
+                                Wrapper::with_storage_group_detail(self.storage.to_owned(), *current),
                                 Some(version),
                             ),
                         )
@@ -1173,7 +1173,7 @@ where
         COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "offset_fetch")]);
 
         let now = SystemTime::now();
-        let wrapper = Wrapper::Forming(Inner::new(self.storage.clone()))
+        let wrapper = Wrapper::Forming(Inner::new(self.storage.to_owned()))
             .missed_heartbeat(group_id.unwrap_or_default(), now);
         let (_wrapper, body) = wrapper
             .offset_fetch(now, group_id, topics, groups, require_stable)
@@ -1199,7 +1199,7 @@ where
             let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
                 wrappers
                     .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
+                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.to_owned())), None))
             })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
@@ -1236,7 +1236,7 @@ where
                         wrappers.insert(
                             group_id.to_owned(),
                             (
-                                Wrapper::with_storage_group_detail(self.storage.clone(), *current),
+                                Wrapper::with_storage_group_detail(self.storage.to_owned(), *current),
                                 Some(version),
                             ),
                         )

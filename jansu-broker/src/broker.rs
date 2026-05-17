@@ -29,7 +29,7 @@ use rama::{Context, Service};
 use rsasl::config::SASLConfig;
 use rustls::ServerConfig;
 use std::{
-    io::ErrorKind,
+    io::{self, ErrorKind},
     marker::PhantomData,
     net::{IpAddr, Ipv6Addr, SocketAddr},
     str::FromStr,
@@ -120,21 +120,20 @@ where
 
         let mut set = JoinSet::new();
 
-        let mut interrupt_signal = signal(SignalKind::interrupt()).unwrap();
+        let mut interrupt_signal = signal(SignalKind::interrupt())?;
         debug!(?interrupt_signal);
 
-        let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
+        let mut terminate_signal = signal(SignalKind::terminate())?;
         debug!(?terminate_signal);
 
         let silent = self.silent;
 
-        let token = self.cancellation.clone();
+        let token = self.cancellation.to_owned();
 
         _ = set.spawn(async move {
-            self.serve(started)
-                .await
-                .inspect_err(|err| error!(?err))
-                .unwrap();
+            if let Err(err) = self.serve(started).await {
+                error!(?err);
+            }
         });
 
         let kind = tokio::select! {
@@ -203,7 +202,7 @@ where
         self.storage
             .register_broker(BrokerRegistrationRequest {
                 broker_id: self.node_id,
-                cluster_id: self.cluster_id.clone(),
+                cluster_id: self.cluster_id.to_owned(),
                 incarnation_id: self.incarnation_id,
                 rack: None,
             })
@@ -245,7 +244,7 @@ where
         let m = MultiProgress::new();
 
         let spinner_style = ProgressStyle::with_template("{prefix:.bold.dim} {spinner} {msg}")
-            .unwrap()
+            .map_err(|err| Error::Io(Arc::new(io::Error::new(ErrorKind::InvalidInput, err))))?
             .tick_chars("⠁⠂⠄⡀⢀⠠⠐");
 
         let ls = if self.silent {
@@ -254,7 +253,7 @@ where
             println!("ready in {}ms", started.elapsed().as_millis(),);
 
             let ls = m.add(ProgressBar::new_spinner());
-            ls.set_style(spinner_style.clone());
+            ls.set_style(spinner_style.to_owned());
 
             if let Ok(local_addr) = listener.local_addr() {
                 ls.set_prefix(format!("[{local_addr:?}]"));
@@ -265,7 +264,7 @@ where
             Some(ls)
         };
 
-        let _acceptor = self.tls_server_config.clone().map(TlsAcceptor::from);
+        let _acceptor = self.tls_server_config.as_ref().map(|cfg| TlsAcceptor::from(Arc::clone(cfg)));
 
         let mut connections = 0;
 
@@ -285,12 +284,12 @@ where
                         None
                     } else {
                         let pb = m.add(ProgressBar::new_spinner());
-                        pb.set_style(spinner_style.clone());
+                        pb.set_style(spinner_style.to_owned());
                         pb.set_prefix(format!("[{connections}/{:?}]", addr));
                         pb.set_message("connected");
                         pb.tick();
 
-                        _ = c.insert(pb.clone());
+                        _ = c.insert(pb.to_owned());
                         Some(pb)
                     };
 
@@ -299,10 +298,10 @@ where
 
                     let service = services(
                         self.cluster_id.as_str(),
-                        self.cancellation.clone(),
-                        self.groups.clone(),
-                        self.storage.clone(),
-                        self.sasl_config.clone()
+                        self.cancellation.to_owned(),
+                        self.groups.to_owned(),
+                        self.storage.to_owned(),
+                        self.sasl_config.as_ref().map(Arc::clone),
                     )?;
 
                     let handle = set.spawn(async move {
@@ -333,7 +332,7 @@ where
                 }
 
                 _ = interval.tick() => {
-                    let storage = self.storage.clone();
+                    let storage = self.storage.to_owned();
 
 
                     let handle = set.spawn(async move {
@@ -597,47 +596,67 @@ impl Builder<i32, String, Uuid, Url, Url, Url> {
     pub async fn build(self) -> Result<Broker<Controller<ArcDynStorage>, ArcDynStorage>> {
         if let Some(otlp_endpoint_url) = self
             .otlp_endpoint_url
-            .clone()
+            .as_ref()
             .inspect(|otlp_endpoint_url| debug!(%otlp_endpoint_url))
         {
-            otel::metric_exporter(otlp_endpoint_url)?;
+            otel::metric_exporter(otlp_endpoint_url.to_owned())?;
         }
 
-        let storage = StorageContainer::builder()
-            .cluster_id(self.cluster_id.clone())
-            .node_id(self.node_id)
-            .advertised_listener(self.advertised_listener.clone())
-            .schema_registry(self.schema_registry.clone())
-            .lake_house(self.lake_house.clone())
-            .storage(self.storage.clone())
-            .cancellation(self.cancellation.clone())
-            .silent(self.silent)
+        let Self {
+            node_id,
+            cluster_id,
+            incarnation_id,
+            advertised_listener,
+            storage,
+            listener,
+            otlp_endpoint_url: _,
+            schema_registry,
+            lake_house,
+            authentication,
+            tls_server_config,
+            silent,
+            maintenance_interval,
+            cancellation,
+        } = self;
+
+        let advertised_listener_for_storage = advertised_listener.to_owned();
+        let cancellation_for_storage = cancellation.to_owned();
+
+        let storage: ArcDynStorage = StorageContainer::builder()
+            .cluster_id(cluster_id.as_str())
+            .node_id(node_id)
+            .advertised_listener(advertised_listener_for_storage)
+            .schema_registry(schema_registry)
+            .lake_house(lake_house)
+            .storage(storage)
+            .cancellation(cancellation_for_storage)
+            .silent(silent)
             .build()
             .await
-            .map(|storage| Arc::new(storage) as ArcDynStorage)?;
+            .map(Arc::new)?;
 
-        let groups = Controller::with_storage(storage.clone())?;
+        let groups = Controller::with_storage(Arc::clone(&storage))?;
 
-        let sasl_config = if self.authentication {
-            jansu_auth::configuration(storage.clone()).map(Some)?
+        let sasl_config = if authentication {
+            jansu_auth::configuration(Arc::clone(&storage)).map(Some)?
         } else {
             None
         };
 
         Ok(Broker {
-            node_id: self.node_id,
-            cluster_id: self.cluster_id.clone(),
-            incarnation_id: self.incarnation_id,
-            listener: self.listener,
-            advertised_listener: self.advertised_listener,
+            node_id,
+            cluster_id,
+            incarnation_id,
+            listener,
+            advertised_listener,
             storage,
             groups,
             sasl_config,
-            tls_server_config: self.tls_server_config.map(Arc::new),
+            tls_server_config: tls_server_config.map(Arc::new),
 
-            silent: self.silent,
-            maintenance_interval: self.maintenance_interval,
-            cancellation: self.cancellation,
+            silent,
+            maintenance_interval,
+            cancellation,
         })
     }
 }

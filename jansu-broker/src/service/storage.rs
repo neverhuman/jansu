@@ -79,7 +79,7 @@ where
     ]
     .iter()
     .try_fold(builder, |builder, service| {
-        service(builder, storage.clone())
+        service(builder, storage.to_owned())
     })
 }
 

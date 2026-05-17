@@ -49,7 +49,7 @@ where
     ]
     .iter()
     .try_fold(builder, |builder, service| {
-        service(builder, coordinator.clone())
+        service(builder, coordinator.to_owned())
     })
 }
 
