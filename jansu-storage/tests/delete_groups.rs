@@ -46,7 +46,10 @@ async fn delete_non_existent() -> Result<(), Error> {
     let results = response.results.unwrap_or_default();
     assert_eq!(1, results.len());
     assert_eq!(group_id, results[0].group_id.as_str());
-    assert_eq!(ErrorCode::None, ErrorCode::try_from(results[0].error_code)?);
+    assert_eq!(
+        ErrorCode::GroupIdNotFound,
+        ErrorCode::try_from(results[0].error_code)?
+    );
 
     Ok(())
 }
