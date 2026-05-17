@@ -43,7 +43,7 @@ where
     type Error = S::Error;
 
     async fn serve(&self, ctx: Context<State>, req: Frame) -> Result<Self::Response, Self::Error> {
-        let (ctx, _) = ctx.swap_state(self.coordinator.clone());
+        let (ctx, _) = ctx.swap_state(self.coordinator.to_owned());
         self.inner.serve(ctx, req).await.map(Into::into)
     }
 }
@@ -67,7 +67,7 @@ where
 
     fn layer(&self, inner: S) -> Self::Service {
         Self::Service {
-            coordinator: self.coordinator.clone(),
+            coordinator: self.coordinator.to_owned(),
             inner,
         }
     }

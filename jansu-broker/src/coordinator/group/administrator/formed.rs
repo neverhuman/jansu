@@ -12,7 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::SystemTime;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    ops::Deref,
+    sync::{Arc, LazyLock, Mutex},
+    time::SystemTime,
+};
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -27,15 +35,25 @@ use jansu_sans_io::{
         OffsetCommitResponse, OffsetCommitResponsePartition, OffsetCommitResponseTopic,
     },
     offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
-    offset_fetch_response::OffsetFetchResponse,
+    offset_fetch_response::{
+        OffsetFetchResponse, OffsetFetchResponseGroup, OffsetFetchResponsePartition,
+        OffsetFetchResponsePartitions, OffsetFetchResponseTopic, OffsetFetchResponseTopics,
+    },
     sync_group_request::SyncGroupRequestAssignment,
     sync_group_response::SyncGroupResponse,
 };
-use jansu_storage::Storage;
-use tracing::debug;
+use jansu_storage::{
+    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, Storage, Topition, UpdateError,
+    Version,
+};
+use opentelemetry::{KeyValue, metrics::Counter};
+use tokio::time::{Duration, sleep};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
-use super::OffsetCommit;
+use crate::{Error, METER, Result};
+
+use super::{Coordinator, OffsetCommit};
 
 use super::*;
 
@@ -101,7 +119,7 @@ where
                 .error_code(ErrorCode::FencedInstanceId.into())
                 .generation_id(self.generation_id)
                 .protocol_type(Some(protocol_type.into()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .leader("".into())
                 .skip_assignment(self.skip_assignment)
                 .member_id(member_id.to_owned())
@@ -121,7 +139,7 @@ where
                 .error_code(ErrorCode::InconsistentGroupProtocol.into())
                 .generation_id(self.generation_id)
                 .protocol_type(Some(protocol_type.into()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .leader("".into())
                 .skip_assignment(self.skip_assignment)
                 .member_id("".into())
@@ -146,16 +164,16 @@ where
                 .protocol_name(Some("".into()))
                 .leader("".into())
                 .skip_assignment(self.skip_assignment)
-                .member_id(member_id.clone())
+                .member_id(member_id.to_owned())
                 .members(Some([].into()));
 
             _ = self.members.insert(
-                member_id.clone(),
+                member_id.to_owned(),
                 Member {
                     join_response: JoinGroupResponseMember::default()
                         .member_id(member_id)
                         .group_instance_id(group_instance_id.map(|s| s.to_owned()))
-                        .metadata(protocol.metadata.clone()),
+                        .metadata(protocol.metadata.to_owned()),
                     last_contact: Some(now),
                 },
             );
@@ -170,7 +188,7 @@ where
                     state: Forming {
                         protocol_type: Some(self.state.protocol_type),
                         protocol_name: Some(self.state.protocol_name),
-                        leader: Some(self.state.leader.clone()),
+                        leader: Some(self.state.leader),
                     },
                     storage: self.storage,
                     skip_assignment: self.skip_assignment,
@@ -255,8 +273,9 @@ where
                     existing = ?metadata,
                 );
 
-                *metadata = protocol.metadata.clone();
+                *metadata = protocol.metadata.to_owned();
 
+                let skip_assignment = self.skip_assignment;
                 let state: Wrapper<O> = Inner {
                     generation_id: if group_instance_id.is_none() {
                         self.generation_id + 1
@@ -270,10 +289,10 @@ where
                     state: Forming {
                         protocol_type: Some(self.state.protocol_type),
                         protocol_name: Some(self.state.protocol_name),
-                        leader: Some(self.state.leader.clone()),
+                        leader: Some(self.state.leader),
                     },
                     storage: self.storage,
-                    skip_assignment: self.skip_assignment,
+                    skip_assignment,
                     inception: now,
                 }
                 .into();
@@ -301,7 +320,7 @@ where
                                 .map(|s| s.to_owned())
                                 .unwrap_or("".to_owned()),
                         )
-                        .skip_assignment(self.skip_assignment)
+                        .skip_assignment(skip_assignment)
                         .member_id(member_id)
                         .members(members)
                         .into()
@@ -320,16 +339,17 @@ where
                 );
 
                 _ = self.members.insert(
-                    member_id.clone(),
+                    member_id.to_owned(),
                     Member {
                         join_response: JoinGroupResponseMember::default()
                             .member_id(member_id.to_string())
                             .group_instance_id(group_instance_id.map(|s| s.to_owned()))
-                            .metadata(protocol.metadata.clone()),
+                            .metadata(protocol.metadata.to_owned()),
                         last_contact: Some(now),
                     },
                 );
 
+                let skip_assignment = self.skip_assignment;
                 let state: Wrapper<O> = Inner {
                     generation_id: self.generation_id + 1,
                     session_timeout_ms: self.session_timeout_ms,
@@ -339,10 +359,10 @@ where
                     state: Forming {
                         protocol_type: Some(self.state.protocol_type),
                         protocol_name: Some(self.state.protocol_name),
-                        leader: Some(self.state.leader.clone()),
+                        leader: Some(self.state.leader),
                     },
                     storage: self.storage,
-                    skip_assignment: self.skip_assignment,
+                    skip_assignment,
                     inception: now,
                 }
                 .into();
@@ -371,7 +391,7 @@ where
                                 .map(|s| s.to_owned())
                                 .unwrap_or("".to_owned()),
                         )
-                        .skip_assignment(self.skip_assignment)
+                        .skip_assignment(skip_assignment)
                         .member_id(member_id)
                         .members(members)
                         .into()
@@ -407,8 +427,8 @@ where
             let body = SyncGroupResponse::default()
                 .throttle_time_ms(Some(0))
                 .error_code(ErrorCode::UnknownMemberId.into())
-                .protocol_type(Some(self.state.protocol_type.clone()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_type(Some(self.state.protocol_type.to_owned()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .assignment(Bytes::from_static(b""))
                 .into();
 
@@ -421,8 +441,8 @@ where
             let body = SyncGroupResponse::default()
                 .throttle_time_ms(Some(0))
                 .error_code(ErrorCode::InconsistentGroupProtocol.into())
-                .protocol_type(Some(self.state.protocol_type.clone()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_type(Some(self.state.protocol_type.to_owned()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .assignment(Bytes::from_static(b""))
                 .into();
 
@@ -437,8 +457,8 @@ where
             let body = SyncGroupResponse::default()
                 .throttle_time_ms(Some(0))
                 .error_code(ErrorCode::IllegalGeneration.into())
-                .protocol_type(Some(self.state.protocol_type.clone()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_type(Some(self.state.protocol_type.to_owned()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .assignment(Bytes::from_static(b""))
                 .into();
 
@@ -451,8 +471,8 @@ where
             let body = SyncGroupResponse::default()
                 .throttle_time_ms(Some(0))
                 .error_code(ErrorCode::RebalanceInProgress.into())
-                .protocol_type(Some(self.state.protocol_type.clone()))
-                .protocol_name(Some(self.state.protocol_name.clone()))
+                .protocol_type(Some(self.state.protocol_type.to_owned()))
+                .protocol_name(Some(self.state.protocol_name.to_owned()))
                 .assignment(Bytes::from_static(b""))
                 .into();
 
@@ -462,8 +482,8 @@ where
         let body = SyncGroupResponse::default()
             .throttle_time_ms(Some(0))
             .error_code(ErrorCode::None.into())
-            .protocol_type(Some(self.state.protocol_type.clone()))
-            .protocol_name(Some(self.state.protocol_name.clone()))
+            .protocol_type(Some(self.state.protocol_type.to_owned()))
+            .protocol_name(Some(self.state.protocol_name.to_owned()))
             .assignment(
                 self.state
                     .assignments
@@ -540,7 +560,7 @@ where
     ) -> (Self::LeaveState, Body) {
         let _ = group_id;
 
-        let leader_before = self.state.leader.clone();
+        let leader_before = self.state.leader.to_owned();
 
         let members = if let Some(member_id) = member_id {
             vec![
@@ -561,8 +581,8 @@ where
                     .iter()
                     .map(|member| {
                         MemberResponse::default()
-                            .member_id(member.member_id.clone())
-                            .group_instance_id(member.group_instance_id.clone())
+                            .member_id(member.member_id.to_owned())
+                            .group_instance_id(member.group_instance_id.to_owned())
                             .error_code({
                                 if self.members.remove(&member.member_id).is_some() {
                                     ErrorCode::None.into()
@@ -580,7 +600,7 @@ where
             .any(|member| member.error_code == i16::from(ErrorCode::None))
         {
             let leader = if self.members.contains_key(&leader_before) {
-                Some(self.state.leader.clone())
+                Some(self.state.leader)
             } else {
                 self.members.keys().next().cloned()
             };
@@ -621,36 +641,37 @@ where
     ) -> (Self::OffsetCommitState, Body) {
         let _ = now;
 
-        if let Some(member_id) = detail.member_id
-            && !member_id.is_empty()
-            && !self.members.contains_key(member_id)
-        {
-            return (
-                self,
-                OffsetCommitResponse::default()
-                    .throttle_time_ms(Some(0))
-                    .topics(detail.topics.map(|topics| {
-                        topics
-                            .as_ref()
-                            .iter()
-                            .map(|topic| {
-                                OffsetCommitResponseTopic::default()
-                                    .name(topic.name.clone())
-                                    .partitions(topic.partitions.as_ref().map(|partitions| {
-                                        partitions
-                                            .iter()
-                                            .map(|partition| {
-                                                OffsetCommitResponsePartition::default()
-                                                    .partition_index(partition.partition_index)
-                                                    .error_code(ErrorCode::UnknownMemberId.into())
-                                            })
-                                            .collect()
-                                    }))
-                            })
-                            .collect()
-                    }))
-                    .into(),
-            );
+        if let Some(member_id) = detail.member_id {
+            if !member_id.is_empty() && !self.members.contains_key(member_id) {
+                return (
+                    self,
+                    OffsetCommitResponse::default()
+                        .throttle_time_ms(Some(0))
+                        .topics(detail.topics.map(|topics| {
+                            topics
+                                .as_ref()
+                                .iter()
+                                .map(|topic| {
+                                    OffsetCommitResponseTopic::default()
+                                        .name(topic.name.to_owned())
+                                        .partitions(topic.partitions.as_ref().map(|partitions| {
+                                            partitions
+                                                .iter()
+                                                .map(|partition| {
+                                                    OffsetCommitResponsePartition::default()
+                                                        .partition_index(partition.partition_index)
+                                                        .error_code(
+                                                            ErrorCode::UnknownMemberId.into(),
+                                                        )
+                                                })
+                                                .collect()
+                                        }))
+                                })
+                                .collect()
+                        }))
+                        .into(),
+                );
+            }
         }
 
         if let Some(error_code) = self.offset_commit_error_code(detail) {
@@ -664,7 +685,7 @@ where
                             .iter()
                             .map(|topic| {
                                 OffsetCommitResponseTopic::default()
-                                    .name(topic.name.clone())
+                                    .name(topic.name.to_owned())
                                     .partitions(topic.partitions.as_ref().map(|partitions| {
                                         partitions
                                             .iter()
@@ -696,7 +717,7 @@ where
                                 .iter()
                                 .map(|topic| {
                                     OffsetCommitResponseTopic::default()
-                                        .name(topic.name.clone())
+                                        .name(topic.name.to_owned())
                                         .partitions(topic.partitions.as_ref().map(|partitions| {
                                             partitions
                                                 .iter()
