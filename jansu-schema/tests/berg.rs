@@ -17,7 +17,7 @@ use arrow::{array::RecordBatch, util::pretty::pretty_format_batches};
 use bytes::Bytes;
 use common::init_tracing;
 use datafusion::prelude::SessionContext;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use iceberg::CatalogBuilder;
 use iceberg_catalog_rest::{
     REST_CATALOG_PROP_URI, REST_CATALOG_PROP_WAREHOUSE, RestCatalogBuilder,

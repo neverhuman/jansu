@@ -29,7 +29,7 @@ chrono.workspace = true
 datafusion = { workspace = true, optional = true }
 delta_kernel = { workspace = true, optional = true }
 deltalake = { workspace = true, optional = true }
-dotenv.workspace = true
+dotenvy.workspace = true
 fake.workspace = true
 futures.workspace = true
 governor.workspace = true

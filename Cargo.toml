@@ -89,7 +89,7 @@ deadpool-postgres = "0.14.1"
 delta_kernel = { version = "0.20.0", default-features = false, features = ["arrow-57"] }
 deltalake = { version = "0.30", features = ["datafusion", "s3"] }
 digest = "0.10.7"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 fake = "4.3.0"
 flate2 = "1.1"
 futures = "0.3"
@@ -134,7 +134,7 @@ protobuf = { version = "3.7.1", features = ["with-bytes"] }
 protobuf-json-mapping = "3.7.1"
 protobuf-parse = "3.7.1"
 quote = "1.0"
-rama = { version = "0.2.0", features = ["http", "tcp"] }
+rama = { version = "0.2.0", default-features = false, features = ["http"] }
 rand = "0.10"
 regex = "1.12.3"
 rhai = { version = "1.24.0", features = ["sync"] }

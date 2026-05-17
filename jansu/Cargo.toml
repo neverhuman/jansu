@@ -14,7 +14,7 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-dotenv.workspace = true
+dotenvy.workspace = true
 jansu-broker = { workspace = true, default-features = false, optional = true }
 jansu-cat.workspace = true
 jansu-cli = { workspace = true, default-features = false, optional = true }

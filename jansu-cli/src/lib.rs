@@ -24,7 +24,7 @@ pub enum Error {
     Box(#[from] Box<dyn std::error::Error + Send + Sync>),
     Cat(Box<jansu_cat::Error>),
     Client(Box<jansu_client::Error>),
-    DotEnv(#[from] dotenv::Error),
+    DotEnv(#[from] dotenvy::Error),
     Generate(#[from] jansu_generator::Error),
     InvalidLength(#[from] sha2::digest::InvalidLength),
     Perf(#[from] jansu_perf::Error),

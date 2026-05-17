@@ -14,7 +14,7 @@
 
 use std::{fmt, io, sync::Arc};
 
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use jansu_sans_io::create_topics_request::CreatableTopic;
 use jansu_storage::{BrokerRegistrationRequest, Storage, StorageContainer};
 use tracing::subscriber::DefaultGuard;

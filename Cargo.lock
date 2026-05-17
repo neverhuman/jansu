@@ -3222,12 +3222,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
-
-[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4711,7 +4705,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "jansu"
 version = "0.6.1"
 dependencies = [
- "dotenv",
+ "dotenvy",
  "jansu-broker",
  "jansu-cat",
  "jansu-cli",
@@ -4819,7 +4813,7 @@ dependencies = [
  "bytes",
  "clap",
  "console",
- "dotenv",
+ "dotenvy",
  "human-units",
  "humantime",
  "jansu-broker",
@@ -4855,7 +4849,7 @@ dependencies = [
  "bytes",
  "clap",
  "deadpool",
- "dotenv",
+ "dotenvy",
  "jansu-sans-io",
  "jansu-service",
  "opentelemetry",
@@ -5039,7 +5033,7 @@ dependencies = [
  "datafusion",
  "delta_kernel 0.20.0",
  "deltalake",
- "dotenv",
+ "dotenvy",
  "fake",
  "futures",
  "governor",
@@ -5110,7 +5104,7 @@ dependencies = [
  "criterion",
  "deadpool",
  "deadpool-postgres",
- "dotenv",
+ "dotenvy",
  "futures",
  "futures-core",
  "futures-util",
@@ -7129,7 +7123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbfc04ce5f0295c6674d37d22ca388d4d2fd7cc1a7afef33a5ed0a3f3ae098f0"
 dependencies = [
  "rama-core",
- "rama-dns",
  "rama-http",
  "rama-net",
  "rama-tcp",

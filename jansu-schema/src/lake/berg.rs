@@ -366,7 +366,7 @@ impl LakeHouse for Iceberg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dotenv::dotenv;
+    use dotenvy::dotenv;
     use iceberg::spec::{NestedField, PrimitiveType, Type};
     use rand::{distr::Alphanumeric, prelude::*, rng};
     use std::{env::var, fs::File, marker::PhantomData, str::FromStr as _, sync::Arc, thread};
