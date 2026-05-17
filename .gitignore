@@ -25,3 +25,6 @@ profile.json*
 target
 !phase-logs/
 !phase-logs/*.md.log
+
+# Local jeryu daemon artifacts
+.jeryu/
