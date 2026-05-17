@@ -37,13 +37,11 @@ pub enum Pattern {
 
 impl From<i8> for Pattern {
     fn from(value: i8) -> Self {
-        let any = Pattern::Any as i8;
-
         match value {
-            p if p == Pattern::Any as i8 => Pattern::Any,
-            p if p == Pattern::Literal as i8 => Pattern::Literal,
-            p if p == Pattern::Match as i8 => Pattern::Match,
-            p if p == Pattern::Prefixed as i8 => Pattern::Prefixed,
+            1 => Pattern::Any,
+            2 => Pattern::Match,
+            3 => Pattern::Literal,
+            4 => Pattern::Prefixed,
 
             _ => Pattern::Unknown,
         }

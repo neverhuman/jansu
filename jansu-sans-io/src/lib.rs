@@ -37,7 +37,7 @@
 //! # use jansu_sans_io::Error;
 //! # fn main() -> Result<(), Error> {
 //! use jansu_sans_io::{
-//!     ApiKey as _, CreateTopicsRequest, Frame, Header,
+//!     ApiKey, CreateTopicsRequest, Frame, Header,
 //!     create_topics_request::{CreatableTopic, CreatableTopicConfig},
 //! };
 //!
@@ -77,7 +77,7 @@
 //! ```
 //! # use jansu_sans_io::Error;
 //! # fn main() -> Result<(), Error> {
-//! use jansu_sans_io::{ApiKey as _, FindCoordinatorRequest, Frame, Header};
+//! use jansu_sans_io::{ApiKey, FindCoordinatorRequest, Frame, Header};
 //!
 //! let encoded = vec![
 //!     0, 0, 0, 50, 0, 10, 0, 4, 0, 0, 0, 0, 0, 16, 99, 111, 110, 115, 111, 108, 101, 45, 99, 111,
@@ -437,8 +437,10 @@ impl From<SystemTimeError> for Error {
 /// Encoding a [`CreateTopicsRequest`] request:
 ///
 /// ```
+/// # use jansu_sans_io::Error;
+/// # fn main() -> Result<(), Error> {
 /// use jansu_sans_io::{
-///     ApiKey as _, CreateTopicsRequest, Frame, Header,
+///     ApiKey, CreateTopicsRequest, Frame, Header,
 ///     create_topics_request::{CreatableTopic, CreatableTopicConfig},
 /// };
 ///
@@ -468,7 +470,9 @@ impl From<SystemTimeError> for Error {
 ///     .validate_only(Some(false))
 ///     .into();
 ///
-/// let encoded = Frame::request(header, body).unwrap();
+/// let encoded = Frame::request(header, body)?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// ## Decoding
@@ -476,7 +480,9 @@ impl From<SystemTimeError> for Error {
 /// Decoding a [`FindCoordinatorRequest`]:
 ///
 /// ```
-/// use jansu_sans_io::{ApiKey as _, FindCoordinatorRequest, Frame, Header};
+/// # use jansu_sans_io::Error;
+/// # fn main() -> Result<(), Error> {
+/// use jansu_sans_io::{ApiKey, FindCoordinatorRequest, Frame, Header};
 ///
 /// let encoded = vec![
 ///     0, 0, 0, 50, 0, 10, 0, 4, 0, 0, 0, 0, 0, 16, 99, 111, 110, 115, 111, 108, 101, 45, 99, 111,
@@ -499,8 +505,10 @@ impl From<SystemTimeError> for Error {
 ///             .coordinator_keys(Some(["test-consumer-group".into()].into()))
 ///             .into()
 ///     },
-///     Frame::request_from_bytes(&encoded[..]).unwrap()
+///     Frame::request_from_bytes(&encoded[..])?
 /// );
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Clone, Debug, Deserialize, PartialEq, PartialOrd, Serialize)]
 pub struct Frame {
@@ -535,7 +543,7 @@ impl Frame {
     fn elapsed_millis(start: SystemTime) -> u64 {
         start
             .elapsed()
-            .map_or(0, |duration| duration.as_millis() as u64)
+            .map_or(0, |duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
     }
 
     /// serialize an API request into a frame of bytes
@@ -1707,17 +1715,14 @@ impl Compression {
                     .map_err(Into::into)
                     .map(Bytes::from)
                     .map(|bytes| bytes.reader())
-                    .map(Box::new)
-                    .map(|boxed| boxed as Box<dyn Read>)
+                    .map(|reader| -> Box<dyn Read> { Box::new(reader) })
                     .inspect_err(|err| error!(?err))
             }
             Compression::Lz4 => lz4::Decoder::new(deflated)
-                .map(Box::new)
-                .map(|boxed| boxed as Box<dyn Read>)
+                .map(|decoder| -> Box<dyn Read> { Box::new(decoder) })
                 .map_err(Into::into),
             Compression::Zstd => zstd::stream::read::Decoder::with_buffer(deflated)
-                .map(Box::new)
-                .map(|boxed| boxed as Box<dyn Read>)
+                .map(|decoder| -> Box<dyn Read> { Box::new(decoder) })
                 .map_err(Into::into),
         }
     }

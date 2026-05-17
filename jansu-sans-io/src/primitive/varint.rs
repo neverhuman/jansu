@@ -58,14 +58,14 @@ impl Decode for VarInt {
 
             if byte & CONTINUATION == CONTINUATION {
                 accumulator = u32::from(byte & MASK)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
                 shift = shift.checked_add(7).ok_or(Error::Overflow)?;
             } else {
                 accumulator = u32::from(byte)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
@@ -275,14 +275,14 @@ impl Decode for LongVarInt {
 
             if byte & CONTINUATION == CONTINUATION {
                 accumulator = u64::from(byte & MASK)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
                 shift = shift.checked_add(7).ok_or(Error::Overflow)?;
             } else {
                 accumulator = u64::from(byte)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
@@ -507,14 +507,14 @@ impl UnsignedVarInt {
 
                     if byte & CONTINUATION == CONTINUATION {
                         accumulator = u32::from(byte & MASK)
-                            .checked_shl(shift as u32)
+                            .checked_shl(u32::from(shift))
                             .and_then(|intermediate| accumulator.checked_add(intermediate))
                             .ok_or_else(overflow)?;
 
                         shift = shift.checked_add(7).ok_or_else(overflow)?;
                     } else {
                         accumulator = u32::from(byte)
-                            .checked_shl(shift as u32)
+                            .checked_shl(u32::from(shift))
                             .and_then(|intermediate| accumulator.checked_add(intermediate))
                             .ok_or_else(overflow)?;
 

@@ -34,9 +34,9 @@ pub enum Permission {
 impl From<i8> for Permission {
     fn from(value: i8) -> Self {
         match value {
-            perm if perm == Permission::Allow as i8 => Permission::Allow,
-            perm if perm == Permission::Any as i8 => Permission::Any,
-            perm if perm == Permission::Deny as i8 => Permission::Deny,
+            1 => Permission::Any,
+            2 => Permission::Deny,
+            3 => Permission::Allow,
 
             _ => Permission::Unknown,
         }
@@ -84,21 +84,21 @@ pub enum Operation {
 impl From<i8> for Operation {
     fn from(value: i8) -> Self {
         match value {
-            op if op == Operation::All as i8 => Operation::All,
-            op if op == Operation::Alter as i8 => Operation::Alter,
-            op if op == Operation::AlterConfigs as i8 => Operation::AlterConfigs,
-            op if op == Operation::Any as i8 => Operation::Any,
-            op if op == Operation::ClusterAction as i8 => Operation::ClusterAction,
-            op if op == Operation::Create as i8 => Operation::Create,
-            op if op == Operation::CreateTokens as i8 => Operation::CreateTokens,
-            op if op == Operation::Delete as i8 => Operation::Delete,
-            op if op == Operation::Describe as i8 => Operation::Describe,
-            op if op == Operation::DescribeConfigs as i8 => Operation::DescribeConfigs,
-            op if op == Operation::DescribeTokens as i8 => Operation::DescribeTokens,
-            op if op == Operation::IdempotentWrite as i8 => Operation::IdempotentWrite,
-            op if op == Operation::Read as i8 => Operation::Read,
-            op if op == Operation::TwoPhaseCommit as i8 => Operation::TwoPhaseCommit,
-            op if op == Operation::Write as i8 => Operation::Write,
+            1 => Operation::Any,
+            2 => Operation::All,
+            3 => Operation::Read,
+            4 => Operation::Write,
+            5 => Operation::Create,
+            6 => Operation::Delete,
+            7 => Operation::Alter,
+            8 => Operation::Describe,
+            9 => Operation::ClusterAction,
+            10 => Operation::DescribeConfigs,
+            11 => Operation::AlterConfigs,
+            12 => Operation::IdempotentWrite,
+            13 => Operation::CreateTokens,
+            14 => Operation::DescribeTokens,
+            15 => Operation::TwoPhaseCommit,
 
             _ => Operation::Unknown,
         }
@@ -123,7 +123,7 @@ pub enum Resource {
     /// A consumer group
     Group = 3,
 
-    /// The cluster as a whole
+    /// The whole cluster
     Cluster = 4,
 
     /// A transactional ID
@@ -139,13 +139,13 @@ pub enum Resource {
 impl From<i8> for Resource {
     fn from(value: i8) -> Self {
         match value {
-            r if r == Resource::Any as i8 => Resource::Any,
-            r if r == Resource::Cluster as i8 => Resource::Cluster,
-            r if r == Resource::DelegationToken as i8 => Resource::DelegationToken,
-            r if r == Resource::Group as i8 => Resource::Group,
-            r if r == Resource::Topic as i8 => Resource::Topic,
-            r if r == Resource::TransactionalId as i8 => Resource::TransactionalId,
-            r if r == Resource::User as i8 => Resource::User,
+            1 => Resource::Any,
+            2 => Resource::Topic,
+            3 => Resource::Group,
+            4 => Resource::Cluster,
+            5 => Resource::TransactionalId,
+            6 => Resource::DelegationToken,
+            7 => Resource::User,
 
             _ => Resource::Unknown,
         }

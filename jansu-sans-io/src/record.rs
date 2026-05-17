@@ -44,7 +44,7 @@
 //! #
 //! use bytes::Bytes;
 //! use jansu_sans_io::{
-//!     ApiKey as _, BatchAttribute, Compression, Frame, Header, ProduceRequest,
+//!     ApiKey, BatchAttribute, Compression, Frame, Header, ProduceRequest,
 //!     produce_request::{PartitionProduceData, TopicProduceData},
 //!     record::{self, deflated, inflated},
 //! };
@@ -97,7 +97,7 @@
 //! # pub fn main() -> Result<(), Error> {
 //! #
 //! use bytes::Bytes;
-//! use jansu_sans_io::{ApiKey as _, FetchResponse, Frame, record::inflated};
+//! use jansu_sans_io::{ApiKey, FetchResponse, Frame, record::inflated};
 //!
 //! let api_key = FetchResponse::KEY;
 //! let api_version = 16;
@@ -128,7 +128,7 @@
 //!     .and_then(|partition| partition.records.as_ref())
 //!     .map(|record_frame| record_frame.batches.as_slice())
 //!     .and_then(|batches| batches.first())
-//!     .expect("deflated batch");
+//!     .ok_or_else(|| Error::Message(String::from("deflated batch")))?;
 //!
 //! // we just have raw record data at this point:
 //! assert_eq!(12, deflated.record_data.len());
@@ -142,7 +142,7 @@
 //!     inflated
 //!         .records
 //!         .first()
-//!         .and_then(|first| first.value.clone())
+//!         .and_then(|first| first.value.as_ref().cloned())
 //! );
 //! # Ok(())
 //! # }
@@ -157,7 +157,10 @@ use crate::{
     primitive::varint::{LongVarInt, VarInt},
 };
 use bytes::{Buf as _, BufMut as _, Bytes, BytesMut};
-use codec::{Octets, VarIntSequence};
+use codec::{
+    Octets, VarIntSequence, encode_octets, encode_varint_sequence, octets_size_in_bytes,
+    varint_sequence_size_in_bytes,
+};
 pub use header::Header;
 use serde::{
     Deserialize, Serialize, Serializer,
@@ -167,7 +170,7 @@ use tracing::{debug, instrument};
 
 /// A Kafka API Record.
 ///
-/// Note that is structure uses the same variant encoding as protobuf.
+/// Note that this structure uses protobuf-style variant encoding.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Record {
     #[serde(serialize_with = "VarInt::serialize")]
@@ -203,9 +206,9 @@ impl ByteSize for Record {
             + 1
             + LongVarInt::from(self.timestamp_delta).size_in_bytes()?
             + VarInt::from(self.offset_delta).size_in_bytes()?
-            + Octets(self.key.clone()).size_in_bytes()?
-            + Octets(self.value.clone()).size_in_bytes()?
-            + VarIntSequence(self.headers.clone()).size_in_bytes()?;
+            + octets_size_in_bytes(&self.key)?
+            + octets_size_in_bytes(&self.value)?
+            + varint_sequence_size_in_bytes(&self.headers)?;
 
         Ok(size)
     }
@@ -243,9 +246,9 @@ impl Encode for Record {
         encoded.put_u8(self.attributes);
         encoded.put(LongVarInt::from(self.timestamp_delta).encode()?);
         encoded.put(VarInt::from(self.offset_delta).encode()?);
-        encoded.put(Octets(self.key.clone()).encode()?);
-        encoded.put(Octets(self.value.clone()).encode()?);
-        encoded.put(VarIntSequence(self.headers.clone()).encode()?);
+        encoded.put(encode_octets(&self.key)?);
+        encoded.put(encode_octets(&self.value)?);
+        encoded.put(encode_varint_sequence(&self.headers)?);
 
         Ok(encoded.freeze())
     }
@@ -283,11 +286,11 @@ impl Record {
     }
 
     pub fn key(&self) -> Option<Bytes> {
-        self.key.clone()
+        self.key.as_ref().cloned()
     }
 
     pub fn value(&self) -> Option<Bytes> {
-        self.value.clone()
+        self.value.as_ref().cloned()
     }
 
     pub fn is_tombstone(&self) -> bool {

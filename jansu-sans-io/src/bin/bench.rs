@@ -93,7 +93,7 @@ impl CodecTest for CodecRequest {
     }
 
     fn test(&self) -> Result<()> {
-        let frame = Frame::request_from_bytes(self.expected.clone())?;
+        let frame = Frame::request_from_bytes(self.expected.as_ref())?;
         let actual = Frame::request(frame.header, frame.body)?;
         assert_eq!(self.expected, &actual[..]);
         Ok(())
@@ -119,8 +119,11 @@ impl CodecTest for CodecResponse {
     }
 
     fn test(&self) -> Result<()> {
-        let frame =
-            Frame::response_from_bytes(self.expected.clone(), self.api_key, self.api_version)?;
+        let frame = Frame::response_from_bytes(
+            self.expected.as_ref(),
+            self.api_key,
+            self.api_version,
+        )?;
         let actual = Frame::response(frame.header, frame.body, self.api_key, self.api_version)?;
         assert_eq!(self.expected, &actual[..]);
         Ok(())
