@@ -23,7 +23,7 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?topics);
 
-        let c = self.connection().await.inspect_err(|err| error!(?err))?;
+        let mut c = self.connection().await.inspect_err(|err| error!(?err))?;
 
         let brokers = vec![
             MetadataResponseBroker::default()
@@ -61,24 +61,30 @@ impl Delegate {
                                 Ok(None)
                             }?;
 
+                            let s = sql("topic_select_name.sql").map_err(Error::from)?;
                             let mut rows = c
-                                .query("topic_select_name.sql", (self.cluster.as_str(), base_topic))
-                                .await?;
+                                .query(&s, (self.cluster.as_str(), base_topic))
+                                .map_err(Error::from)?;
 
-                            match rows.next().await.inspect_err(|err| error!(?err)) {
-                                Ok(Some(row)) => {
+                            let step_result = rows.step().map_err(Error::from);
+                            match step_result {
+                                Ok(Step::Row(row)) => {
                                     let error_code = ErrorCode::None.into();
 
-                                    let topic_id = vtid.or(row
-                                        .get_str(0)
+                                    let topic_id = vtid.or(
+                                        Uuid::parse_str(
+                                            row.get::<String>(0).map_err(Error::from)?.as_str(),
+                                        )
                                         .map_err(Error::from)
-                                        .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
                                         .map(|uuid| uuid.into_bytes())
-                                        .map(Some)?);
+                                        .map(Some)?,
+                                    );
 
-                                    let is_internal = row.get::<bool>(2).map(Some)?;
-                                    let partitions = row.get::<i32>(3)?;
-                                    let replication_factor = row.get::<i32>(4)?;
+                                    let is_internal =
+                                        row.get::<bool>(2).map_err(Error::from).map(Some)?;
+                                    let partitions = row.get::<i32>(3).map_err(Error::from)?;
+                                    let replication_factor =
+                                        row.get::<i32>(4).map_err(Error::from)?;
 
                                     debug!(
                                         ?error_code,
@@ -131,7 +137,7 @@ impl Delegate {
                                         .topic_authorized_operations(Some(-2147483648))
                                 }
 
-                                Ok(None) => MetadataResponseTopic::default()
+                                Ok(Step::Done) => MetadataResponseTopic::default()
                                     .error_code(ErrorCode::UnknownTopicOrPartition.into())
                                     .name(Some(name.into()))
                                     .topic_id(Some(NULL_TOPIC_ID))
@@ -154,26 +160,28 @@ impl Delegate {
                         TopicId::Id(id) => {
                             debug!(?id);
 
+                            let s = sql("redlinedb/topic_select_uuid.sql").map_err(Error::from)?;
                             let mut rows = c
-                                .query(
-                                    "redlinedb/topic_select_uuid.sql",
-                                    (self.cluster.as_str(), id.to_string().as_str()),
-                                )
-                                .await?;
+                                .query(&s, (self.cluster.as_str(), id.to_string().as_str()))
+                                .map_err(Error::from)?;
 
-                            match rows.next().await {
-                                Ok(Some(row)) => {
+                            let step_result = rows.step().map_err(Error::from);
+                            match step_result {
+                                Ok(Step::Row(row)) => {
                                     let error_code = ErrorCode::None.into();
-                                    let topic_id = row
-                                        .get_str(0)
-                                        .map_err(Error::from)
-                                        .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
-                                        .map(|uuid| uuid.into_bytes())
-                                        .map(Some)?;
-                                    let name = row.get::<String>(1).map(Some)?;
-                                    let is_internal = row.get::<bool>(2).map(Some)?;
-                                    let partitions = row.get::<i32>(3)?;
-                                    let replication_factor = row.get::<i32>(4)?;
+                                    let topic_id = Uuid::parse_str(
+                                        row.get::<String>(0).map_err(Error::from)?.as_str(),
+                                    )
+                                    .map_err(Error::from)
+                                    .map(|uuid| uuid.into_bytes())
+                                    .map(Some)?;
+                                    let name =
+                                        row.get::<String>(1).map_err(Error::from).map(Some)?;
+                                    let is_internal =
+                                        row.get::<bool>(2).map_err(Error::from).map(Some)?;
+                                    let partitions = row.get::<i32>(3).map_err(Error::from)?;
+                                    let replication_factor =
+                                        row.get::<i32>(4).map_err(Error::from)?;
 
                                     debug!(
                                         ?error_code,
@@ -225,7 +233,7 @@ impl Delegate {
                                         .partitions(partitions)
                                         .topic_authorized_operations(Some(-2147483648))
                                 }
-                                Ok(None) => MetadataResponseTopic::default()
+                                Ok(Step::Done) => MetadataResponseTopic::default()
                                     .error_code(ErrorCode::UnknownTopicOrPartition.into())
                                     .name(None)
                                     .topic_id(Some(id.into_bytes()))
@@ -253,22 +261,21 @@ impl Delegate {
             _ => {
                 let mut responses = vec![];
 
-                let mut rows = c
-                    .query("topic_by_cluster.sql", &[self.cluster.as_str()])
-                    .await?;
+                let s = sql("topic_by_cluster.sql").map_err(Error::from)?;
+                let mut rows = c.query(&s, (self.cluster.as_str(),)).map_err(Error::from)?;
 
-                while let Some(row) = rows.next().await? {
+                while let Step::Row(row) = rows.step().map_err(Error::from)? {
                     let error_code = ErrorCode::None.into();
-                    let topic_id = row
-                        .get_str(0)
-                        .map_err(Error::from)
-                        .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
-                        .map(|uuid| uuid.into_bytes())
-                        .map(Some)?;
-                    let name = row.get::<String>(1).map(Some)?;
-                    let is_internal = row.get::<bool>(2).map(Some)?;
-                    let partitions = row.get::<i32>(3)?;
-                    let replication_factor = row.get::<i32>(4)?;
+                    let topic_id = Uuid::parse_str(
+                        row.get::<String>(0).map_err(Error::from)?.as_str(),
+                    )
+                    .map_err(Error::from)
+                    .map(|uuid| uuid.into_bytes())
+                    .map(Some)?;
+                    let name = row.get::<String>(1).map_err(Error::from).map(Some)?;
+                    let is_internal = row.get::<bool>(2).map_err(Error::from).map(Some)?;
+                    let partitions = row.get::<i32>(3).map_err(Error::from)?;
+                    let replication_factor = row.get::<i32>(4).map_err(Error::from)?;
 
                     debug!(
                         ?error_code,
@@ -349,36 +356,42 @@ impl Delegate {
 
         debug!(cluster = self.cluster, name, ?resource, ?keys);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
-        let mut rows = c
-            .query("topic_select.sql", (self.cluster.as_str(), name))
-            .await?;
+        let topic_exists = {
+            let s = sql("topic_select.sql").map_err(Error::from)?;
+            let mut rows = c
+                .query(&s, (self.cluster.as_str(), name))
+                .map_err(Error::from)?;
+            matches!(rows.step().map_err(Error::from)?, Step::Row(_))
+        };
 
-        if rows.next().await?.is_some() {
+        if topic_exists {
             use std::collections::{BTreeMap, BTreeSet};
 
             let mut configs = BTreeMap::new();
 
+            let s2 = sql("topic_configuration_select.sql").map_err(Error::from)?;
             let mut topic_rows = c
-                .query(
-                    "topic_configuration_select.sql",
-                    (self.cluster.as_str(), name),
-                )
-                .await?;
+                .query(&s2, (self.cluster.as_str(), name))
+                .map_err(Error::from)?;
 
-            while let Some(row) = topic_rows.next().await? {
-                let config_name = row.get_str(0).inspect_err(|err| error!(?err))?;
+            while let Step::Row(row) = topic_rows.step().map_err(Error::from)? {
+                let config_name = row
+                    .get::<String>(0)
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?;
                 let value = row
                     .get::<Option<String>>(1)
+                    .map_err(Error::from)
                     .map(|value| value.unwrap_or(String::new()))
                     .map(Some)
                     .inspect_err(|err| error!(?err))?;
 
                 _ = configs.insert(
-                    config_name.to_owned(),
+                    config_name.clone(),
                     DescribeConfigsResourceResult::default()
-                        .name(config_name.to_owned())
+                        .name(config_name.clone())
                         .value(value)
                         .read_only(false)
                         .is_default(None)
@@ -435,20 +448,19 @@ impl Delegate {
 
         debug!(?states_filter);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
         let mut listed_groups = vec![];
 
-        let mut rows = c
-            .query("consumer_group_select.sql", &[self.cluster.as_str()])
-            .await?;
+        let s = sql("consumer_group_select.sql").map_err(Error::from)?;
+        let mut rows = c.query(&s, (self.cluster.as_str(),)).map_err(Error::from)?;
 
-        while let Some(row) = rows.next().await? {
-            let group_id = row.get_str(0)?;
+        while let Step::Row(row) = rows.step().map_err(Error::from)? {
+            let group_id = row.get::<String>(0).map_err(Error::from)?;
 
             listed_groups.push(
                 ListedGroup::default()
-                    .group_id(group_id.to_owned())
+                    .group_id(group_id)
                     .protocol_type("consumer".into())
                     .group_state(Some("unknown".into()))
                     .group_type(Some("classic".into())),

@@ -15,53 +15,50 @@
 use super::*;
 
 impl Delegate {
-    async fn insert_producer(&self, pc: &PoolConnection) -> Result<i64> {
-        let next_id = if let Some(row) = pc
-            .query_opt(
-                "redlinedb/producer_select_current_id.sql",
-                (self.cluster.as_str(),),
-            )
-            .await
-            .inspect_err(|err| error!(self.cluster, ?err))?
-        {
-            row.get::<i64>(0).inspect_err(|err| error!(?err))? + 1
-        } else {
-            1
+    fn insert_producer(&self, pc: &mut PoolConnection) -> Result<i64> {
+        let next_id = {
+            let s = sql("redlinedb/producer_select_current_id.sql").map_err(Error::from)?;
+            let mut rows = pc
+                .query(&s, (self.cluster.as_str(),))
+                .map_err(Error::from)
+                .inspect_err(|err| error!(self.cluster, ?err))?;
+            match rows.step().map_err(Error::from)? {
+                Step::Row(row) => {
+                    row.get::<i64>(0).map_err(Error::from).inspect_err(|err| error!(?err))? + 1
+                }
+                Step::Done => 1,
+            }
         };
 
-        _ = pc
-            .execute(
-                "redlinedb/producer_insert_id.sql",
-                (self.cluster.as_str(), next_id),
-            )
-            .await
+        let s = sql("redlinedb/producer_insert_id.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (self.cluster.as_str(), next_id))
+            .map_err(Error::from)
             .inspect_err(|err| error!(self.cluster, next_id, ?err))?;
 
         Ok(next_id)
     }
 
-    async fn insert_producer_epoch(&self, pc: &PoolConnection, producer: i64) -> Result<i16> {
-        let next_epoch = if let Some(row) = pc
-            .query_opt(
-                "producer_epoch_current_for_producer.sql",
-                (self.cluster.as_str(), producer),
-            )
-            .await
-            .inspect_err(|err| error!(self.cluster, producer, ?err))?
-        {
-            row.get::<i32>(0)
-                .inspect_err(|err| error!(?err, producer))?
-                + 1
-        } else {
-            0
+    fn insert_producer_epoch(&self, pc: &mut PoolConnection, producer: i64) -> Result<i16> {
+        let next_epoch = {
+            let s = sql("producer_epoch_current_for_producer.sql").map_err(Error::from)?;
+            let mut rows = pc
+                .query(&s, (self.cluster.as_str(), producer))
+                .map_err(Error::from)
+                .inspect_err(|err| error!(self.cluster, producer, ?err))?;
+            match rows.step().map_err(Error::from)? {
+                Step::Row(row) => {
+                    row.get::<i32>(0)
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(?err, producer))?
+                        + 1
+                }
+                Step::Done => 0,
+            }
         };
 
-        _ = pc
-            .execute(
-                "redlinedb/producer_epoch_insert_value.sql",
-                (producer, next_epoch),
-            )
-            .await
+        let s = sql("redlinedb/producer_epoch_insert_value.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (producer, next_epoch))
+            .map_err(Error::from)
             .inspect_err(|err| error!(self.cluster, producer, next_epoch, ?err))?;
 
         i16::try_from(next_epoch).map_err(Into::into)
@@ -83,38 +80,44 @@ impl Delegate {
 
         match (producer_id, producer_epoch, transaction_id) {
             (Some(-1), Some(-1), Some(transaction_id)) => {
-                let pc = self.connection().await?;
-                let tx = pc.transaction().await?;
+                let mut pc = self.connection().await?;
+                pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
-                if let Some(row) = pc
-                    .query_opt(
-                        "producer_epoch_for_current_txn.sql",
-                        (self.cluster.as_str(), transaction_id),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?
-                {
-                    let id = row.get::<i64>(0).inspect_err(|err| error!(?err))?;
-                    let epoch = row.get::<i32>(1).inspect_err(|err| error!(?err))? as i16;
-                    let status = row
-                        .get::<Option<String>>(2)
-                        .inspect_err(|err| error!(?err))?
-                        .map_or(Ok(None), |status| {
-                            TxnState::from_str(status.as_str()).map(Some)
-                        })?;
+                let txn_data = {
+                    let s = sql("producer_epoch_for_current_txn.sql").map_err(Error::from)?;
+                    let mut rows = pc
+                        .query(&s, (self.cluster.as_str(), transaction_id))
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(?err))?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => {
+                            let id =
+                                row.get::<i64>(0).map_err(Error::from).inspect_err(|err| error!(?err))?;
+                            let epoch =
+                                row.get::<i32>(1).map_err(Error::from).inspect_err(|err| error!(?err))? as i16;
+                            let status = row
+                                .get::<Option<String>>(2)
+                                .map_err(Error::from)
+                                .inspect_err(|err| error!(?err))?
+                                .map_or(Ok(None), |status| {
+                                    TxnState::from_str(status.as_str()).map(Some)
+                                })?;
+                            Some((id, epoch, status))
+                        }
+                        Step::Done => None,
+                    }
+                };
 
+                if let Some((id, epoch, status)) = txn_data {
                     debug!(transaction_id, id, epoch, ?status);
 
                     if let Some(TxnState::Begin) = status {
-                        let error = self
-                            .end_in_tx(transaction_id, id, epoch, false, &pc)
-                            .await?;
+                        let error = self.end_in_tx(transaction_id, id, epoch, false, &mut pc).await?;
 
                         if error != ErrorCode::None {
-                            _ = tx
-                                .rollback()
-                                .await
-                                .inspect_err(|err| error!(?err, ?transaction_id, id, epoch));
+                            pc.rollback()
+                                .map_err(Error::from)
+                                .inspect_err(|err| error!(?err, ?transaction_id, id, epoch))?;
 
                             return Ok(ProducerIdResponse { error, id, epoch }).inspect(|_| {
                                 DELEGATE_REQUEST_DURATION.record(
@@ -126,73 +129,66 @@ impl Delegate {
                     }
                 }
 
-                let (producer, epoch) = if let Some(row) = pc
-                    .query_opt(
-                        "txn_select_name.sql",
-                        (self.cluster.as_str(), transaction_id),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?
-                {
-                    let producer: i64 = row
-                        .get(0)
-                        .inspect_err(|err| error!(?err))
-                        .inspect(|producer| debug!(producer))?;
+                let producer_data = {
+                    let s = sql("txn_select_name.sql").map_err(Error::from)?;
+                    let mut rows = pc
+                        .query(&s, (self.cluster.as_str(), transaction_id))
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(?err))?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => Some(
+                            row.get::<i64>(0)
+                                .map_err(Error::from)
+                                .inspect_err(|err| error!(?err))
+                                .inspect(|producer| debug!(producer))?,
+                        ),
+                        Step::Done => None,
+                    }
+                };
 
+                let (producer, epoch) = if let Some(producer) = producer_data {
                     let epoch = self
-                        .insert_producer_epoch(&pc, producer)
-                        .await
+                        .insert_producer_epoch(&mut pc, producer)
                         .inspect(|epoch| debug!(epoch))?;
-
                     (producer, epoch)
                 } else {
-                    let producer = self.insert_producer(&pc).await?;
-                    let epoch = self.insert_producer_epoch(&pc, producer).await?;
+                    let producer = self.insert_producer(&mut pc)?;
+                    let epoch = self.insert_producer_epoch(&mut pc, producer)?;
 
-                    assert_eq!(
-                        1,
-                        pc.execute(
-                            "txn_insert.sql",
-                            (self.cluster.as_str(), transaction_id, producer),
-                        )
-                        .await
-                        .inspect_err(|err| error!(
-                            self.cluster,
-                            transaction_id,
-                            producer,
-                            ?err
-                        ))?
-                    );
+                    let s = sql("txn_insert.sql").map_err(Error::from)?;
+                    let _ = pc.execute(&s, (self.cluster.as_str(), transaction_id, producer))
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(self.cluster, transaction_id, producer, ?err))?;
 
                     (producer, epoch)
                 };
 
                 debug!(transaction_id, producer, epoch);
 
-                assert_eq!(
-                    1,
-                    pc.execute(
-                        "txn_detail_insert.sql",
-                        (
-                            transaction_timeout_ms,
-                            self.cluster.as_str(),
-                            transaction_id,
-                            producer,
-                            epoch,
-                        ),
-                    )
-                    .await
-                    .inspect_err(|err| error!(
+                let s = sql("txn_detail_insert.sql").map_err(Error::from)?;
+                let _ = pc.execute(
+                    &s,
+                    (
+                        transaction_timeout_ms,
+                        self.cluster.as_str(),
+                        transaction_id,
+                        producer,
+                        epoch,
+                    ),
+                )
+                .map_err(Error::from)
+                .inspect_err(|err| {
+                    error!(
                         self.cluster,
                         transaction_id,
                         producer,
                         epoch,
                         transaction_timeout_ms,
                         ?err
-                    ))?
-                );
+                    )
+                })?;
 
-                let error = match pc.commit(tx).await.inspect_err(|err| {
+                let error = match pc.commit().map_err(Error::from).inspect_err(|err| {
                     error!(
                         ?err,
                         cluster = self.cluster,
@@ -201,7 +197,7 @@ impl Delegate {
                         epoch
                     )
                 }) {
-                    Ok(()) => ErrorCode::None,
+                    Ok(_) => ErrorCode::None,
                     Err(_) => ErrorCode::UnknownServerError,
                 };
 
@@ -213,25 +209,23 @@ impl Delegate {
             }
 
             (Some(-1), Some(-1), None) => {
-                let pc = self.connection().await?;
-                let tx = pc.transaction().await?;
+                let mut pc = self.connection().await?;
+                pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
                 let producer = self
-                    .insert_producer(&pc)
-                    .await
+                    .insert_producer(&mut pc)
                     .inspect(|producer| debug!(producer))?;
 
                 let epoch = self
-                    .insert_producer_epoch(&pc, producer)
-                    .await
+                    .insert_producer_epoch(&mut pc, producer)
                     .inspect(|epoch| debug!(epoch))?;
 
                 let error = match pc
-                    .commit(tx)
-                    .await
+                    .commit()
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err, ?transaction_id, producer, epoch))
                 {
-                    Ok(()) => ErrorCode::None,
+                    Ok(_) => ErrorCode::None,
                     Err(_) => ErrorCode::UnknownServerError,
                 };
 
@@ -250,22 +244,23 @@ impl Delegate {
             }
 
             (Some(producer_id), Some(producer_epoch), None) => {
-                let pc = self.connection().await?;
-                let tx = pc.transaction().await?;
+                let mut pc = self.connection().await?;
+                pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
-                let max_epoch = if let Some(row) = pc
-                    .query_opt(
-                        "producer_epoch_current_for_producer.sql",
-                        (self.cluster.as_str(), producer_id),
-                    )
-                    .await?
-                {
-                    row.get::<i32>(0)
-                        .ok()
-                        .and_then(|epoch| i16::try_from(epoch).ok())
-                        .unwrap_or(-1)
-                } else {
-                    -1
+                let max_epoch = {
+                    let s =
+                        sql("producer_epoch_current_for_producer.sql").map_err(Error::from)?;
+                    let mut rows = pc
+                        .query(&s, (self.cluster.as_str(), producer_id))
+                        .map_err(Error::from)?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => row
+                            .get::<i32>(0)
+                            .map_err(Error::from)
+                            .map(|epoch| i16::try_from(epoch).unwrap_or(-1))
+                            .unwrap_or(-1),
+                        Step::Done => -1,
+                    }
                 };
 
                 if max_epoch == -1 {
@@ -283,16 +278,15 @@ impl Delegate {
                 }
 
                 let new_epoch = self
-                    .insert_producer_epoch(&pc, producer_id)
-                    .await
+                    .insert_producer_epoch(&mut pc, producer_id)
                     .inspect(|epoch| debug!(epoch))?;
 
                 let error = match pc
-                    .commit(tx)
-                    .await
+                    .commit()
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err, producer_id, new_epoch))
                 {
-                    Ok(()) => ErrorCode::None,
+                    Ok(_) => ErrorCode::None,
                     Err(_) => ErrorCode::UnknownServerError,
                 };
 

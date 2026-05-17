@@ -17,11 +17,10 @@ use std::{
     env,
     fmt::Debug,
     marker::PhantomData,
-    ops::Deref,
     path::PathBuf,
     result,
     str::FromStr,
-    sync::{Arc, LazyLock, Mutex},
+    sync::{Arc, LazyLock},
     time::{Duration, SystemTime},
 };
 
@@ -37,7 +36,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::NaiveDateTime;
 use jansu_sans_io::{
     BatchAttribute, ConfigResource, ConfigSource, ConfigType, ControlBatch, EndTransactionMarker,
     ErrorCode, IsolationLevel, ListOffset, NULL_TOPIC_ID, OpType, ScramMechanism,
@@ -58,7 +56,7 @@ use jansu_sans_io::{
     list_groups_response::ListedGroup,
     metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
     record::{Header, Record, deflated, inflated},
-    to_system_time, to_timestamp,
+    to_timestamp,
     txn_offset_commit_response::{TxnOffsetCommitResponsePartition, TxnOffsetCommitResponseTopic},
 };
 use jansu_schema::{
@@ -74,7 +72,7 @@ use rand::{rng, seq::SliceRandom as _};
 use regex::Regex;
 use tokio::{
     fs::rename,
-    sync::{OwnedSemaphorePermit, Semaphore},
+    sync::Semaphore,
     task::JoinSet,
 };
 use tokio_util::sync::CancellationToken;
@@ -92,10 +90,23 @@ mod metrics;
 use metrics::*;
 
 mod redline;
-use redline::{
-    Connection, Database, IntoParams, OpenOptions, RedlineError, RedlineErrorCode, Row, Rows,
-    Transaction, Value, ValueExt,
+pub(super) use redline::{
+    BeginMode, Database, OpenOptions, PhysicalBackupOptions, Pool,
+    PooledConnection, RedlineError, RedlineErrorCode, RedlineResult, Step,
+    Value,
 };
+
+pub(super) type PoolConnection = PooledConnection;
+
+fn sql(key: &str) -> RedlineResult<String> {
+    match SQL.0.get(key).cloned() {
+        Some(s) => Ok(s),
+        None => Err(RedlineError::new(
+            RedlineErrorCode::Error,
+            format!("unknown sql key: {key}"),
+        )),
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Txn {
@@ -105,26 +116,25 @@ struct Txn {
     status: TxnState,
 }
 
-impl TryFrom<Row> for Txn {
-    type Error = Error;
+fn parse_txn(row: &::redlinedb::Row<'_>) -> Result<Txn> {
+    let name = row.get::<String>(0).map_err(Error::from).inspect_err(|err| error!(?err))?;
+    let producer_id = row.get::<i64>(1).map_err(Error::from).inspect_err(|err| error!(?err))?;
+    let producer_epoch = row
+        .get::<i32>(2)
+        .map_err(Error::from)
+        .inspect_err(|err| error!(?err))? as i16;
+    let status = row
+        .get::<Option<String>>(3)
+        .map_err(Error::from)
+        .and_then(|status| status.map_or(Ok(TxnState::Begin), TxnState::try_from))
+        .inspect_err(|err| error!(?err))?;
 
-    fn try_from(row: Row) -> Result<Self, Self::Error> {
-        let name = row.get::<String>(0).inspect_err(|err| error!(?err))?;
-        let producer_id = row.get::<i64>(1).inspect_err(|err| error!(?err))?;
-        let producer_epoch = row.get::<i32>(2).inspect_err(|err| error!(?err))? as i16;
-        let status = row
-            .get::<Option<String>>(3)
-            .map_err(Into::into)
-            .and_then(|status| status.map_or(Ok(TxnState::Begin), TxnState::try_from))
-            .inspect_err(|err| error!(?err))?;
-
-        Ok(Self {
-            name,
-            producer_id,
-            producer_epoch,
-            status,
-        })
-    }
+    Ok(Txn {
+        name,
+        producer_id,
+        producer_epoch,
+        status,
+    })
 }
 
 fn is_unique_constraint(error: &RedlineError) -> bool {
@@ -134,9 +144,7 @@ fn is_unique_constraint(error: &RedlineError) -> bool {
 fn value_to_system_time(value: Value) -> Result<Option<SystemTime>> {
     match value {
         Value::Null => Ok(None),
-        other => RedlineTimestamp::try_from(other)
-            .map(SystemTime::from)
-            .map(Some),
+        other => SystemTime::try_from(&other).map(Some).map_err(Into::into),
     }
 }
 
@@ -158,39 +166,6 @@ pub(crate) struct Delegate {
     maintenance: Arc<Semaphore>,
     compaction: CompactionMode,
 }
-
-#[derive(Clone)]
-pub(crate) struct ConnectionManager {
-    db: Database,
-    busy_timeout: Duration,
-}
-
-impl Debug for ConnectionManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConnectionManager")
-            .field("busy_timeout", &self.busy_timeout)
-            .finish_non_exhaustive()
-    }
-}
-
-pub(crate) struct PoolConnection {
-    connection: Arc<Mutex<Connection>>,
-    _permit: OwnedSemaphorePermit,
-}
-
-impl Debug for PoolConnection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PoolConnection")
-            .field("connection", &self.connection)
-            .finish()
-    }
-}
-
-mod pool;
-pub(crate) use pool::Pool;
-
-mod redline_timestamp;
-pub(super) use redline_timestamp::RedlineTimestamp;
 
 mod builder;
 pub(crate) use builder::Builder;

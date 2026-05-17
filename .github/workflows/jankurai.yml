@@ -30,6 +30,8 @@ jobs:
           zizmor --no-online-audits --min-severity medium .github/workflows/*.yml
       - name: Deprecated backend guard
         run: bash tools/deprecated-backend-guard.sh
+      - name: No redlinedb shim guard
+        run: bash tools/no-redlinedb-shims.sh
 
   security:
     runs-on: ubuntu-latest

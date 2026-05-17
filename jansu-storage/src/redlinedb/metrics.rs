@@ -38,15 +38,6 @@ pub(super) static PRODUCE_IN_TX_DURATION: LazyLock<Histogram<u64>> = LazyLock::n
         .build()
 });
 
-pub(super) static TRANSACTION_WITH_BEHAVIOR_DURATION: LazyLock<Histogram<u64>> =
-    LazyLock::new(|| {
-        METER
-            .u64_histogram("jansu_redlinedb_transaction_with_behavior_duration")
-            .with_unit("ms")
-            .with_description("The transaction with behavior latencies in milliseconds")
-            .build()
-    });
-
 pub(super) static TRANSACTION_COMMIT_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
     METER
         .u64_histogram("jansu_redlinedb_transaction_commit_duration")
@@ -96,4 +87,34 @@ pub(super) fn elapsed_millis(start: SystemTime) -> u64 {
     start
         .elapsed()
         .map_or(0, |duration| duration.as_millis() as u64)
+}
+
+use ::redlinedb::metrics::{MetricResult, Metrics};
+
+pub(super) struct JansuMetrics;
+
+impl Metrics for JansuMetrics {
+    fn on_query(&self, _sql: &str, duration: Duration, result: MetricResult) {
+        SQL_DURATION.record(duration.as_millis() as u64, &[]);
+        SQL_REQUESTS.add(1, &[]);
+        if result == MetricResult::Err {
+            SQL_ERROR.add(1, &[]);
+        }
+    }
+
+    fn on_execute(&self, _sql: &str, duration: Duration, _rows_affected: u64, result: MetricResult) {
+        SQL_DURATION.record(duration.as_millis() as u64, &[]);
+        SQL_REQUESTS.add(1, &[]);
+        if result == MetricResult::Err {
+            SQL_ERROR.add(1, &[]);
+        }
+    }
+
+    fn on_commit(&self, duration: Duration, _result: MetricResult) {
+        TRANSACTION_COMMIT_DURATION.record(duration.as_millis() as u64, &[]);
+    }
+
+    fn on_pool_acquire(&self, duration: Duration, _result: MetricResult) {
+        CONNECT_DURATION.record(duration.as_millis() as u64, &[]);
+    }
 }

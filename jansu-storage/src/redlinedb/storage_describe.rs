@@ -14,6 +14,64 @@
 
 use super::*;
 
+type TopicRowData = (String, String, bool, i32, i32);
+
+fn query_topic_row(
+    c: &mut PoolConnection,
+    key: &str,
+    params: impl ::redlinedb::Params,
+) -> Result<Option<TopicRowData>> {
+    let s = sql(key).map_err(Error::from)?;
+    let mut rows = c.query(&s, params).map_err(Error::from).inspect_err(|err| error!(?err))?;
+    match rows.step().map_err(Error::from)? {
+        Step::Row(row) => {
+            let uuid_str = row.get::<String>(0).map_err(Error::from)?;
+            let name = row.get::<String>(1).map_err(Error::from)?;
+            let is_internal = row.get::<bool>(2).map_err(Error::from)?;
+            let partitions = row.get::<i32>(3).map_err(Error::from)?;
+            let replication_factor = row.get::<i32>(4).map_err(Error::from)?;
+            Ok(Some((uuid_str, name, is_internal, partitions, replication_factor)))
+        }
+        Step::Done => Ok(None),
+    }
+}
+
+fn build_topic_response(
+    node: i32,
+    uuid_str: &str,
+    name: String,
+    _is_internal: bool,
+    partitions: i32,
+    replication_factor: i32,
+) -> Result<DescribeTopicPartitionsResponseTopic> {
+    let topic_id = Uuid::parse_str(uuid_str)
+        .map_err(Error::from)
+        .map(|uuid| uuid.into_bytes())?;
+    debug!(?topic_id, ?name, partitions, replication_factor);
+    Ok(DescribeTopicPartitionsResponseTopic::default()
+        .error_code(ErrorCode::None.into())
+        .name(Some(name))
+        .topic_id(topic_id)
+        .is_internal(false)
+        .partitions(Some(
+            (0..partitions)
+                .map(|partition_index| {
+                    DescribeTopicPartitionsResponsePartition::default()
+                        .error_code(ErrorCode::None.into())
+                        .partition_index(partition_index)
+                        .leader_id(node)
+                        .leader_epoch(0)
+                        .replica_nodes(Some(vec![node; replication_factor as usize]))
+                        .isr_nodes(Some(vec![node; replication_factor as usize]))
+                        .eligible_leader_replicas(Some(vec![]))
+                        .last_known_elr(Some(vec![]))
+                        .offline_replicas(Some(vec![]))
+                })
+                .collect(),
+        ))
+        .topic_authorized_operations(-2147483648))
+}
+
 impl Delegate {
     pub(super) async fn delegate_describe_topic_partitions(
         &self,
@@ -25,97 +83,34 @@ impl Delegate {
 
         debug!(?topics, partition_limit, ?cursor);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
         let mut responses = Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
 
         for topic in topics.unwrap_or(&[]) {
-            responses.push(match topic {
+            let response = match topic {
                 TopicId::Name(name) => {
-                    match c
-                        .query_opt(
-                            "topic_select_name.sql",
-                            (self.cluster.as_str(), name.as_str()),
-                        )
-                        .await
-                        .inspect_err(|err| error!(?err))
-                    {
-                        Ok(Some(row)) => {
-                            let topic_id = row
-                                .get_str(0)
-                                .map_err(Error::from)
-                                .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
-                                .map(|uuid| uuid.into_bytes())?;
-                            let name = row.get::<String>(1).map(Some)?;
-                            let is_internal = row.get::<bool>(2).map(Some)?;
-                            let partitions = row.get::<i32>(3)?;
-                            let replication_factor = row.get::<i32>(4)?;
-
-                            debug!(
-                                ?topic_id,
-                                ?name,
-                                ?is_internal,
-                                ?partitions,
-                                ?replication_factor
-                            );
-
-                            DescribeTopicPartitionsResponseTopic::default()
-                                .error_code(ErrorCode::None.into())
-                                .name(name)
-                                .topic_id(topic_id)
-                                .is_internal(false)
-                                .partitions(Some(
-                                    (0..partitions)
-                                        .map(|partition_index| {
-                                            DescribeTopicPartitionsResponsePartition::default()
-                                                .error_code(ErrorCode::None.into())
-                                                .partition_index(partition_index)
-                                                .leader_id(self.node)
-                                                .leader_epoch(0)
-                                                .replica_nodes(Some(vec![
-                                                    self.node;
-                                                    replication_factor
-                                                        as usize
-                                                ]))
-                                                .isr_nodes(Some(vec![
-                                                    self.node;
-                                                    replication_factor as usize
-                                                ]))
-                                                .eligible_leader_replicas(Some(vec![]))
-                                                .last_known_elr(Some(vec![]))
-                                                .offline_replicas(Some(vec![]))
-                                        })
-                                        .collect(),
-                                ))
-                                .topic_authorized_operations(-2147483648)
+                    match query_topic_row(
+                        &mut c,
+                        "topic_select_name.sql",
+                        (self.cluster.as_str(), name.as_str()),
+                    ) {
+                        Ok(Some((uuid_str, topic_name, is_internal, partitions, replication_factor))) => {
+                            build_topic_response(self.node, &uuid_str, topic_name, is_internal, partitions, replication_factor)?
                         }
-
                         Ok(None) => DescribeTopicPartitionsResponseTopic::default()
                             .error_code(ErrorCode::UnknownTopicOrPartition.into())
-                            .name(match topic {
-                                TopicId::Name(name) => Some(name.into()),
-                                TopicId::Id(_) => None,
-                            })
-                            .topic_id(match topic {
-                                TopicId::Name(_) => NULL_TOPIC_ID,
-                                TopicId::Id(id) => id.into_bytes(),
-                            })
+                            .name(Some(name.into()))
+                            .topic_id(NULL_TOPIC_ID)
                             .is_internal(false)
                             .partitions(Some([].into()))
                             .topic_authorized_operations(-2147483648),
-
                         Err(reason) => {
                             debug!(?reason);
                             DescribeTopicPartitionsResponseTopic::default()
                                 .error_code(ErrorCode::UnknownServerError.into())
-                                .name(match topic {
-                                    TopicId::Name(name) => Some(name.into()),
-                                    TopicId::Id(_) => None,
-                                })
-                                .topic_id(match topic {
-                                    TopicId::Name(_) => NULL_TOPIC_ID,
-                                    TopicId::Id(id) => id.into_bytes(),
-                                })
+                                .name(Some(name.into()))
+                                .topic_id(NULL_TOPIC_ID)
                                 .is_internal(false)
                                 .partitions(Some([].into()))
                                 .topic_authorized_operations(-2147483648)
@@ -124,82 +119,25 @@ impl Delegate {
                 }
                 TopicId::Id(id) => {
                     debug!(?id);
-                    match c
-                        .query_one(
-                            "redlinedb/topic_select_uuid.sql",
-                            (self.cluster.as_str(), id.to_string().as_str()),
-                        )
-                        .await
-                    {
-                        Ok(row) => {
-                            let topic_id = row
-                                .get_str(0)
-                                .map_err(Error::from)
-                                .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
-                                .map(|uuid| uuid.into_bytes())?;
-                            let name = row.get::<String>(1).map(Some)?;
-                            let is_internal = row.get::<bool>(2).map(Some)?;
-                            let partitions = row.get::<i32>(3)?;
-                            let replication_factor = row.get::<i32>(4)?;
-
-                            debug!(
-                                ?topic_id,
-                                ?name,
-                                ?is_internal,
-                                ?partitions,
-                                ?replication_factor
-                            );
-
-                            DescribeTopicPartitionsResponseTopic::default()
-                                .error_code(ErrorCode::None.into())
-                                .name(name)
-                                .topic_id(topic_id)
-                                .is_internal(false)
-                                .partitions(Some(
-                                    (0..partitions)
-                                        .map(|partition_index| {
-                                            DescribeTopicPartitionsResponsePartition::default()
-                                                .error_code(ErrorCode::None.into())
-                                                .partition_index(partition_index)
-                                                .leader_id(self.node)
-                                                .leader_epoch(0)
-                                                .replica_nodes(Some(vec![
-                                                    self.node;
-                                                    replication_factor
-                                                        as usize
-                                                ]))
-                                                .isr_nodes(Some(vec![
-                                                    self.node;
-                                                    replication_factor as usize
-                                                ]))
-                                                .eligible_leader_replicas(Some(vec![]))
-                                                .last_known_elr(Some(vec![]))
-                                                .offline_replicas(Some(vec![]))
-                                        })
-                                        .collect(),
-                                ))
-                                .topic_authorized_operations(-2147483648)
+                    match query_topic_row(
+                        &mut c,
+                        "redlinedb/topic_select_uuid.sql",
+                        (self.cluster.as_str(), id.to_string().as_str()),
+                    ) {
+                        Ok(Some((uuid_str, topic_name, is_internal, partitions, replication_factor))) => {
+                            build_topic_response(self.node, &uuid_str, topic_name, is_internal, partitions, replication_factor)?
                         }
-
-                        Err(reason) => {
-                            debug!(?reason);
-                            DescribeTopicPartitionsResponseTopic::default()
-                                .error_code(ErrorCode::UnknownTopicOrPartition.into())
-                                .name(match topic {
-                                    TopicId::Name(name) => Some(name.into()),
-                                    TopicId::Id(_) => None,
-                                })
-                                .topic_id(match topic {
-                                    TopicId::Name(_) => NULL_TOPIC_ID,
-                                    TopicId::Id(id) => id.into_bytes(),
-                                })
-                                .is_internal(false)
-                                .partitions(Some([].into()))
-                                .topic_authorized_operations(-2147483648)
-                        }
+                        Ok(None) | Err(_) => DescribeTopicPartitionsResponseTopic::default()
+                            .error_code(ErrorCode::UnknownTopicOrPartition.into())
+                            .name(None)
+                            .topic_id(id.into_bytes())
+                            .is_internal(false)
+                            .partitions(Some([].into()))
+                            .topic_authorized_operations(-2147483648),
                     }
                 }
-            });
+            };
+            responses.push(response);
         }
 
         Ok(responses).inspect(|_| {
@@ -220,25 +158,28 @@ impl Delegate {
         debug!(?group_ids, include_authorized_operations);
 
         let mut results = vec![];
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
         if let Some(group_ids) = group_ids {
             for group_id in group_ids {
-                if let Some(row) = c
-                    .query_opt(
-                        "consumer_group_select_by_name.sql",
-                        (self.cluster.as_str(), group_id.as_str()),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err, group_id))?
-                {
-                    let current = row
-                        .get_str(1)
+                let detail_str: Option<String> = {
+                    let s = sql("consumer_group_select_by_name.sql").map_err(Error::from)?;
+                    let mut rows = c
+                        .query(&s, (self.cluster.as_str(), group_id.as_str()))
                         .map_err(Error::from)
-                        .and_then(|s| serde_json::from_str::<GroupDetail>(s).map_err(Into::into))
-                        .inspect(|current| debug!(?current))
                         .inspect_err(|err| error!(?err, group_id))?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => Some(row.get::<String>(1).map_err(Error::from)?),
+                        Step::Done => None,
+                    }
+                };
 
+                if let Some(detail_str) = detail_str {
+                    let current =
+                        serde_json::from_str::<GroupDetail>(detail_str.as_str())
+                            .map_err(Error::from)
+                            .inspect(|current| debug!(?current))
+                            .inspect_err(|err| error!(?err, group_id))?;
                     results.push(NamedGroupDetail::found(group_id.into(), current));
                 } else {
                     results.push(NamedGroupDetail::found(
@@ -268,49 +209,52 @@ impl Delegate {
         let mut results = vec![];
 
         if let Some(group_ids) = group_ids {
-            let c = self.connection().await?;
+            let mut c = self.connection().await?;
 
             for group_id in group_ids {
-                let Some(row) = c
-                    .query_opt(
-                        "redlinedb/consumer_group_select_id.sql",
-                        (self.cluster.as_str(), group_id.as_str()),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err, group_id))?
-                else {
-                    results.push(
-                        DeletableGroupResult::default()
-                            .group_id(group_id.into())
-                            .error_code(ErrorCode::GroupIdNotFound.into()),
-                    );
-                    continue;
+                let consumer_group_id = {
+                    let s = sql("redlinedb/consumer_group_select_id.sql").map_err(Error::from)?;
+                    let mut rows = c
+                        .query(&s, (self.cluster.as_str(), group_id.as_str()))
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(?err, group_id))?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => row.get::<i64>(0).map_err(Error::from)?,
+                        Step::Done => {
+                            results.push(
+                                DeletableGroupResult::default()
+                                    .group_id(group_id.into())
+                                    .error_code(ErrorCode::GroupIdNotFound.into()),
+                            );
+                            continue;
+                        }
+                    }
                 };
 
-                let consumer_group_id = row.get::<i64>(0)?;
-
                 _ = c
                     .execute(
-                        "redlinedb/consumer_offset_delete_by_cg_id.sql",
+                        &sql("redlinedb/consumer_offset_delete_by_cg_id.sql")
+                            .map_err(Error::from)?,
                         (consumer_group_id,),
                     )
-                    .await
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err))?;
 
                 _ = c
                     .execute(
-                        "redlinedb/consumer_group_detail_delete_by_cg_id.sql",
+                        &sql("redlinedb/consumer_group_detail_delete_by_cg_id.sql")
+                            .map_err(Error::from)?,
                         (consumer_group_id,),
                     )
-                    .await
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err))?;
 
                 _ = c
                     .execute(
-                        "redlinedb/consumer_group_delete_id.sql",
+                        &sql("redlinedb/consumer_group_delete_id.sql").map_err(Error::from)?,
                         (consumer_group_id,),
                     )
-                    .await
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err))?;
 
                 results.push(

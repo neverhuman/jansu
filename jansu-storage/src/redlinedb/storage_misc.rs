@@ -27,14 +27,11 @@ impl Delegate {
         let deleted = self.policy_delete(now).await?;
         debug!(deleted);
 
-        let connection = self.pool.get().await?;
-        let expired = connection
-            .execute(
-                "consumer_offset_delete_expired.sql",
-                (self.cluster.as_str(), RedlineTimestamp::from(now)),
-            )
-            .await?;
-        debug!(expired);
+        let mut connection = self.connection().await?;
+        let s = sql("consumer_offset_delete_expired.sql").map_err(Error::from)?;
+        let _ = connection
+            .execute(&s, (self.cluster.as_str(), Value::from(now)))
+            .map_err(Error::from)?;
 
         let compacted = self.policy_compact().await?;
         debug!(compacted);
@@ -84,17 +81,14 @@ impl Delegate {
         mechanism: ScramMechanism,
     ) -> Result<()> {
         let start = SystemTime::now();
-        let pc = self.connection().await?;
+        let mut pc = self.connection().await?;
 
-        pc.execute(
-            "scram_credential_delete.sql",
-            (self.cluster.as_str(), user, i32::from(mechanism)),
-        )
-        .await
-        .inspect_err(|err| error!(?err))
-        .map_err(Into::into)
-        .and(Ok(()))
-        .inspect(|_| {
+        let s = sql("scram_credential_delete.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (self.cluster.as_str(), user, i32::from(mechanism)))
+            .inspect_err(|err| error!(?err))
+            .map_err(Error::from)?;
+
+        Ok(()).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
                 elapsed_millis(start),
                 &[KeyValue::new("operation", "delete_user_scram_credential")],
@@ -110,10 +104,11 @@ impl Delegate {
         credential: ScramCredential,
     ) -> Result<()> {
         let start = SystemTime::now();
-        let pc = self.connection().await?;
+        let mut pc = self.connection().await?;
 
-        pc.execute(
-            "scram_credential_insert.sql",
+        let s = sql("scram_credential_insert.sql").map_err(Error::from)?;
+        let _ = pc.execute(
+            &s,
             (
                 self.cluster.as_str(),
                 user,
@@ -124,11 +119,10 @@ impl Delegate {
                 &credential.server_key[..],
             ),
         )
-        .await
         .inspect_err(|err| error!(?err))
-        .map_err(Into::into)
-        .and(Ok(()))
-        .inspect(|_| {
+        .map_err(Error::from)?;
+
+        Ok(()).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
                 elapsed_millis(start),
                 &[KeyValue::new("operation", "upsert_user_scram_credential")],
@@ -143,21 +137,20 @@ impl Delegate {
         mechanism: ScramMechanism,
     ) -> Result<Option<ScramCredential>> {
         let start = SystemTime::now();
-        let pc = self.connection().await?;
+        let mut pc = self.connection().await?;
 
-        pc.query_opt(
-            "scram_credential_select.sql",
-            (self.cluster.as_str(), user, i32::from(mechanism)),
-        )
-        .await
-        .inspect_err(|err| error!(?err))
-        .map_err(Into::into)
-        .and_then(|row| {
-            if let Some(row) = row {
-                let salt = row.get::<Vec<u8>>(0).map(Bytes::from)?;
-                let iterations = row.get::<i32>(1)?;
-                let stored_key = row.get::<Vec<u8>>(2).map(Bytes::from)?;
-                let server_key = row.get::<Vec<u8>>(3).map(Bytes::from)?;
+        let s = sql("scram_credential_select.sql").map_err(Error::from)?;
+        let mut rows = pc
+            .query(&s, (self.cluster.as_str(), user, i32::from(mechanism)))
+            .map_err(Error::from)
+            .inspect_err(|err| error!(?err))?;
+
+        match rows.step().map_err(Error::from)? {
+            Step::Row(row) => {
+                let salt = row.get::<Vec<u8>>(0).map_err(Error::from).map(Bytes::from)?;
+                let iterations = row.get::<i32>(1).map_err(Error::from)?;
+                let stored_key = row.get::<Vec<u8>>(2).map_err(Error::from).map(Bytes::from)?;
+                let server_key = row.get::<Vec<u8>>(3).map_err(Error::from).map(Bytes::from)?;
 
                 Ok(Some(ScramCredential {
                     salt,
@@ -165,10 +158,9 @@ impl Delegate {
                     stored_key,
                     server_key,
                 }))
-            } else {
-                Ok(None)
             }
-        })
+            Step::Done => Ok(None),
+        }
         .inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
                 elapsed_millis(start),
@@ -180,8 +172,9 @@ impl Delegate {
     #[instrument(skip_all)]
     pub(super) async fn delegate_ping(&self) -> Result<()> {
         let start = SystemTime::now();
-        let c = self.pool.get().await?;
-        let _ = c.query("ping.sql", ()).await?;
+        let mut c = self.connection().await?;
+        let s = sql("ping.sql").map_err(Error::from)?;
+        let _ = c.query(&s, ()).map_err(Error::from)?;
         DELEGATE_REQUEST_DURATION
             .record(elapsed_millis(start), &[KeyValue::new("operation", "ping")]);
         Ok(())

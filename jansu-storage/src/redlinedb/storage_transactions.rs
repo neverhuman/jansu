@@ -15,34 +15,36 @@
 use super::*;
 
 impl Delegate {
-    async fn mark_txn_started(
+    fn mark_txn_started(
         &self,
-        pc: &PoolConnection,
+        pc: &mut PoolConnection,
         transaction_id: &str,
         producer_id: i64,
         producer_epoch: i16,
     ) -> Result<()> {
-        let started_at = RedlineTimestamp::from(SystemTime::now());
-        let mut rows = pc
-            .query(
-                "redlinedb/txn_detail_select_started_at_id.sql",
+        let started_at = Value::from(SystemTime::now());
+
+        let ids: Vec<i64> = {
+            let s = sql("redlinedb/txn_detail_select_started_at_id.sql").map_err(Error::from)?;
+            let mut rows = pc.query(
+                &s,
                 (
                     self.cluster.as_str(),
                     transaction_id,
                     producer_id,
                     producer_epoch,
                 ),
-            )
-            .await?;
+            ).map_err(Error::from)?;
+            let mut ids = vec![];
+            while let Step::Row(row) = rows.step().map_err(Error::from)? {
+                ids.push(row.get::<i64>(0).map_err(Error::from)?);
+            }
+            ids
+        };
 
-        while let Some(row) = rows.next().await? {
-            let txn_detail_id = row.get::<i64>(0)?;
-            _ = pc
-                .execute(
-                    "redlinedb/txn_detail_update_started_at_by_id.sql",
-                    (started_at, txn_detail_id),
-                )
-                .await?;
+        let ds = sql("redlinedb/txn_detail_update_started_at_by_id.sql").map_err(Error::from)?;
+        for txn_detail_id in ids {
+            let _ = pc.execute(&ds, (started_at.clone(), txn_detail_id)).map_err(Error::from)?;
         }
 
         Ok(())
@@ -65,37 +67,37 @@ impl Delegate {
             } => {
                 debug!(?transaction_id, ?producer_id, ?producer_epoch, ?topics);
 
-                let pc = self.connection().await?;
-                let tx = pc.transaction().await?;
+                let mut pc = self.connection().await?;
+                pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
                 let mut results = vec![];
 
+                let s = sql("txn_topition_insert.sql").map_err(Error::from)?;
                 for topic in topics {
                     let mut results_by_partition = vec![];
 
                     for partition_index in topic.partitions.unwrap_or(vec![]) {
-                        _ = pc
-                            .execute(
-                                "txn_topition_insert.sql",
-                                (
-                                    self.cluster.as_str(),
-                                    topic.name.as_str(),
-                                    partition_index,
-                                    transaction_id.as_str(),
-                                    producer_id,
-                                    producer_epoch,
-                                ),
+                        let _ = pc.execute(
+                            &s,
+                            (
+                                self.cluster.as_str(),
+                                topic.name.as_str(),
+                                partition_index,
+                                transaction_id.as_str(),
+                                producer_id,
+                                producer_epoch,
+                            ),
+                        )
+                        .map_err(Error::from)
+                        .inspect_err(|err| {
+                            error!(
+                                ?err,
+                                cluster = self.cluster,
+                                topic = topic.name,
+                                partition_index,
+                                transaction_id
                             )
-                            .await
-                            .inspect_err(|err| {
-                                error!(
-                                    ?err,
-                                    cluster = self.cluster,
-                                    topic = topic.name,
-                                    partition_index,
-                                    transaction_id
-                                )
-                            })?;
+                        })?;
 
                         results_by_partition.push(
                             AddPartitionsToTxnPartitionResult::default()
@@ -111,8 +113,7 @@ impl Delegate {
                     )
                 }
 
-                self.mark_txn_started(&pc, transaction_id.as_str(), producer_id, producer_epoch)
-                    .await
+                self.mark_txn_started(&mut pc, transaction_id.as_str(), producer_id, producer_epoch)
                     .inspect_err(|err| {
                         error!(
                             ?err,
@@ -123,7 +124,7 @@ impl Delegate {
                         )
                     })?;
 
-                pc.commit(tx).await?;
+                let _ = pc.commit().map_err(Error::from)?;
 
                 Ok(TxnAddPartitionsResponse::VersionZeroToThree(results)).inspect(|_| {
                     DELEGATE_REQUEST_DURATION.record(
@@ -136,8 +137,8 @@ impl Delegate {
             TxnAddPartitionsRequest::VersionFourPlus { transactions } => {
                 debug!(?transactions);
 
-                let pc = self.connection().await?;
-                let tx = pc.transaction().await?;
+                let mut pc = self.connection().await?;
+                pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
                 let mut results = vec![];
 
@@ -154,9 +155,10 @@ impl Delegate {
 
                         for partition_index in topic.partitions.unwrap_or(vec![]) {
                             if verify_only {
-                                let mut rows = pc
-                                    .query(
-                                        "txn_topition_select.sql",
+                                let exists = {
+                                    let s = sql("txn_topition_select.sql").map_err(Error::from)?;
+                                    let mut rows = pc.query(
+                                        &s,
                                         (
                                             self.cluster.as_str(),
                                             producer_id,
@@ -164,10 +166,11 @@ impl Delegate {
                                             topic.name.as_str(),
                                             partition_index,
                                         ),
-                                    )
-                                    .await?;
+                                    ).map_err(Error::from)?;
+                                    matches!(rows.step().map_err(Error::from)?, Step::Row(_))
+                                };
 
-                                if rows.next().await?.is_some() {
+                                if exists {
                                     results_by_partition.push(
                                         AddPartitionsToTxnPartitionResult::default()
                                             .partition_index(partition_index)
@@ -183,28 +186,28 @@ impl Delegate {
                                     );
                                 }
                             } else {
-                                _ = pc
-                                    .execute(
-                                        "txn_topition_insert.sql",
-                                        (
-                                            self.cluster.as_str(),
-                                            topic.name.as_str(),
-                                            partition_index,
-                                            transaction_id.as_str(),
-                                            producer_id,
-                                            producer_epoch,
-                                        ),
+                                let s = sql("txn_topition_insert.sql").map_err(Error::from)?;
+                                let _ = pc.execute(
+                                    &s,
+                                    (
+                                        self.cluster.as_str(),
+                                        topic.name.as_str(),
+                                        partition_index,
+                                        transaction_id.as_str(),
+                                        producer_id,
+                                        producer_epoch,
+                                    ),
+                                )
+                                .map_err(Error::from)
+                                .inspect_err(|err| {
+                                    error!(
+                                        ?err,
+                                        cluster = self.cluster,
+                                        topic = topic.name,
+                                        partition_index,
+                                        transaction_id
                                     )
-                                    .await
-                                    .inspect_err(|err| {
-                                        error!(
-                                            ?err,
-                                            cluster = self.cluster,
-                                            topic = topic.name,
-                                            partition_index,
-                                            transaction_id
-                                        )
-                                    })?;
+                                })?;
 
                                 results_by_partition.push(
                                     AddPartitionsToTxnPartitionResult::default()
@@ -223,12 +226,11 @@ impl Delegate {
 
                     if !verify_only {
                         self.mark_txn_started(
-                            &pc,
+                            &mut pc,
                             transaction_id.as_str(),
                             producer_id,
                             producer_epoch,
                         )
-                        .await
                         .inspect_err(|err| {
                             error!(
                                 ?err,
@@ -247,7 +249,7 @@ impl Delegate {
                     );
                 }
 
-                pc.commit(tx).await?;
+                let _ = pc.commit().map_err(Error::from)?;
 
                 Ok(TxnAddPartitionsResponse::VersionFourPlus(results)).inspect(|_| {
                     DELEGATE_REQUEST_DURATION.record(
@@ -267,56 +269,47 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?offsets);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
-        let (producer_id, producer_epoch) = if let Some(row) = pc
-            .query_opt(
-                "producer_epoch_for_current_txn.sql",
+        let (producer_id, producer_epoch) = {
+            let s = sql("producer_epoch_for_current_txn.sql").map_err(Error::from)?;
+            let mut rows = pc.query(
+                &s,
                 (self.cluster.as_str(), offsets.transaction_id.as_str()),
-            )
-            .await
-            .inspect_err(|err| error!(?err))?
-        {
-            let producer_id = row
-                .get::<i64>(0)
-                .map(Some)
-                .inspect_err(|err| error!(?err))?;
+            ).map_err(Error::from).inspect_err(|err| error!(?err))?;
 
-            let epoch_i32 = row
-                .get::<i32>(1)
-                .inspect_err(|err| error!(?err))?;
-            let epoch = Some(i16::try_from(epoch_i32)?);
-
-            (producer_id, epoch)
-        } else {
-            (None, None)
+            match rows.step().map_err(Error::from)? {
+                Step::Row(row) => {
+                    let producer_id = row.get::<i64>(0).map(Some).inspect_err(|err| error!(?err))?;
+                    let epoch_i32 = row.get::<i32>(1).inspect_err(|err| error!(?err))?;
+                    let epoch = Some(i16::try_from(epoch_i32)?);
+                    (producer_id, epoch)
+                }
+                Step::Done => (None, None),
+            }
         };
 
-        _ = pc
-            .execute(
-                "consumer_group_insert.sql",
-                (self.cluster.as_str(), offsets.group_id.as_str()),
-            )
-            .await?;
+        let s = sql("consumer_group_insert.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (self.cluster.as_str(), offsets.group_id.as_str())).map_err(Error::from)?;
 
         debug!(?producer_id, ?producer_epoch);
 
-        _ = pc
-            .execute(
-                "redlinedb/txn_offset_commit_insert.sql",
-                (
-                    offsets.generation_id,
-                    offsets.member_id,
-                    self.cluster.as_str(),
-                    offsets.transaction_id.as_str(),
-                    offsets.group_id.as_str(),
-                    offsets.producer_id,
-                    offsets.producer_epoch,
-                ),
-            )
-            .await
-            .inspect_err(|err| error!(?err))?;
+        let s = sql("redlinedb/txn_offset_commit_insert.sql").map_err(Error::from)?;
+        let _ = pc.execute(
+            &s,
+            (
+                offsets.generation_id,
+                offsets.member_id,
+                self.cluster.as_str(),
+                offsets.transaction_id.as_str(),
+                offsets.group_id.as_str(),
+                offsets.producer_id,
+                offsets.producer_epoch,
+            ),
+        )
+        .map_err(Error::from)
+        .inspect_err(|err| error!(?err))?;
 
         let mut topics = vec![];
 
@@ -328,24 +321,24 @@ impl Delegate {
                     if producer_epoch
                         .is_some_and(|producer_epoch| producer_epoch == offsets.producer_epoch)
                     {
-                        _ = pc
-                            .execute(
-                                "redlinedb/txn_offset_commit_tp_insert.sql",
-                                (
-                                    partition.committed_offset,
-                                    partition.committed_leader_epoch,
-                                    partition.committed_metadata,
-                                    self.cluster.as_str(),
-                                    offsets.transaction_id.as_str(),
-                                    offsets.group_id.as_str(),
-                                    offsets.producer_id,
-                                    offsets.producer_epoch,
-                                    topic.name.as_str(),
-                                    partition.partition_index,
-                                ),
-                            )
-                            .await
-                            .inspect_err(|err| error!(?err))?;
+                        let s = sql("redlinedb/txn_offset_commit_tp_insert.sql").map_err(Error::from)?;
+                        let _ = pc.execute(
+                            &s,
+                            (
+                                partition.committed_offset,
+                                partition.committed_leader_epoch,
+                                partition.committed_metadata,
+                                self.cluster.as_str(),
+                                offsets.transaction_id.as_str(),
+                                offsets.group_id.as_str(),
+                                offsets.producer_id,
+                                offsets.producer_epoch,
+                                topic.name.as_str(),
+                                partition.partition_index,
+                            ),
+                        )
+                        .map_err(Error::from)
+                        .inspect_err(|err| error!(?err))?;
 
                         partitions.push(
                             TxnOffsetCommitResponsePartition::default()
@@ -375,7 +368,7 @@ impl Delegate {
             );
         }
 
-        pc.commit(tx).await?;
+        let _ = pc.commit().map_err(Error::from)?;
 
         Ok(topics).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
@@ -396,14 +389,16 @@ impl Delegate {
 
         debug!(cluster = ?self.cluster, transaction_id, producer_id, producer_epoch, committed);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
         let error_code = self
-            .end_in_tx(transaction_id, producer_id, producer_epoch, committed, &pc)
+            .end_in_tx(transaction_id, producer_id, producer_epoch, committed, &mut pc)
             .await?;
 
-        pc.commit(tx).await.and(Ok(error_code)).inspect(|_| {
+        let _ = pc.commit().map_err(Error::from)?;
+
+        Ok(error_code).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
                 elapsed_millis(start),
                 &[KeyValue::new("operation", "txn_end")],

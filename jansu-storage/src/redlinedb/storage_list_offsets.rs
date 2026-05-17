@@ -14,23 +14,25 @@
 
 use super::*;
 
-fn row_to_list_offset_response(row: Row) -> Result<ListOffsetResponse> {
-    debug!(?row);
-    row.get::<i64>(0)
-        .map_err(Into::into)
-        .map(Some)
-        .and_then(|offset| {
-            row.get_value(1)
-                .map_err(Into::into)
-                .and_then(RedlineTimestamp::try_from)
-                .map(SystemTime::from)
-                .map(Some)
-                .map(|timestamp| ListOffsetResponse {
-                    timestamp,
-                    offset,
-                    ..Default::default()
-                })
-        })
+fn row_to_list_offset_response(row: &::redlinedb::Row<'_>) -> Result<ListOffsetResponse> {
+    let offset = row.get::<i64>(0).map_err(Error::from).map(Some)?;
+    let timestamp_val = row.get::<Value>(1).map_err(Error::from)?;
+    let timestamp = SystemTime::try_from(&timestamp_val).map(Some).map_err(Error::from)?;
+    Ok(ListOffsetResponse {
+        timestamp,
+        offset,
+        ..Default::default()
+    })
+}
+
+fn query_opt_row(
+    c: &mut PoolConnection,
+    key: &str,
+    params: impl ::redlinedb::Params,
+) -> Result<bool> {
+    let s = sql(key).map_err(Error::from)?;
+    let mut rows = c.query(&s, params).map_err(Error::from)?;
+    Ok(matches!(rows.step().map_err(Error::from)?, Step::Row(_)))
 }
 
 impl Delegate {
@@ -43,12 +45,13 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?isolation_level, ?offsets);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
         let mut responses = vec![];
 
         for (topition, offset_type) in offsets {
-            if c.query_opt(
+            if !query_opt_row(
+                &mut c,
                 "topition_select.sql",
                 (
                     self.cluster.as_str(),
@@ -56,9 +59,7 @@ impl Delegate {
                     topition.partition(),
                 ),
             )
-            .await
             .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?
-            .is_none()
             {
                 responses.push((
                     topition.clone(),
@@ -73,40 +74,42 @@ impl Delegate {
 
             let list_offset = match offset_type {
                 ListOffset::Timestamp(timestamp) => {
-                    let row = c
-                        .query_opt(
-                            "list_latest_offset_timestamp.sql",
+                    let s = sql("list_latest_offset_timestamp.sql").map_err(Error::from)?;
+                    let mut rows = c
+                        .query(
+                            &s,
                             (
                                 self.cluster.as_str(),
                                 topition.topic(),
                                 topition.partition(),
-                                RedlineTimestamp::from(timestamp),
+                                Value::from(*timestamp),
                             ),
                         )
-                        .await
+                        .map_err(Error::from)
                         .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
 
-                    match row {
-                        Some(row) => row_to_list_offset_response(row)?,
-                        None => {
-                            // Timestamp is after all records: return high watermark + last timestamp.
-                            let hwm_row = c
-                                .query_opt(
-                                    "list_latest_offset_uncommitted.sql",
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => row_to_list_offset_response(&row)?,
+                        Step::Done => {
+                            drop(rows);
+                            let s2 = sql("list_latest_offset_uncommitted.sql").map_err(Error::from)?;
+                            let mut rows2 = c
+                                .query(
+                                    &s2,
                                     (
                                         self.cluster.as_str(),
                                         topition.topic(),
                                         topition.partition(),
                                     ),
                                 )
-                                .await
+                                .map_err(Error::from)
                                 .inspect_err(|err| {
                                     error!(?err, cluster = self.cluster, ?topition)
                                 })?;
 
-                            match hwm_row {
-                                Some(row) => row_to_list_offset_response(row)?,
-                                None => ListOffsetResponse {
+                            match rows2.step().map_err(Error::from)? {
+                                Step::Row(row) => row_to_list_offset_response(&row)?,
+                                Step::Done => ListOffsetResponse {
                                     offset: Some(0),
                                     timestamp: None,
                                     ..Default::default()
@@ -125,12 +128,15 @@ impl Delegate {
                             topition.topic(),
                             topition.partition(),
                         );
-                        if let Some(row) = c
-                            .query_opt("redlinedb/list_latest_offset_committed_active.sql", params)
-                            .await
-                            .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?
-                        {
-                            let list_offset = row_to_list_offset_response(row)?;
+                        let s = sql("redlinedb/list_latest_offset_committed_active.sql")
+                            .map_err(Error::from)?;
+                        let mut rows = c
+                            .query(&s, params)
+                            .map_err(Error::from)
+                            .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
+
+                        if let Step::Row(row) = rows.step().map_err(Error::from)? {
+                            let list_offset = row_to_list_offset_response(&row)?;
                             debug!(
                                 cluster = self.cluster,
                                 ?topition,
@@ -140,22 +146,24 @@ impl Delegate {
                             responses.push((topition.clone(), list_offset));
                             continue;
                         }
+                        drop(rows);
 
-                        let row = c
-                            .query_opt(
-                                "list_latest_offset_uncommitted.sql",
+                        let s2 = sql("list_latest_offset_uncommitted.sql").map_err(Error::from)?;
+                        let mut rows2 = c
+                            .query(
+                                &s2,
                                 (
                                     self.cluster.as_str(),
                                     topition.topic(),
                                     topition.partition(),
                                 ),
                             )
-                            .await
+                            .map_err(Error::from)
                             .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
 
-                        let list_offset = match row {
-                            Some(row) => row_to_list_offset_response(row)?,
-                            None => ListOffsetResponse {
+                        let list_offset = match rows2.step().map_err(Error::from)? {
+                            Step::Row(row) => row_to_list_offset_response(&row)?,
+                            Step::Done => ListOffsetResponse {
                                 offset: Some(0),
                                 timestamp: None,
                                 ..Default::default()
@@ -180,21 +188,22 @@ impl Delegate {
                         _ => "list_latest_offset_uncommitted.sql",
                     };
 
-                    let row = c
-                        .query_opt(
-                            query,
+                    let s = sql(query).map_err(Error::from)?;
+                    let mut rows = c
+                        .query(
+                            &s,
                             (
                                 self.cluster.as_str(),
                                 topition.topic(),
                                 topition.partition(),
                             ),
                         )
-                        .await
+                        .map_err(Error::from)
                         .inspect_err(|err| error!(?err, cluster = self.cluster, ?topition))?;
 
-                    match row {
-                        Some(row) => row_to_list_offset_response(row)?,
-                        None => ListOffsetResponse {
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => row_to_list_offset_response(&row)?,
+                        Step::Done => ListOffsetResponse {
                             offset: Some(0),
                             timestamp: None,
                             ..Default::default()

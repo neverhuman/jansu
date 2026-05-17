@@ -20,20 +20,26 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?topition);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
-        let Some(row) = c
-            .query_opt(
-                "watermark_select_no_update.sql",
+        let s = sql("watermark_select_no_update.sql").map_err(Error::from)?;
+        let mut rows = c
+            .query(
+                &s,
                 (
                     self.cluster.as_str(),
                     self.base_topic(topition.topic()).await?,
                     topition.partition(),
                 ),
             )
-            .await
-            .inspect_err(|err| error!(?topition, ?err))?
-        else {
+            .map_err(Error::from)
+            .inspect_err(|err| error!(?topition, ?err))?;
+
+        let step = rows.step().map_err(Error::from)?;
+        let Some(row) = (match step {
+            Step::Row(row) => Some(row),
+            Step::Done => None,
+        }) else {
             return Ok(OffsetStage {
                 last_stable: 0,
                 high_watermark: 0,
@@ -78,8 +84,8 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?group, ?retention, ?offsets);
 
-        let c = self.connection().await?;
-        let tx = c.transaction().await?;
+        let mut c = self.connection().await?;
+        c.begin(BeginMode::Immediate).map_err(Error::from)?;
         let now = SystemTime::now();
         let expires_at = now.checked_add(retention.unwrap_or(DEFAULT_OFFSET_RETENTION));
 
@@ -90,51 +96,55 @@ impl Delegate {
         for (topition, offset) in offsets {
             debug!(?topition, ?offset);
 
-            let mut rows = c
-                .query(
-                    "topition_select.sql",
-                    (
-                        self.cluster.as_str(),
-                        self.base_topic(topition.topic()).await?,
-                        topition.partition(),
-                    ),
-                )
-                .await
-                .inspect_err(|err| error!(?err))?;
+            let base = self.base_topic(topition.topic()).await?;
 
-            if rows.next().await.inspect_err(|err| error!(?err))?.is_some() {
+            let topition_exists = {
+                let s = sql("topition_select.sql").map_err(Error::from)?;
+                let mut rows = c
+                    .query(
+                        &s,
+                        (self.cluster.as_str(), base, topition.partition()),
+                    )
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?;
+                matches!(rows.step().map_err(Error::from)?, Step::Row(_))
+            };
+
+            if topition_exists {
                 if !cg_inserted {
-                    let rows = c
-                        .execute("consumer_group_insert.sql", (self.cluster.as_str(), group))
-                        .await?;
-                    debug!(rows);
-
+                    let s = sql("consumer_group_insert.sql").map_err(Error::from)?;
+                    let summary = c
+                        .execute(&s, (self.cluster.as_str(), group))
+                        .map_err(Error::from)?;
+                    debug!(summary.rows_affected);
                     cg_inserted = true;
                 }
 
-                let rows = c
+                let base2 = self.base_topic(topition.topic()).await?;
+                let s = sql("consumer_offset_insert.sql").map_err(Error::from)?;
+                let summary = c
                     .execute(
-                        "consumer_offset_insert.sql",
+                        &s,
                         (
                             self.cluster.as_str(),
-                            self.base_topic(topition.topic()).await?,
+                            base2,
                             topition.partition(),
                             group,
                             offset.offset,
                             offset.leader_epoch,
-                            offset.timestamp.or(Some(now)).map(RedlineTimestamp::from),
+                            offset.timestamp.or(Some(now)).map(Value::from),
                             offset.metadata.as_deref(),
-                            expires_at.map(RedlineTimestamp::from),
+                            expires_at.map(Value::from),
                         ),
                     )
-                    .await
+                    .map_err(Error::from)
                     .inspect_err(|err| error!(?err))?;
 
-                debug!(?rows);
+                debug!(?summary);
 
                 responses.push((
                     topition.to_owned(),
-                    if rows == 0 {
+                    if summary.rows_affected == 0 {
                         ErrorCode::UnknownTopicOrPartition
                     } else {
                         ErrorCode::None
@@ -145,7 +155,7 @@ impl Delegate {
             }
         }
 
-        c.commit(tx).await.inspect_err(|err| error!(?err))?;
+        let _ = c.commit().map_err(Error::from).inspect_err(|err| error!(?err))?;
 
         Ok(responses).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
@@ -166,23 +176,21 @@ impl Delegate {
         let mut results = BTreeMap::new();
         let now = SystemTime::now();
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
+        let s = sql("consumer_offset_select_by_group.sql").map_err(Error::from)?;
         let mut rows = c
-            .query(
-                "consumer_offset_select_by_group.sql",
-                (self.cluster.as_str(), group_id),
-            )
-            .await?;
+            .query(&s, (self.cluster.as_str(), group_id))
+            .map_err(Error::from)?;
 
-        while let Some(row) = rows.next().await? {
-            let topic = row.get_str(0)?;
+        while let Step::Row(row) = rows.step().map_err(Error::from)? {
+            let topic = row.get::<String>(0)?;
             let partition = row.get::<i32>(1)?;
             let offset = row.get::<i64>(2)?;
             let leader_epoch = row.get::<Option<i32>>(3)?;
-            let commit_timestamp = value_to_system_time(row.get_value(4).map_err(Error::from)?)?;
+            let commit_timestamp = value_to_system_time(row.get::<Value>(4).map_err(Error::from)?)?;
             let metadata = row.get::<Option<String>>(5)?;
-            let expires_at = value_to_system_time(row.get_value(6).map_err(Error::from)?)?;
+            let expires_at = value_to_system_time(row.get::<Value>(6).map_err(Error::from)?)?;
 
             let record = OffsetFetchRecord::from_parts(
                 offset,
@@ -222,22 +230,24 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?group_id, ?topics, ?require_stable);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
         let mut offsets = BTreeMap::new();
 
         for topic in topics {
+            let base = self.base_topic(topic.topic()).await?;
+            let s = sql("consumer_offset_select.sql").map_err(Error::from)?;
             let mut rows = c
                 .query(
-                    "consumer_offset_select.sql",
+                    &s,
                     (
                         self.cluster.as_str(),
                         group_id,
-                        self.base_topic(topic.topic()).await?,
+                        base,
                         topic.partition(),
                     ),
                 )
-                .await
+                .map_err(Error::from)
                 .inspect_err(|err| {
                     error!(
                         ?err,
@@ -248,14 +258,14 @@ impl Delegate {
                     )
                 })?;
 
-            let record = match rows.next().await.map_err(Error::from)? {
-                Some(row) => {
+            let record = match rows.step().map_err(Error::from)? {
+                Step::Row(row) => {
                     let offset = row.get::<i64>(0)?;
                     let leader_epoch = row.get::<Option<i32>>(1)?;
                     let commit_timestamp =
-                        value_to_system_time(row.get_value(2).map_err(Error::from)?)?;
+                        value_to_system_time(row.get::<Value>(2).map_err(Error::from)?)?;
                     let metadata = row.get::<Option<String>>(3)?;
-                    let expires_at = value_to_system_time(row.get_value(4).map_err(Error::from)?)?;
+                    let expires_at = value_to_system_time(row.get::<Value>(4).map_err(Error::from)?)?;
 
                     let record = OffsetFetchRecord::from_parts(
                         offset,
@@ -271,7 +281,7 @@ impl Delegate {
                         record
                     }
                 }
-                None => OffsetFetchRecord::default().with_offset(-1),
+                Step::Done => OffsetFetchRecord::default().with_offset(-1),
             };
 
             debug!(
@@ -300,11 +310,12 @@ impl Delegate {
     ) -> Result<Option<(i32, i64)>> {
         debug!(cluster = self.cluster, ?topition, leader_epoch);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
+        let s = sql("offset_for_leader_epoch.sql").map_err(Error::from)?;
         let mut rows = c
             .query(
-                "offset_for_leader_epoch.sql",
+                &s,
                 (
                     self.cluster.as_str(),
                     topition.topic(),
@@ -312,14 +323,15 @@ impl Delegate {
                     leader_epoch,
                 ),
             )
-            .await?;
+            .map_err(Error::from)?;
 
-        if let Some(row) = rows.next().await? {
-            let next_epoch = row.get_value(0)?.as_integer().copied().unwrap_or(0) as i32;
-            let end_offset = row.get_value(1)?.as_integer().copied().unwrap_or(0);
-            Ok(Some((next_epoch, end_offset)))
-        } else {
-            Ok(None)
+        match rows.step().map_err(Error::from)? {
+            Step::Row(row) => {
+                let next_epoch = row.get::<Option<i64>>(0)?.unwrap_or(0) as i32;
+                let end_offset = row.get::<Option<i64>>(1)?.unwrap_or(0);
+                Ok(Some((next_epoch, end_offset)))
+            }
+            Step::Done => Ok(None),
         }
     }
 
@@ -331,38 +343,42 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?topition);
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
-        let mut topition_rows = c
-            .query(
-                "topition_select_id.sql",
-                (
-                    self.cluster.as_str(),
-                    topition.topic(),
-                    topition.partition(),
-                ),
-            )
-            .await?;
+        let topition_exists = {
+            let s = sql("topition_select_id.sql").map_err(Error::from)?;
+            let mut rows = c
+                .query(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        topition.topic(),
+                        topition.partition(),
+                    ),
+                )
+                .map_err(Error::from)?;
+            matches!(rows.step().map_err(Error::from)?, Step::Row(_))
+        };
 
-        if topition_rows.next().await?.is_none() {
+        if !topition_exists {
             return Err(Error::Api(ErrorCode::UnknownTopicOrPartition));
         }
-        drop(topition_rows);
 
+        let s = sql("leader_epoch_history.sql").map_err(Error::from)?;
         let mut rows = c
             .query(
-                "leader_epoch_history.sql",
+                &s,
                 (
                     self.cluster.as_str(),
                     topition.topic(),
                     topition.partition(),
                 ),
             )
-            .await?;
+            .map_err(Error::from)?;
 
         let mut history = vec![];
 
-        while let Some(row) = rows.next().await? {
+        while let Step::Row(row) = rows.step().map_err(Error::from)? {
             history.push(LeaderEpochRecord {
                 epoch: row.get::<i32>(0).inspect_err(|err| error!(?err))?,
                 start_offset: row.get::<i64>(1).inspect_err(|err| error!(?err))?,

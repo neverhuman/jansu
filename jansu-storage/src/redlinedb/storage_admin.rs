@@ -34,22 +34,18 @@ impl Delegate {
 
         debug!(?broker_registration);
 
-        let connection = self.connection().await?;
+        let mut pc = self.connection().await?;
 
-        connection
-            .execute(
-                "register_broker.sql",
-                &[broker_registration.cluster_id.as_str()],
+        let s = sql("register_broker.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (broker_registration.cluster_id.as_str(),))
+            .map_err(Error::from)?;
+
+        Ok(()).inspect(|_| {
+            DELEGATE_REQUEST_DURATION.record(
+                elapsed_millis(start),
+                &[KeyValue::new("operation", "register_broker")],
             )
-            .await
-            .map_err(Into::into)
-            .and(Ok(()))
-            .inspect(|_| {
-                DELEGATE_REQUEST_DURATION.record(
-                    elapsed_millis(start),
-                    &[KeyValue::new("operation", "register_broker")],
-                )
-            })
+        })
     }
 
     pub(super) async fn delegate_brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
@@ -98,8 +94,8 @@ impl Delegate {
 
         debug!(cluster = self.cluster, ?topic, validate_only);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
         if let Some(configs) = topic.configs.as_ref() {
             let known_configs = crate::service::topic_config_defaults::build_default_configs();
@@ -122,8 +118,8 @@ impl Delegate {
                 (topic.replication_factor as i32),
             );
 
-            pc.execute("topic_insert.sql", parameters.clone())
-                .await
+            let s = sql("topic_insert.sql").map_err(Error::from)?;
+            pc.execute(&s, parameters.clone())
                 .inspect_err(|err| {
                     if is_unique_constraint(err) {
                         debug!(?err);
@@ -132,7 +128,7 @@ impl Delegate {
                     }
                 })
                 .map_err(unique_constraint(ErrorCode::TopicAlreadyExists))
-                .inspect(|rows| debug!(?parameters, rows))
+                .inspect(|_| debug!(?parameters))
                 .map(|_| uuid)
         }
         .inspect(|uuid| debug!(?uuid))
@@ -141,15 +137,15 @@ impl Delegate {
         for partition in 0..topic.num_partitions {
             let params = (self.cluster.as_str(), topic.name.as_str(), partition);
 
-            _ = pc
-                .execute("topition_insert.sql", params)
-                .await
-                .inspect(|topition| debug!(?topition))?;
+            let s = sql("topition_insert.sql").map_err(Error::from)?;
+            let _ = pc.execute(&s, params)
+                .inspect(|topition| debug!(?topition))
+                .map_err(Error::from)?;
 
-            _ = pc
-                .execute("watermark_insert.sql", params)
-                .await
-                .inspect(|watermark| debug!(?watermark))?;
+            let s = sql("watermark_insert.sql").map_err(Error::from)?;
+            let _ = pc.execute(&s, params)
+                .inspect(|watermark| debug!(?watermark))
+                .map_err(Error::from)?;
         }
 
         if let Some(configs) = topic.configs.as_ref() {
@@ -163,24 +159,24 @@ impl Delegate {
                     config.value.as_deref(),
                 );
 
-                _ = pc
-                    .execute("topic_configuration_upsert.sql", params)
-                    .await
+                let s = sql("topic_configuration_upsert.sql").map_err(Error::from)?;
+                let _ = pc.execute(&s, params)
                     .inspect_err(|err| error!(?err, ?config))
-                    .inspect(|id| debug!(?id, ?config))?;
+                    .inspect(|id| debug!(?id, ?config))
+                    .map_err(Error::from)?;
             }
         }
 
-        pc.commit(tx).await?;
+        let _ = pc.commit().map_err(Error::from)?;
 
         for partition in 0..topic.num_partitions {
-            _ = pc
-                .execute(
-                    "leader_epoch_history_insert.sql",
-                    (self.cluster.as_str(), topic.name.as_str(), partition, 0, 0),
-                )
-                .await
-                .inspect_err(|err| error!(?err, ?topic, ?partition))?;
+            let s = sql("leader_epoch_history_insert.sql").map_err(Error::from)?;
+            let _ = pc.execute(
+                &s,
+                (self.cluster.as_str(), topic.name.as_str(), partition, 0, 0),
+            )
+            .inspect_err(|err| error!(?err, ?topic, ?partition))
+            .map_err(Error::from)?;
         }
 
         Ok(uuid).inspect(|_| {
@@ -198,8 +194,8 @@ impl Delegate {
         let start = SystemTime::now();
         debug!(cluster = self.cluster, ?topics);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
         let mut results = vec![];
 
@@ -217,59 +213,59 @@ impl Delegate {
 
                 let topic_name = topic.name.as_str();
 
-                let topition_id = if let Some(row) = pc
-                    .query_opt(
-                        "topition_select_id.sql",
-                        (self.cluster.as_str(), topic_name, partition_index),
-                    )
-                    .await?
-                {
-                    row.get::<i64>(0)?
-                } else {
-                    partitions.push(
-                        DeleteRecordsPartitionResult::default()
-                            .partition_index(partition_index)
-                            .low_watermark(-1)
-                            .error_code(i16::from(ErrorCode::UnknownTopicOrPartition)),
-                    );
-                    continue;
+                let topition_id = {
+                    let s = sql("topition_select_id.sql").map_err(Error::from)?;
+                    let mut rows = pc
+                        .query(&s, (self.cluster.as_str(), topic_name, partition_index))
+                        .map_err(Error::from)?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => Some(row.get::<i64>(0)?),
+                        Step::Done => None,
+                    }
                 };
 
-                _ = pc
-                    .execute(
-                        "record_delete_by_offset.sql",
-                        (self.cluster.as_str(), topic_name, partition_index, offset),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?;
+                let topition_id = match topition_id {
+                    Some(id) => id,
+                    None => {
+                        partitions.push(
+                            DeleteRecordsPartitionResult::default()
+                                .partition_index(partition_index)
+                                .low_watermark(-1)
+                                .error_code(i16::from(ErrorCode::UnknownTopicOrPartition)),
+                        );
+                        continue;
+                    }
+                };
 
-                _ = pc
-                    .execute(
-                        "redlinedb/watermark_update_low_by_topition_id.sql",
-                        (topition_id, offset),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?;
+                let s = sql("record_delete_by_offset.sql").map_err(Error::from)?;
+                let _ = pc.execute(&s, (self.cluster.as_str(), topic_name, partition_index, offset))
+                    .inspect_err(|err| error!(?err))
+                    .map_err(Error::from)?;
+
+                let s = sql("redlinedb/watermark_update_low_by_topition_id.sql")
+                    .map_err(Error::from)?;
+                let _ = pc.execute(&s, (topition_id, offset))
+                    .inspect_err(|err| error!(?err))
+                    .map_err(Error::from)?;
 
                 // Read back the updated low watermark (or the current one if $offset was lower)
-                let low_watermark = if let Some(row) = pc
-                    .query_opt(
-                        "watermark_select_no_update.sql",
-                        (self.cluster.as_str(), topic_name, partition_index),
-                    )
-                    .await
-                    .inspect_err(|err| error!(?err))?
-                {
-                    match row.get::<Option<i64>>(0) {
-                        Ok(Some(low_watermark)) => low_watermark,
-                        Ok(None) => 0,
-                        Err(err) => {
-                            error!(?err, "failed to read low watermark");
-                            0
-                        }
+                let low_watermark = {
+                    let s = sql("watermark_select_no_update.sql").map_err(Error::from)?;
+                    let mut rows = pc
+                        .query(&s, (self.cluster.as_str(), topic_name, partition_index))
+                        .inspect_err(|err| error!(?err))
+                        .map_err(Error::from)?;
+                    match rows.step().map_err(Error::from)? {
+                        Step::Row(row) => match row.get::<Option<i64>>(0) {
+                            Ok(Some(low_watermark)) => low_watermark,
+                            Ok(None) => 0,
+                            Err(err) => {
+                                error!(?err, "failed to read low watermark");
+                                0
+                            }
+                        },
+                        Step::Done => 0,
                     }
-                } else {
-                    0
                 };
 
                 partitions.push(
@@ -287,7 +283,7 @@ impl Delegate {
             );
         }
 
-        pc.commit(tx).await?;
+        let _ = pc.commit().map_err(Error::from)?;
 
         Ok(results).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
@@ -301,41 +297,39 @@ impl Delegate {
         let start = SystemTime::now();
         debug!(cluster = self.cluster, ?topic);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
-        let mut rows = match topic {
-            TopicId::Id(id) => {
-                pc.query(
-                    "redlinedb/topic_select_id_by_uuid.sql",
-                    (self.cluster.as_str(), id.to_string().as_str()),
-                )
-                .await?
-            }
-
-            TopicId::Name(name) => {
-                pc.query(
-                    "redlinedb/topic_select_id_by_name.sql",
-                    (self.cluster.as_str(), name.as_str()),
-                )
-                .await?
+        let (topic_id, topic_name): (i64, String) = {
+            let mut rows = match topic {
+                TopicId::Id(id) => {
+                    let s = sql("redlinedb/topic_select_id_by_uuid.sql").map_err(Error::from)?;
+                    pc.query(&s, (self.cluster.as_str(), id.to_string().as_str()))
+                        .map_err(Error::from)?
+                }
+                TopicId::Name(name) => {
+                    let s = sql("redlinedb/topic_select_id_by_name.sql").map_err(Error::from)?;
+                    pc.query(&s, (self.cluster.as_str(), name.as_str()))
+                        .map_err(Error::from)?
+                }
+            };
+            match rows.step().map_err(Error::from)? {
+                Step::Row(row) => (
+                    row.get::<i64>(0).map_err(Error::from)?,
+                    row.get::<String>(1).map_err(Error::from)?,
+                ),
+                Step::Done => return Ok(ErrorCode::UnknownTopicOrPartition),
             }
         };
 
-        let Some(row) = rows.next().await? else {
-            return Ok(ErrorCode::UnknownTopicOrPartition);
-        };
+        debug!(?topic, topic_id, topic_name);
 
-        let topic_id = row.get::<i64>(0)?;
-        let topic_name = row.get::<String>(1)?;
+        let s = sql("redlinedb/topic_delete_id.sql").map_err(Error::from)?;
+        let _ = pc.execute(&s, (topic_id,)).map_err(Error::from)?;
 
-        let rows = pc
-            .execute("redlinedb/topic_delete_id.sql", (topic_id,))
-            .await?;
+        let _ = pc.commit().map_err(Error::from)?;
 
-        debug!(?topic, rows, topic_id, topic_name);
-
-        pc.commit(tx).await.and(Ok(ErrorCode::None)).inspect(|_| {
+        Ok(ErrorCode::None).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
                 elapsed_millis(start),
                 &[KeyValue::new("operation", "delete_topic")],
@@ -388,10 +382,11 @@ impl Delegate {
 
                     match OpType::try_from(config.config_operation)? {
                         OpType::Set => {
-                            let c = self.connection().await?;
+                            let mut c = self.connection().await?;
 
-                            if c.query(
-                                "topic_configuration_upsert.sql",
+                            let s = sql("topic_configuration_upsert.sql").map_err(Error::from)?;
+                            if c.execute(
+                                &s,
                                 (
                                     self.cluster.as_str(),
                                     resource.resource_name.as_str(),
@@ -399,7 +394,7 @@ impl Delegate {
                                     config.value.as_deref(),
                                 ),
                             )
-                            .await
+                            .map_err(Error::from)
                             .inspect_err(|err| error!(?err))
                             .is_err()
                             {
@@ -408,17 +403,18 @@ impl Delegate {
                             }
                         }
                         OpType::Delete => {
-                            let c = self.connection().await?;
+                            let mut c = self.connection().await?;
 
-                            if c.query(
-                                "topic_configuration_delete.sql",
+                            let s = sql("topic_configuration_delete.sql").map_err(Error::from)?;
+                            if c.execute(
+                                &s,
                                 (
                                     self.cluster.as_str(),
                                     resource.resource_name.as_str(),
                                     config.name.as_str(),
                                 ),
                             )
-                            .await
+                            .map_err(Error::from)
                             .inspect_err(|err| error!(?err))
                             .is_err()
                             {
@@ -427,22 +423,31 @@ impl Delegate {
                             }
                         }
                         OpType::Append => {
-                            let c = self.connection().await?;
-                            let mut rows = c
-                                .query(
-                                    "topic_configuration_select.sql",
-                                    (
-                                        self.cluster.as_str(),
-                                        resource.resource_name.as_str(),
-                                        config.name.as_str(),
-                                    ),
-                                )
-                                .await?;
+                            let mut c = self.connection().await?;
 
-                            let current_value = if let Some(row) = rows.next().await? {
-                                row.get_value(0)?.as_text().map(|s| s.to_string())
-                            } else {
-                                None
+                            let current_value = {
+                                let s = sql("topic_configuration_select.sql")
+                                    .map_err(Error::from)?;
+                                let mut rows = c
+                                    .query(
+                                        &s,
+                                        (
+                                            self.cluster.as_str(),
+                                            resource.resource_name.as_str(),
+                                            config.name.as_str(),
+                                        ),
+                                    )
+                                    .map_err(Error::from)?;
+                                match rows.step().map_err(Error::from)? {
+                                    Step::Row(row) => {
+                                        row.get::<Value>(0)
+                                            .map_err(Error::from)?
+                                            .as_text()
+                                            .ok()
+                                            .map(|s| s.to_string())
+                                    }
+                                    Step::Done => None,
+                                }
                             };
 
                             if let Some(new_val) = &config.value {
@@ -459,8 +464,10 @@ impl Delegate {
                                 }
                                 let new_str = list.join(",");
 
-                                if c.query(
-                                    "topic_configuration_upsert.sql",
+                                let s = sql("topic_configuration_upsert.sql")
+                                    .map_err(Error::from)?;
+                                if c.execute(
+                                    &s,
                                     (
                                         self.cluster.as_str(),
                                         resource.resource_name.as_str(),
@@ -468,7 +475,7 @@ impl Delegate {
                                         Some(new_str.as_str()),
                                     ),
                                 )
-                                .await
+                                .map_err(Error::from)
                                 .inspect_err(|err| error!(?err))
                                 .is_err()
                                 {
@@ -478,22 +485,31 @@ impl Delegate {
                             }
                         }
                         OpType::Subtract => {
-                            let c = self.connection().await?;
-                            let mut rows = c
-                                .query(
-                                    "topic_configuration_select.sql",
-                                    (
-                                        self.cluster.as_str(),
-                                        resource.resource_name.as_str(),
-                                        config.name.as_str(),
-                                    ),
-                                )
-                                .await?;
+                            let mut c = self.connection().await?;
 
-                            let current_value = if let Some(row) = rows.next().await? {
-                                row.get_value(0)?.as_text().map(|s| s.to_string())
-                            } else {
-                                None
+                            let current_value = {
+                                let s = sql("topic_configuration_select.sql")
+                                    .map_err(Error::from)?;
+                                let mut rows = c
+                                    .query(
+                                        &s,
+                                        (
+                                            self.cluster.as_str(),
+                                            resource.resource_name.as_str(),
+                                            config.name.as_str(),
+                                        ),
+                                    )
+                                    .map_err(Error::from)?;
+                                match rows.step().map_err(Error::from)? {
+                                    Step::Row(row) => {
+                                        row.get::<Value>(0)
+                                            .map_err(Error::from)?
+                                            .as_text()
+                                            .ok()
+                                            .map(|s| s.to_string())
+                                    }
+                                    Step::Done => None,
+                                }
                             };
 
                             if let Some(del_val) = &config.value {
@@ -507,15 +523,17 @@ impl Delegate {
                                 };
 
                                 if list.is_empty() {
-                                    if c.query(
-                                        "topic_configuration_delete.sql",
+                                    let s = sql("topic_configuration_delete.sql")
+                                        .map_err(Error::from)?;
+                                    if c.execute(
+                                        &s,
                                         (
                                             self.cluster.as_str(),
                                             resource.resource_name.as_str(),
                                             config.name.as_str(),
                                         ),
                                     )
-                                    .await
+                                    .map_err(Error::from)
                                     .inspect_err(|err| error!(?err))
                                     .is_err()
                                     {
@@ -524,8 +542,10 @@ impl Delegate {
                                     }
                                 } else {
                                     let new_str = list.join(",");
-                                    if c.query(
-                                        "topic_configuration_upsert.sql",
+                                    let s = sql("topic_configuration_upsert.sql")
+                                        .map_err(Error::from)?;
+                                    if c.execute(
+                                        &s,
                                         (
                                             self.cluster.as_str(),
                                             resource.resource_name.as_str(),
@@ -533,7 +553,7 @@ impl Delegate {
                                             Some(new_str.as_str()),
                                         ),
                                     )
-                                    .await
+                                    .map_err(Error::from)
                                     .inspect_err(|err| error!(?err))
                                     .is_err()
                                     {

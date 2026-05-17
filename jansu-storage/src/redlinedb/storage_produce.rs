@@ -14,6 +14,16 @@
 
 use super::*;
 
+struct RecordRow {
+    offset: i64,
+    attributes: i16,
+    base_timestamp: i64,
+    key: Option<Bytes>,
+    value: Option<Bytes>,
+    producer_id: i64,
+    producer_epoch: i16,
+}
+
 impl Delegate {
     pub(super) async fn delegate_produce(
         &self,
@@ -23,22 +33,24 @@ impl Delegate {
     ) -> Result<i64> {
         let start = SystemTime::now();
 
-        let pc = self.connection().await?;
+        let mut pc = self.connection().await?;
 
-        let tx = pc.transaction().await.inspect(|_| {
-            debug!(after_produce_transaction = elapsed_millis(start));
-        })?;
+        pc.begin(BeginMode::Immediate)
+            .map_err(Error::from)
+            .inspect(|_| {
+                debug!(after_produce_transaction = elapsed_millis(start));
+            })?;
 
         let high = self
-            .produce_in_tx(transaction_id, topition, deflated, &pc)
+            .produce_in_tx(transaction_id, topition, deflated, &mut pc)
             .await
             .inspect(|_| {
                 debug!(after_produce_in_tx = elapsed_millis(start));
             })
             .inspect_err(|err| error!(?err))?;
 
-        pc.commit(tx)
-            .await
+        pc.commit()
+            .map_err(Error::from)
             .and(Ok(high))
             .inspect_err(|err| error!(?err))
             .inspect(|_| {
@@ -84,252 +96,238 @@ impl Delegate {
             max_bytes
         );
 
-        let c = self.connection().await?;
+        let mut c = self.connection().await?;
 
-        let mut records = if let Some(key) = key_filter {
-            let key_bytes = key.as_bytes().to_vec();
-            c.query(
-                "redlinedb/record_fetch_keyed.sql",
-                (
-                    self.cluster.as_str(),
-                    base_topic,
-                    topition.partition(),
-                    offset,
-                    i64::from(max_bytes),
-                    high_watermark,
-                    key_bytes,
-                ),
-            )
-            .await
-            .inspect_err(|err| error!(?err))?
-        } else {
-            c.query(
-                "redlinedb/record_fetch.sql",
-                (
-                    self.cluster.as_str(),
-                    topition.topic(),
-                    topition.partition(),
-                    offset,
-                    i64::from(max_bytes),
-                    high_watermark,
-                ),
-            )
-            .await
-            .inspect_err(|err| error!(?err))?
-        };
-
-        let mut batches = vec![];
-
-        if let Some(row) = records.next().await? {
-            let offset_delta = 0;
-            let timestamp_delta = 0;
-
-            let record_builder = {
-                let mut record_builder = Record::builder()
-                    .offset_delta(offset_delta)
-                    .timestamp_delta(timestamp_delta)
-                    .key(
-                        row.get::<Option<Vec<u8>>>(3)
-                            .map(|o| o.map(Bytes::from))
-                            .inspect(|k| debug!(?k))
-                            .inspect_err(|err| error!(?err))?,
+        let record_rows: Vec<RecordRow> = {
+            let mut rows = match key_filter {
+                Some(key) => {
+                    let key_bytes = key.as_bytes().to_vec();
+                    let s = sql("redlinedb/record_fetch_keyed.sql").map_err(Error::from)?;
+                    c.query(
+                        &s,
+                        (
+                            self.cluster.as_str(),
+                            base_topic,
+                            topition.partition(),
+                            offset,
+                            i64::from(max_bytes),
+                            high_watermark,
+                            key_bytes,
+                        ),
                     )
-                    .value(
-                        row.get::<Option<Vec<u8>>>(4)
-                            .map(|o| o.map(Bytes::from))
-                            .inspect(|v| debug!(?v))
-                            .inspect_err(|err| error!(?err))?,
-                    );
-
-                let mut headers = c
-                    .query(
-                        "header_fetch.sql",
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?
+                }
+                None => {
+                    let s = sql("redlinedb/record_fetch.sql").map_err(Error::from)?;
+                    c.query(
+                        &s,
                         (
                             self.cluster.as_str(),
                             topition.topic(),
                             topition.partition(),
                             offset,
+                            i64::from(max_bytes),
+                            high_watermark,
                         ),
                     )
-                    .await?;
-
-                while let Some(header) = headers.next().await? {
-                    let mut header_builder = Header::builder();
-
-                    if let Some(k) = header
-                        .get::<Option<Vec<u8>>>(0)
-                        .inspect_err(|err| error!(?err))?
-                    {
-                        header_builder = header_builder.key(Bytes::from(k));
-                    }
-
-                    if let Some(v) = header
-                        .get::<Option<Vec<u8>>>(1)
-                        .inspect_err(|err| error!(?err))?
-                    {
-                        header_builder = header_builder.value(Bytes::from(v));
-                    }
-
-                    record_builder = record_builder.header(header_builder);
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?
                 }
-
-                record_builder
             };
 
-            let mut batch_builder = inflated::Batch::builder()
-                .base_offset(
-                    row.get::<i64>(0)
-                        .inspect(|base_offset| debug!(base_offset))
-                        .inspect_err(|err| error!(?err))?,
-                )
-                .attributes(
-                    row.get::<Option<i32>>(1)
-                        .map(|attributes| attributes.unwrap_or(0))
-                        .inspect_err(|err| error!(?err))? as i16,
-                )
-                .base_timestamp(
-                    row.get_value(2)
+            let mut out = vec![];
+            while let Step::Row(row) = rows.step().map_err(Error::from)? {
+                out.push(RecordRow {
+                    offset: row
+                        .get::<i64>(0)
                         .map_err(Error::from)
-                        .and_then(RedlineTimestamp::try_from)
-                        .and_then(|system_time| to_timestamp(&system_time.0).map_err(Into::into))
+                        .inspect(|o| debug!(base_offset = o))
                         .inspect_err(|err| error!(?err))?,
-                )
-                .producer_id(
-                    row.get::<Option<i64>>(6)
-                        .map(|producer_id| producer_id.unwrap_or(-1))
-                        .inspect_err(|err| error!(?err))?,
-                )
-                .producer_epoch(
-                    row.get::<Option<i32>>(7)
-                        .map(|producer_epoch| producer_epoch.unwrap_or(-1))
+                    attributes: row
+                        .get::<Option<i32>>(1)
+                        .map_err(Error::from)
+                        .map(|a| a.unwrap_or(0))
                         .inspect_err(|err| error!(?err))? as i16,
-                )
-                .record(record_builder)
-                .last_offset_delta(offset_delta);
-
-            while let Some(row) = records.next().await? {
-                let attributes = row
-                    .get::<Option<i32>>(1)
-                    .map(|attributes| attributes.unwrap_or(0))
-                    .inspect_err(|err| error!(?err))? as i16;
-
-                let producer_id = row
-                    .get::<Option<i64>>(6)
-                    .map(|producer_id| producer_id.unwrap_or(-1))
-                    .inspect_err(|err| error!(?err))?;
-                let producer_epoch = row
-                    .get::<Option<i32>>(7)
-                    .map(|producer_epoch| producer_epoch.unwrap_or(-1))
-                    .inspect_err(|err| error!(?err))? as i16;
-
-                if batch_builder.attributes != attributes
-                    || batch_builder.producer_id != producer_id
-                    || batch_builder.producer_epoch != producer_epoch
-                {
-                    batches.push(batch_builder.build().and_then(TryInto::try_into)?);
-
-                    batch_builder = inflated::Batch::builder()
-                        .base_offset(
-                            row.get::<i64>(0)
-                                .inspect(|base_offset| debug!(base_offset))
-                                .inspect_err(|err| error!(?err))?,
-                        )
-                        .base_timestamp(
-                            row.get_value(2)
-                                .map_err(Error::from)
-                                .and_then(RedlineTimestamp::try_from)
-                                .and_then(|system_time| {
-                                    to_timestamp(&system_time.0).map_err(Into::into)
-                                })
-                                .inspect_err(|err| error!(?err))?,
-                        )
-                        .attributes(attributes)
-                        .producer_id(producer_id)
-                        .producer_epoch(producer_epoch);
-                }
-
-                let offset = row
-                    .get::<i64>(0)
-                    .inspect(|offset| debug!(offset))
-                    .inspect_err(|err| error!(?err))?;
-                let offset_delta = i32::try_from(offset - batch_builder.base_offset)?;
-
-                let timestamp_delta = row
-                    .get_value(2)
-                    .map_err(Error::from)
-                    .and_then(RedlineTimestamp::try_from)
-                    .and_then(|system_time| {
-                        to_timestamp(&system_time.0)
-                            .map(|timestamp| timestamp - batch_builder.base_timestamp)
-                            .map_err(Into::into)
-                    })
-                    .inspect(|timestamp| debug!(?timestamp))
-                    .inspect_err(|err| error!(?err))?;
-
-                let record_builder = {
-                    let mut record_builder = Record::builder()
-                        .offset_delta(offset_delta)
-                        .timestamp_delta(timestamp_delta)
-                        .key(
-                            row.get::<Option<Vec<u8>>>(3)
-                                .map(|o| o.map(Bytes::from))
-                                .inspect(|k| debug!(?k))
-                                .inspect_err(|err| error!(?err))?,
-                        )
-                        .value(
-                            row.get::<Option<Vec<u8>>>(4)
-                                .map(|o| o.map(Bytes::from))
-                                .inspect(|v| debug!(?v))
-                                .inspect_err(|err| error!(?err))?,
-                        );
-
-                    let mut headers = c
-                        .query(
-                            "header_fetch.sql",
-                            (
-                                self.cluster.as_str(),
-                                topition.topic(),
-                                topition.partition(),
-                                offset,
-                            ),
-                        )
-                        .await?;
-
-                    while let Some(header) = headers.next().await? {
-                        let mut header_builder = Header::builder();
-
-                        if let Some(k) = header
-                            .get::<Option<Vec<u8>>>(0)
+                    base_timestamp: {
+                        let v = row.get::<Value>(2).map_err(Error::from)?;
+                        let st = SystemTime::try_from(&v).map_err(Error::from)?;
+                        to_timestamp(&st)
+                            .map_err(Error::from)
                             .inspect_err(|err| error!(?err))?
-                        {
-                            header_builder = header_builder.key(Bytes::from(k));
-                        }
-
-                        if let Some(v) = header
-                            .get::<Option<Vec<u8>>>(1)
-                            .inspect_err(|err| error!(?err))?
-                        {
-                            header_builder = header_builder.value(Bytes::from(v));
-                        }
-
-                        record_builder = record_builder.header(header_builder);
-                    }
-
-                    record_builder
-                };
-
-                batch_builder = batch_builder
-                    .record(record_builder)
-                    .last_offset_delta(offset_delta);
+                    },
+                    key: row
+                        .get::<Option<Vec<u8>>>(3)
+                        .map_err(Error::from)
+                        .map(|o| o.map(Bytes::from))
+                        .inspect(|k| debug!(?k))
+                        .inspect_err(|err| error!(?err))?,
+                    value: row
+                        .get::<Option<Vec<u8>>>(4)
+                        .map_err(Error::from)
+                        .map(|o| o.map(Bytes::from))
+                        .inspect(|v| debug!(?v))
+                        .inspect_err(|err| error!(?err))?,
+                    producer_id: row
+                        .get::<Option<i64>>(6)
+                        .map_err(Error::from)
+                        .map(|p| p.unwrap_or(-1))
+                        .inspect_err(|err| error!(?err))?,
+                    producer_epoch: row
+                        .get::<Option<i32>>(7)
+                        .map_err(Error::from)
+                        .map(|p| p.unwrap_or(-1))
+                        .inspect_err(|err| error!(?err))? as i16,
+                });
             }
+            out
+        }; // rows dropped here, c borrow released
 
-            batches.push(batch_builder.build().and_then(TryInto::try_into)?);
-        } else {
+        let mut batches = vec![];
+
+        if record_rows.is_empty() {
             batches.push(
                 inflated::Batch::builder()
                     .build()
                     .and_then(TryInto::try_into)?,
             );
+        } else {
+            let first = &record_rows[0];
+
+            let first_headers = {
+                let hs = sql("header_fetch.sql").map_err(Error::from)?;
+                let mut header_rows = c
+                    .query(
+                        &hs,
+                        (
+                            self.cluster.as_str(),
+                            topition.topic(),
+                            topition.partition(),
+                            first.offset,
+                        ),
+                    )
+                    .map_err(Error::from)?;
+                let mut headers = vec![];
+                while let Step::Row(hr) = header_rows.step().map_err(Error::from)? {
+                    headers.push((
+                        hr.get::<Option<Vec<u8>>>(0)
+                            .map_err(Error::from)
+                            .inspect_err(|err| error!(?err))?,
+                        hr.get::<Option<Vec<u8>>>(1)
+                            .map_err(Error::from)
+                            .inspect_err(|err| error!(?err))?,
+                    ));
+                }
+                headers
+            };
+
+            let mut record_builder = Record::builder()
+                .offset_delta(0)
+                .timestamp_delta(0)
+                .key(first.key.clone())
+                .value(first.value.clone());
+            for (k, v) in first_headers {
+                let mut hb = Header::builder();
+                if let Some(k) = k {
+                    hb = hb.key(Bytes::from(k));
+                }
+                if let Some(v) = v {
+                    hb = hb.value(Bytes::from(v));
+                }
+                record_builder = record_builder.header(hb);
+            }
+
+            let mut batch_builder = inflated::Batch::builder()
+                .base_offset(first.offset)
+                .attributes(first.attributes)
+                .base_timestamp(first.base_timestamp)
+                .producer_id(first.producer_id)
+                .producer_epoch(first.producer_epoch)
+                .record(record_builder)
+                .last_offset_delta(0);
+
+            for rr in &record_rows[1..] {
+                let row_headers = {
+                    let hs = sql("header_fetch.sql").map_err(Error::from)?;
+                    let mut header_rows = c
+                        .query(
+                            &hs,
+                            (
+                                self.cluster.as_str(),
+                                topition.topic(),
+                                topition.partition(),
+                                rr.offset,
+                            ),
+                        )
+                        .map_err(Error::from)?;
+                    let mut headers = vec![];
+                    while let Step::Row(hr) = header_rows.step().map_err(Error::from)? {
+                        headers.push((
+                            hr.get::<Option<Vec<u8>>>(0).map_err(Error::from)?,
+                            hr.get::<Option<Vec<u8>>>(1).map_err(Error::from)?,
+                        ));
+                    }
+                    headers
+                };
+
+                if batch_builder.attributes != rr.attributes
+                    || batch_builder.producer_id != rr.producer_id
+                    || batch_builder.producer_epoch != rr.producer_epoch
+                {
+                    batches.push(batch_builder.build().and_then(TryInto::try_into)?);
+
+                    let offset_delta = 0_i32;
+                    let mut record_builder = Record::builder()
+                        .offset_delta(offset_delta)
+                        .timestamp_delta(0)
+                        .key(rr.key.clone())
+                        .value(rr.value.clone());
+                    for (k, v) in row_headers {
+                        let mut hb = Header::builder();
+                        if let Some(k) = k {
+                            hb = hb.key(Bytes::from(k));
+                        }
+                        if let Some(v) = v {
+                            hb = hb.value(Bytes::from(v));
+                        }
+                        record_builder = record_builder.header(hb);
+                    }
+
+                    batch_builder = inflated::Batch::builder()
+                        .base_offset(rr.offset)
+                        .base_timestamp(rr.base_timestamp)
+                        .attributes(rr.attributes)
+                        .producer_id(rr.producer_id)
+                        .producer_epoch(rr.producer_epoch)
+                        .record(record_builder)
+                        .last_offset_delta(offset_delta);
+                } else {
+                    let offset_delta = i32::try_from(rr.offset - batch_builder.base_offset)?;
+                    let timestamp_delta = rr.base_timestamp - batch_builder.base_timestamp;
+
+                    let mut record_builder = Record::builder()
+                        .offset_delta(offset_delta)
+                        .timestamp_delta(timestamp_delta)
+                        .key(rr.key.clone())
+                        .value(rr.value.clone());
+                    for (k, v) in row_headers {
+                        let mut hb = Header::builder();
+                        if let Some(k) = k {
+                            hb = hb.key(Bytes::from(k));
+                        }
+                        if let Some(v) = v {
+                            hb = hb.value(Bytes::from(v));
+                        }
+                        record_builder = record_builder.header(hb);
+                    }
+
+                    batch_builder = batch_builder
+                        .record(record_builder)
+                        .last_offset_delta(offset_delta);
+                }
+            }
+
+            batches.push(batch_builder.build().and_then(TryInto::try_into)?);
         }
 
         Ok(batches).inspect(|_| {

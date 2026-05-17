@@ -25,15 +25,15 @@ impl Delegate {
 
         debug!(cluster = self.cluster, group_id, ?detail, ?version);
 
-        let pc = self.connection().await?;
-        let tx = pc.transaction().await?;
+        let mut pc = self.connection().await?;
+        pc.begin(BeginMode::Immediate).map_err(Error::from)?;
 
         _ = pc
             .execute(
-                "consumer_group_insert.sql",
+                &sql("consumer_group_insert.sql").map_err(Error::from)?,
                 (self.cluster.as_str(), group_id),
             )
-            .await?;
+            .map_err(Error::from)?;
 
         let existing_e_tag = version
             .as_ref()
@@ -42,7 +42,7 @@ impl Delegate {
                     .e_tag
                     .as_ref()
                     .map_or(Err(UpdateError::MissingEtag::<GroupDetail>), |e_tag| {
-                        Uuid::from_str(e_tag.as_str()).map_err(Into::into)
+                        Uuid::from_str(e_tag.as_str()).map_err(UpdateError::Uuid)
                     })
             })
             .inspect_err(|err| error!(?err))
@@ -53,26 +53,33 @@ impl Delegate {
 
         let detail = serde_json::to_value(detail).inspect(|detail| debug!(%detail))?;
 
-        let outcome = if let Some(row) = pc
-            .query_opt(
-                "consumer_group_detail_insert.sql",
-                (
-                    self.cluster.as_str(),
-                    group_id,
-                    existing_e_tag.to_string().as_str(),
-                    new_e_tag.to_string().as_str(),
-                    detail.to_string().as_str(),
-                ),
-            )
-            .await
-            .inspect(|row| debug!(?row))
-            .inspect_err(|err| error!(?err))?
-        {
-            row.get_str(2)
+        let outcome_e_tag = {
+            let s = sql("consumer_group_detail_insert.sql").map_err(Error::from)?;
+            let mut rows = pc
+                .query(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        group_id,
+                        existing_e_tag.to_string().as_str(),
+                        new_e_tag.to_string().as_str(),
+                        detail.to_string().as_str(),
+                    ),
+                )
                 .map_err(Error::from)
-                .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
+                .inspect_err(|err| error!(?err))?;
+            match rows.step().map_err(Error::from)? {
+                Step::Row(row) => {
+                    Some(row.get::<String>(2).map_err(Error::from)?)
+                }
+                Step::Done => None,
+            }
+        };
+
+        let outcome = if let Some(e_tag_str) = outcome_e_tag {
+            Uuid::parse_str(e_tag_str.as_str())
+                .map_err(UpdateError::Uuid)
                 .inspect_err(|err| error!(?err))
-                .map_err(Into::into)
                 .map(|uuid| uuid.to_string())
                 .map(Some)
                 .map(|e_tag| Version {
@@ -81,20 +88,30 @@ impl Delegate {
                 })
                 .inspect(|version| debug!(?version))
         } else {
-            let row = pc
-                .query_one(
-                    "consumer_group_detail.sql",
-                    (group_id, self.cluster.as_str()),
-                )
-                .await
-                .inspect(|row| debug!(?row))
+            let s = sql("consumer_group_detail.sql").map_err(Error::from)?;
+            let mut rows = pc
+                .query(&s, (group_id, self.cluster.as_str()))
+                .map_err(Error::from)
                 .inspect_err(|err| error!(?err))?;
 
-            let version = row
-                .get_str(0)
+            let Step::Row(row) = rows.step().map_err(Error::from)? else {
+                return Err(UpdateError::MissingEtag);
+            };
+
+            let version_str = row
+                .get::<String>(0)
                 .map_err(Error::from)
-                .and_then(|str| Uuid::parse_str(str).map_err(Into::into))
-                .inspect_err(|err| error!(?err))
+                .inspect_err(|err| error!(?err))?;
+            let value_str = row
+                .get::<String>(1)
+                .map_err(Error::from)
+                .inspect(|value| debug!(%value))
+                .inspect_err(|err| error!(?err))?;
+            drop(rows);
+
+            let version = Uuid::parse_str(version_str.as_str())
+                .map_err(Error::from)
+                .inspect_err(|err: &Error| error!(?err))
                 .map(|uuid| uuid.to_string())
                 .map(Some)
                 .map(|e_tag| Version {
@@ -103,11 +120,8 @@ impl Delegate {
                 })
                 .inspect(|version| debug!(?version))?;
 
-            let value = row
-                .get_str(1)
+            let value: serde_json::Value = serde_json::from_str(value_str.as_str())
                 .map_err(Error::from)
-                .inspect(|value| debug!(%value))
-                .and_then(|value| serde_json::from_str(value).map_err(Into::into))
                 .inspect(|value| debug!(%value))?;
 
             let current = serde_json::from_value::<GroupDetail>(value)
@@ -118,7 +132,7 @@ impl Delegate {
             Err(UpdateError::Outdated { current, version })
         };
 
-        pc.commit(tx).await?;
+        let _ = pc.commit().map_err(Error::from)?;
 
         debug!(?outcome);
 

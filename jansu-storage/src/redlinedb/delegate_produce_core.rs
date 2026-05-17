@@ -15,57 +15,69 @@
 use super::*;
 
 impl Delegate {
-    async fn delete_selected_ids<P>(
+    fn delete_selected_ids<P>(
         &self,
-        connection: &PoolConnection,
+        connection: &mut PoolConnection,
         select_sql: &str,
         delete_sql: &str,
         params: P,
     ) -> Result<usize>
     where
-        P: IntoParams,
+        P: ::redlinedb::Params,
     {
-        let mut rows = connection.query(select_sql, params).await?;
-        let mut deleted = 0;
+        let ids: Vec<i64> = {
+            let s = sql(select_sql).map_err(Error::from)?;
+            let mut rows = connection.query(&s, params).map_err(Error::from)?;
+            let mut ids = vec![];
+            while let Step::Row(row) = rows.step().map_err(Error::from)? {
+                ids.push(row.get::<i64>(0).map_err(Error::from)?);
+            }
+            ids
+        };
 
-        while let Some(row) = rows.next().await? {
-            let id = row.get::<i64>(0)?;
-            deleted += connection.execute(delete_sql, (id,)).await?;
+        let ds = sql(delete_sql).map_err(Error::from)?;
+        let mut deleted = 0_usize;
+        for id in ids {
+            deleted += connection.execute(&ds, (id,)).map_err(Error::from)?.rows_affected as usize;
         }
 
         Ok(deleted)
     }
 
-    async fn update_txn_status(
+    fn update_txn_status(
         &self,
-        connection: &PoolConnection,
+        connection: &mut PoolConnection,
         transaction_id: &str,
         producer_id: i64,
         producer_epoch: i16,
         status: &str,
     ) -> Result<usize> {
-        let mut rows = connection
-            .query(
-                "redlinedb/txn_status_select_ids.sql",
+        let ids: Vec<i64> = {
+            let s = sql("redlinedb/txn_status_select_ids.sql").map_err(Error::from)?;
+            let mut rows = connection.query(
+                &s,
                 (
                     self.cluster.as_str(),
                     transaction_id,
                     producer_id,
                     producer_epoch,
                 ),
-            )
-            .await?;
-        let last_updated = RedlineTimestamp::from(SystemTime::now());
-        let mut updated = 0;
+            ).map_err(Error::from)?;
+            let mut ids = vec![];
+            while let Step::Row(row) = rows.step().map_err(Error::from)? {
+                ids.push(row.get::<i64>(0).map_err(Error::from)?);
+            }
+            ids
+        };
 
-        while let Some(row) = rows.next().await? {
-            let id = row.get::<i64>(0)?;
+        let last_updated = Value::from(SystemTime::now());
+        let ds = sql("redlinedb/txn_status_update_id.sql").map_err(Error::from)?;
+        let mut updated = 0_usize;
+        for id in ids {
             updated += connection
-                .execute(
-                    "redlinedb/txn_status_update_id.sql",
-                    (status, last_updated, id),
-                )
-                .await?;
+                .execute(&ds, (status, last_updated.clone(), id))
+                .map_err(Error::from)?
+                .rows_affected as usize;
         }
 
         Ok(updated)
@@ -77,7 +89,7 @@ impl Delegate {
         transaction_id: Option<&str>,
         topition: &Topition,
         deflated: deflated::Batch,
-        connection: &PoolConnection,
+        connection: &mut PoolConnection,
     ) -> Result<i64> {
         let start = SystemTime::now();
 
@@ -85,11 +97,9 @@ impl Delegate {
         let partition = topition.partition();
 
         if deflated.is_idempotent() {
-            self.ensure_topition_for_produce(topition, connection)
-                .await?;
+            self.ensure_topition_for_produce(topition, connection)?;
 
             self.idempotent_message_check(transaction_id, topition, &deflated, connection)
-                .await
                 .inspect_err(|err| error!(?err))?;
         }
 
@@ -97,7 +107,6 @@ impl Delegate {
 
         let (low, high) = self
             .watermark_select_for_update(topition, connection)
-            .await
             .inspect_err(|err| error!(?err))?;
 
         debug!(after_watermark_select_for_update = elapsed_millis(start));
@@ -112,8 +121,7 @@ impl Delegate {
             batch_leader_epoch,
             append_start_offset,
             connection,
-        )
-        .await?;
+        )?;
 
         let inflated = inflated::Batch::try_from(deflated).inspect_err(|err| error!(?err))?;
 
@@ -174,6 +182,10 @@ impl Delegate {
                     })
                     .inspect(|jansu_lake_sink| debug!(jansu_lake_sink))?)
         {
+            let ri_sql = sql("record_insert.sql").map_err(Error::from)?;
+            let hi_sql = sql("header_insert.sql").map_err(Error::from)?;
+            let tpo_sql = sql("txn_produce_offset_insert.sql").map_err(Error::from)?;
+
             for (delta, record) in inflated.records.iter().enumerate() {
                 debug!(delta, elapsed = elapsed_millis(start));
 
@@ -184,9 +196,9 @@ impl Delegate {
 
                 debug!(?delta, ?offset);
 
-                _ = connection
+                let _ = connection
                     .execute(
-                        "record_insert.sql",
+                        &ri_sql,
                         (
                             self.cluster.as_str(),
                             topic,
@@ -208,7 +220,6 @@ impl Delegate {
                             value,
                         ),
                     )
-                    .await
                     .inspect_err(|err| error!(?err, ?topic, ?partition, ?offset, ?key, ?value))
                     .map_err(unique_constraint(ErrorCode::UnknownServerError))?;
 
@@ -218,15 +229,15 @@ impl Delegate {
                     let key = header.key.as_deref();
                     let value = header.value.as_deref();
 
-                    _ = connection
+                    let _ = connection
                         .execute(
-                            "header_insert.sql",
+                            &hi_sql,
                             (self.cluster.as_str(), topic, partition, offset, key, value),
                         )
-                        .await
+                        .map_err(Error::from)
                         .inspect_err(|err| {
                             error!(?err, ?topic, ?partition, ?offset, ?key, ?value);
-                        });
+                        })?;
                 }
 
                 debug!(delta, after_header_insert = elapsed_millis(start));
@@ -240,48 +251,51 @@ impl Delegate {
                 let offset_start = high.unwrap_or(0_i64);
                 let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
 
-                _ = connection
-                        .execute(
-                            "txn_produce_offset_insert.sql",
-                            (
-                                self.cluster.as_str(),
-                                transaction_id,
-                                inflated.producer_id,
-                                inflated.producer_epoch,
-                                topic,
-                                partition,
-                                offset_start,
-                                offset_end,
-                            ),
-                        )
-                        .await
-                        .inspect(|n| debug!(cluster = ?self.cluster, ?transaction_id, ?inflated.producer_id, ?inflated.producer_epoch, ?topic, ?partition, ?offset_start, ?offset_end, ?n))
-                        .inspect_err(|err| error!(?err))?;
+                let _ = connection
+                    .execute(
+                        &tpo_sql,
+                        (
+                            self.cluster.as_str(),
+                            transaction_id,
+                            inflated.producer_id,
+                            inflated.producer_epoch,
+                            topic,
+                            partition,
+                            offset_start,
+                            offset_end,
+                        ),
+                    )
+                    .map_err(Error::from)
+                    .inspect(|n| debug!(cluster = ?self.cluster, ?transaction_id, ?inflated.producer_id, ?inflated.producer_epoch, ?topic, ?partition, ?offset_start, ?offset_end, ?n))
+                    .inspect_err(|err| error!(?err))?;
             }
 
             debug!(after_some_transaction_id = elapsed_millis(start));
         }
 
-        let topition_id = connection
-            .query_one(
-                "topition_select_id.sql",
+        let topition_id = {
+            let tid_sql = sql("topition_select_id.sql").map_err(Error::from)?;
+            let mut tid_rows = connection.query(
+                &tid_sql,
                 (self.cluster.as_str(), topic, partition),
-            )
-            .await
-            .inspect_err(|err| error!(?err, ?topic, ?partition))?
-            .get::<i64>(0)
-            .inspect_err(|err| error!(?err, ?topic, ?partition))?;
+            ).map_err(Error::from).inspect_err(|err| error!(?err, ?topic, ?partition))?;
+            let Step::Row(tid_row) = tid_rows.step().map_err(Error::from)? else {
+                return Err(Error::Api(ErrorCode::UnknownTopicOrPartition));
+            };
+            tid_row.get::<i64>(0).map_err(Error::from).inspect_err(|err| error!(?err, ?topic, ?partition))?
+        }; // tid_rows and tid_row dropped here, before any .await
 
-        _ = connection
+        let wm_sql = sql("redlinedb/watermark_update_by_topition_id.sql").map_err(Error::from)?;
+        let _ = connection
             .execute(
-                "redlinedb/watermark_update_by_topition_id.sql",
+                &wm_sql,
                 (
                     topition_id,
                     low.unwrap_or(0_i64),
                     high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ),
             )
-            .await
+            .map_err(Error::from)
             .inspect(|n| debug!(?n, after_watermark_update = elapsed_millis(start)))
             .inspect_err(|err| error!(?err))?;
 
@@ -320,28 +334,36 @@ impl Delegate {
         producer_id: i64,
         producer_epoch: i16,
         committed: bool,
-        connection: &PoolConnection,
+        connection: &mut PoolConnection,
     ) -> Result<ErrorCode> {
         debug!(cluster = ?self.cluster, ?transaction_id, ?producer_id, ?producer_epoch, ?committed);
 
         let mut overlaps = vec![];
 
-        let mut rows = connection
-            .query(
-                "txn_select_produced_topitions.sql",
-                (
-                    self.cluster.as_str(),
-                    transaction_id,
-                    producer_id,
-                    producer_epoch,
-                ),
-            )
-            .await?;
+        let topics_partitions: Vec<(String, i32)> = {
+            let s = sql("txn_select_produced_topitions.sql").map_err(Error::from)?;
+            let mut rows = connection
+                .query(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        transaction_id,
+                        producer_id,
+                        producer_epoch,
+                    ),
+                )
+                .map_err(Error::from)?;
+            let mut tp = vec![];
+            while let Step::Row(row) = rows.step().map_err(Error::from)? {
+                tp.push((
+                    row.get::<String>(0).map_err(Error::from)?,
+                    row.get::<i32>(1).map_err(Error::from)?,
+                ));
+            }
+            tp
+        };
 
-        while let Some(row) = rows.next().await? {
-            let topic = row.get::<String>(0)?;
-            let partition = row.get::<i32>(1)?;
-
+        for (topic, partition) in topics_partitions {
             let topition = Topition::new(topic.clone(), partition);
 
             debug!(?topition);
@@ -378,9 +400,10 @@ impl Delegate {
 
             debug!(offset, ?topition);
 
-            let mut rows = connection
+            let s2 = sql("txn_produce_offset_select_offset_range.sql").map_err(Error::from)?;
+            let mut rows2 = connection
                 .query(
-                    "txn_produce_offset_select_offset_range.sql",
+                    &s2,
                     (
                         self.cluster.as_str(),
                         transaction_id,
@@ -390,16 +413,19 @@ impl Delegate {
                         partition,
                     ),
                 )
-                .await?;
+                .map_err(Error::from)?;
 
-            if let Some(row) = rows.next().await? {
-                let offset_start = row.get::<i64>(0)?;
-                let offset_end = row.get::<i64>(1)?;
+            if let Step::Row(row) = rows2.step().map_err(Error::from)? {
+                let offset_start = row.get::<i64>(0).map_err(Error::from)?;
+                let offset_end = row.get::<i64>(1).map_err(Error::from)?;
                 debug!(offset_start, offset_end);
+                drop(row);
+                drop(rows2);
 
-                let mut rows = connection
+                let s3 = sql("redlinedb/txn_produce_offset_select_overlapping_txn.sql").map_err(Error::from)?;
+                let mut rows3 = connection
                     .query(
-                        "redlinedb/txn_produce_offset_select_overlapping_txn.sql",
+                        &s3,
                         (
                             self.cluster.as_str(),
                             transaction_id,
@@ -410,10 +436,10 @@ impl Delegate {
                             offset_end,
                         ),
                     )
-                    .await?;
+                    .map_err(Error::from)?;
 
-                while let Some(row) = rows.next().await? {
-                    overlaps.push(Txn::try_from(row).inspect(|txn| debug!(?txn))?);
+                while let Step::Row(row) = rows3.step().map_err(Error::from)? {
+                    overlaps.push(parse_txn(&row).inspect(|txn| debug!(?txn))?);
                 }
             }
         }
@@ -443,78 +469,70 @@ impl Delegate {
             for txn in txns {
                 debug!(?txn);
 
-                _ = self
-                    .delete_selected_ids(
-                        connection,
-                        "redlinedb/txn_produce_offset_select_ids_by_txn.sql",
-                        "redlinedb/txn_produce_offset_delete_id.sql",
-                        (
-                            self.cluster.as_str(),
-                            txn.name.as_str(),
-                            txn.producer_id,
-                            txn.producer_epoch,
-                        ),
-                    )
-                    .await?;
+                let _ = self.delete_selected_ids(
+                    connection,
+                    "redlinedb/txn_produce_offset_select_ids_by_txn.sql",
+                    "redlinedb/txn_produce_offset_delete_id.sql",
+                    (
+                        self.cluster.as_str(),
+                        txn.name.as_str(),
+                        txn.producer_id,
+                        txn.producer_epoch,
+                    ),
+                )?;
 
-                _ = self
-                    .delete_selected_ids(
-                        connection,
-                        "redlinedb/txn_topition_select_ids_by_txn.sql",
-                        "redlinedb/txn_topition_delete_id.sql",
-                        (
-                            self.cluster.as_str(),
-                            txn.name.as_str(),
-                            txn.producer_id,
-                            txn.producer_epoch,
-                        ),
-                    )
-                    .await?;
+                let _ = self.delete_selected_ids(
+                    connection,
+                    "redlinedb/txn_topition_select_ids_by_txn.sql",
+                    "redlinedb/txn_topition_delete_id.sql",
+                    (
+                        self.cluster.as_str(),
+                        txn.name.as_str(),
+                        txn.producer_id,
+                        txn.producer_epoch,
+                    ),
+                )?;
 
                 if txn.status == TxnState::PrepareCommit {
                     let expires_at = SystemTime::now().checked_add(DEFAULT_OFFSET_RETENTION);
-
-                    _ = connection
+                    let s = sql("consumer_offset_insert_from_txn.sql").map_err(Error::from)?;
+                    let _ = connection
                         .execute(
-                            "consumer_offset_insert_from_txn.sql",
+                            &s,
                             (
                                 self.cluster.as_str(),
                                 txn.name.as_str(),
                                 txn.producer_id,
                                 txn.producer_epoch,
-                                expires_at.map(RedlineTimestamp::from),
+                                expires_at.map(Value::from),
                             ),
                         )
-                        .await?;
+                        .map_err(Error::from)?;
                 }
 
-                _ = self
-                    .delete_selected_ids(
-                        connection,
-                        "redlinedb/txn_offset_commit_tp_select_ids_by_txn.sql",
-                        "redlinedb/txn_offset_commit_tp_delete_id.sql",
-                        (
-                            self.cluster.as_str(),
-                            txn.name.as_str(),
-                            txn.producer_id,
-                            txn.producer_epoch,
-                        ),
-                    )
-                    .await?;
+                let _ = self.delete_selected_ids(
+                    connection,
+                    "redlinedb/txn_offset_commit_tp_select_ids_by_txn.sql",
+                    "redlinedb/txn_offset_commit_tp_delete_id.sql",
+                    (
+                        self.cluster.as_str(),
+                        txn.name.as_str(),
+                        txn.producer_id,
+                        txn.producer_epoch,
+                    ),
+                )?;
 
-                _ = self
-                    .delete_selected_ids(
-                        connection,
-                        "redlinedb/txn_offset_commit_select_ids_by_txn.sql",
-                        "redlinedb/txn_offset_commit_delete_id.sql",
-                        (
-                            self.cluster.as_str(),
-                            txn.name.as_str(),
-                            txn.producer_id,
-                            txn.producer_epoch,
-                        ),
-                    )
-                    .await?;
+                let _ = self.delete_selected_ids(
+                    connection,
+                    "redlinedb/txn_offset_commit_select_ids_by_txn.sql",
+                    "redlinedb/txn_offset_commit_delete_id.sql",
+                    (
+                        self.cluster.as_str(),
+                        txn.name.as_str(),
+                        txn.producer_id,
+                        txn.producer_epoch,
+                    ),
+                )?;
 
                 let outcome = if txn.status == TxnState::PrepareCommit {
                     String::from(TxnState::Committed)
@@ -524,15 +542,13 @@ impl Delegate {
                     String::from(txn.status)
                 };
 
-                _ = self
-                    .update_txn_status(
-                        connection,
-                        txn.name.as_str(),
-                        txn.producer_id,
-                        txn.producer_epoch,
-                        outcome.as_str(),
-                    )
-                    .await?;
+                let _ = self.update_txn_status(
+                    connection,
+                    txn.name.as_str(),
+                    txn.producer_id,
+                    txn.producer_epoch,
+                    outcome.as_str(),
+                )?;
             }
         } else {
             debug!(?overlaps);
@@ -543,21 +559,19 @@ impl Delegate {
                 String::from(TxnState::PrepareAbort)
             };
 
-            _ = self
-                .update_txn_status(
-                    connection,
-                    transaction_id,
-                    producer_id,
-                    producer_epoch,
-                    outcome.as_str(),
+            let _ = self.update_txn_status(
+                connection,
+                transaction_id,
+                producer_id,
+                producer_epoch,
+                outcome.as_str(),
+            )
+            .inspect(|n| {
+                debug!(
+                    cluster = self.cluster,
+                    transaction_id, producer_id, producer_epoch, outcome, n
                 )
-                .await
-                .inspect(|n| {
-                    debug!(
-                        cluster = self.cluster,
-                        transaction_id, producer_id, producer_epoch, outcome, n
-                    )
-                })?;
+            })?;
         }
 
         Ok(ErrorCode::None)

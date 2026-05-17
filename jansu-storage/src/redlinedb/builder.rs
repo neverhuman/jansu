@@ -310,7 +310,6 @@ impl Builder<String, i32, Url, Url> {
                 ..OpenOptions::default()
             },
         )?;
-        db.set_busy_timeout(busy_timeout);
 
         {
             let mut connection = db.connect()?;
@@ -363,11 +362,11 @@ impl Builder<String, i32, Url, Url> {
                         cluster: self.cluster,
                         node: self.node,
                         advertised_listener: self.advertised_listener,
-                        pool: Pool::builder(ConnectionManager {
-                            db: db.clone(),
-                            busy_timeout,
-                        })
-                        .build()?,
+                        pool: Pool::builder(db.clone())
+                            .max_connections(16)
+                            .busy_timeout(busy_timeout)
+                            .metrics(Arc::new(JansuMetrics))
+                            .build()?,
                         schemas: self.schemas,
                         lake: self.lake,
                         vacuum_into,
@@ -395,11 +394,10 @@ impl Builder<String, i32, Url, Url> {
                 cluster: self.cluster,
                 node: self.node,
                 advertised_listener: self.advertised_listener,
-                pool: Pool::builder(ConnectionManager {
-                    db: db.clone(),
-                    busy_timeout,
-                })
-                .build()?,
+                pool: Pool::builder(db.clone())
+                    .max_connections(16)
+                    .busy_timeout(busy_timeout)
+                    .build()?,
                 schemas: self.schemas,
                 lake: self.lake,
                 vacuum_into,
@@ -411,11 +409,10 @@ impl Builder<String, i32, Url, Url> {
                 cluster: self.cluster,
                 node: self.node,
                 advertised_listener: self.advertised_listener,
-                pool: Pool::builder(ConnectionManager {
-                    db: db.clone(),
-                    busy_timeout,
-                })
-                .build()?,
+                pool: Pool::builder(db.clone())
+                    .max_connections(16)
+                    .busy_timeout(busy_timeout)
+                    .build()?,
                 schemas: self.schemas,
                 lake: self.lake,
                 vacuum_into,
