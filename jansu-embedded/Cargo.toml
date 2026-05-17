@@ -1,0 +1,32 @@
+[package]
+name = "jansu-embedded"
+description = "Embedded in-process Jansu broker for single-binary deployments — call producer/consumer Storage services directly without binding a TCP port."
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+include.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+bytes.workspace = true
+jansu-sans-io = { workspace = true, default-features = false }
+jansu-schema = { workspace = true, default-features = false }
+jansu-storage = { workspace = true, default-features = false, features = ["dynostore"] }
+object_store.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true }
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio = { workspace = true }
+tracing-subscriber.workspace = true
