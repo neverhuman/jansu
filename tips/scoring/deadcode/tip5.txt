@@ -1,0 +1,722 @@
+Below is a **practically exhaustive taxonomy of inexcusable dead-code / repo-rot behavior** I’d look for in a sloppy repo. I’m using “dead code” broadly: source, folders, dependencies, configs, branches, build files, docs, tests, deployment assets, and stale product paths that no longer serve a live purpose.
+
+I treated GitHub/docs/vendor engineering blogs as the strongest sources. Social/forum material from X, LinkedIn, Reddit, Stack Overflow, etc. mostly echoed the same theme: Git/history exists, so keeping obsolete code “just in case” is usually repo pollution. Quora pages were not accessible to my browsing tool, so I’m not relying on them.
+
+## Baseline: what makes this behavior inexcusable
+
+Dead code is not harmless clutter. Research on Java desktop apps describes dead code as unused and/or unreachable code, says prior evidence shows it harms comprehensibility and maintainability, and found that dead methods often survive for a long time and are rarely revived. ([Springer Link][1]) Google and Meta both built automated systems to delete dead code at scale, which is a strong signal that mature engineering orgs treat deletion as an operational discipline, not optional tidying. Google’s Sensenmann sends more than 1,000 deletion changelists per week and had deleted nearly 5% of Google C++ at the time of publication; Meta’s SCARF combines static, runtime, and product analysis to identify and remove dead code. ([Google Testing Blog][2])
+
+The rule of thumb: **if it is not built, shipped, tested, monitored, owned, documented truthfully, or intentionally archived outside the active path, it should not live in the active repo.** Refactoring guidance says to delete unused code and unneeded files; GitHub’s own docs recommend deleting merged or stale branches; GitHub archive docs say archived repos should be read-only and clearly marked as no longer actively maintained. ([Refactoring Guru][3])
+
+## 1. Dumping-ground folders
+
+These are usually the loudest smell.
+
+1. `archive/` inside the active app repo.
+2. `old/`, `OLD/`, `old2/`, `old-final/`.
+3. `legacy/` containing code nobody can name as live.
+4. `deprecated/` with no removal date.
+5. `backup/`, `backups/`, `bak/`.
+6. `previous/`, `prior/`, `pre-refactor/`.
+7. `temp/`, `tmp/`, `scratch/`.
+8. `junk/`, `graveyard/`, `attic/`, `trash/`.
+9. `unused/`, `disabled/`, `not-used/`.
+10. `do-not-use/` inside the main working tree.
+11. `experimental/` that has not changed in months.
+12. `poc/`, `spike/`, `prototype/` still mixed with production code.
+13. `migration-old/`, `migration-backup/`, `migration-attempt-2/`.
+14. `v1/`, `v2/`, `new/`, `newer/`, `latest/` side by side without an explicit versioning contract.
+15. `copy/`, `copy2/`, `copy-of-src/`, `src-old/`.
+16. Entire old applications nested inside the new application.
+17. Old vendor snapshots checked in “for reference.”
+18. Old generated docs checked in beside current generated docs.
+19. Old screenshots, reports, CSV exports, or test outputs in the repo.
+20. “Historical reference” code kept in-tree instead of relying on Git history, tags, releases, or a properly archived repo.
+
+GitHub examples show a healthier version of this: old repos can be archived, marked read-only, and pointed at successors. Examples include repos whose README says “Do not use this repository” and points to the replacement, or “old source code… out of date and should not be used.” ([GitHub][4]) Google’s open-source repo management guidance similarly says to update the README to indicate the repo is no longer maintained and then archive it. ([Google Open Source][5])
+
+## 2. “Just in case” preservation behavior
+
+This is the psychological root cause.
+
+21. Keeping code because “we might need it later.”
+22. Keeping code because “someone once asked for it.”
+23. Keeping code because “it took a long time to write.”
+24. Keeping a half-built feature after the product decision was canceled.
+25. Keeping old algorithms “as documentation.”
+26. Keeping obsolete business rules “for reference.”
+27. Keeping old integration code after the vendor was removed.
+28. Keeping duplicate implementations to avoid making a decision.
+29. Keeping old files because nobody knows whether they are safe to delete.
+30. Keeping “temporary” code after the temporary period ended.
+31. Keeping an unused implementation because one person is emotionally attached to it.
+32. Keeping code because deleting it would make a diff look scary.
+33. Keeping an obsolete system because no owner is brave enough to archive it.
+34. Keeping dead code because tests are too weak to prove deletion safe.
+35. Keeping dead code because runtime usage is not measured.
+
+This behavior is especially inexcusable because modern source control is already the archive. Commented-out-code guidance makes the point directly: commented code becomes stale, untested, unlinted, and confusing; version control should preserve what used to exist. ([Kent C. Dodds][6])
+
+## 3. Commented-out code
+
+This is the classic dead-code smell.
+
+36. Large commented-out blocks.
+37. Commented-out functions.
+38. Commented-out imports.
+39. Commented-out routes.
+40. Commented-out SQL.
+41. Commented-out CSS.
+42. Commented-out JSX/templates.
+43. Commented-out Terraform/Kubernetes/YAML.
+44. Commented-out CI steps.
+45. Commented-out tests.
+46. Commented-out feature branches embedded in one file.
+47. Comments like `// TODO uncomment when ready`.
+48. Comments like `// old implementation`.
+49. Comments like `// do not delete`.
+50. Comments like `// keeping for reference`.
+51. Comments like `// maybe needed later`.
+52. Commented-out debugging patches.
+53. Commented-out production hotfixes.
+54. Commented-out “before refactor” code.
+55. Commented-out code that no longer compiles.
+56. Commented-out code that refers to APIs that no longer exist.
+57. Commented-out code that has no owner or date.
+
+In an active codebase, commented-out code should almost always be deleted, moved to a branch, or captured in an issue/design doc if there is real knowledge to preserve. ([Kent C. Dodds][6])
+
+## 4. Syntactically live but behaviorally dead code
+
+This is worse than commented-out code because tools may still build it.
+
+58. `if false { ... }`.
+59. `if (0) { ... }`.
+60. `#if 0`.
+61. `return` before the real body.
+62. Permanently unreachable `else` branches.
+63. Switch cases for enum values that can no longer occur.
+64. Catch blocks for errors no longer thrown.
+65. Fallback paths for systems that no longer exist.
+66. Compatibility code for clients that have all migrated.
+67. Old retry paths for deleted transports.
+68. Old serialization/deserialization branches for removed formats.
+69. Code hidden behind config values that are never set.
+70. Code hidden behind environment variables nobody uses.
+71. Old code reachable only through impossible state combinations.
+72. Functions whose return values are ignored.
+73. Methods that mutate objects nobody reads.
+74. No-op implementations pretending to be real implementations.
+75. Empty hooks/callbacks kept to satisfy obsolete interfaces.
+76. Dead constructor parameters.
+77. Dead method parameters.
+78. Dead fields on data models.
+79. Dead enum variants.
+80. Dead constants.
+81. Dead utility functions.
+82. Dead classes.
+83. Dead modules/packages.
+84. Dead type aliases.
+85. Dead interfaces/traits/protocols.
+86. Dead abstract base classes.
+87. Dead inheritance hierarchies.
+88. Dead public exports that are not actually public API.
+89. Dead re-exports from index/barrel files.
+90. Dead imports tolerated by lax linting.
+91. Dead variables hidden by permissive compiler settings.
+
+Static analysis catches some of this, but Meta’s SCARF writeup is a good reminder that dynamic usage, product-level usage, route usage, async dispatch, templates, and framework-specific patterns often require more than plain grep. ([Engineering at Meta][7])
+
+## 5. Stale feature-flag behavior
+
+Feature flags are useful; abandoned flags are repo rot.
+
+92. Flags with no owner.
+93. Flags with no creation date.
+94. Flags with no expiry date.
+95. Flags permanently 100% on.
+96. Flags permanently 0% off.
+97. Flags that survived the release they guarded.
+98. Experiment flags after the experiment ended.
+99. Rollout flags after rollout completed.
+100. Kill switches for systems that no longer exist.
+101. Permission flags for deleted roles.
+102. Ops flags nobody is allowed to change.
+103. Nested flags whose combinations are untestable.
+104. Flag names that no longer match the feature.
+105. Flag configs left in the flag platform after code removal.
+106. Code references left after flag archival.
+107. Old and new implementations both retained forever behind a flag.
+108. Dead fallback branches kept “for rollback” months after release.
+109. Test matrices that still test stale flag combinations.
+110. Docs that describe flags nobody should use.
+111. Dashboards full of stale flags that nobody reviews.
+
+Martin Fowler describes release toggles as transitional and says they generally should not stick around much longer than a week or two; Unleash marks flags as potentially stale after their expected lifetime and supports automated workflows to clean up stale flags; LaunchDarkly’s docs explicitly frame flag cleanup as technical-debt reduction. ([martinfowler.com][8])
+
+## 6. Dead dependencies and dependency ghosts
+
+This is both maintenance debt and security debt.
+
+112. Dependencies listed in `package.json`, `pom.xml`, `go.mod`, `requirements.txt`, etc. but not imported.
+113. Dev dependencies no longer used by scripts.
+114. Build plugins no longer used.
+115. Runtime libraries only needed by dead code.
+116. Transitive dependency chains retained by unused top-level packages.
+117. Duplicate libraries solving the same problem.
+118. Old framework versions kept for one dead component.
+119. Deprecated packages with no migration plan.
+120. Unmaintained packages with no owner.
+121. Vendored libraries copied into the repo.
+122. `node_modules/`, `vendor/`, or generated dependency directories checked in without a strong reason.
+123. Old lockfiles for package managers no longer used.
+124. Multiple lockfiles that disagree.
+125. Dependency comments like “used by old flow.”
+126. Security exceptions for packages no longer needed.
+127. SBOM entries for components that are not actually part of the product.
+128. Docker image packages installed but never used.
+129. CLI tools installed in CI but never invoked.
+130. Old test libraries kept after test framework migration.
+
+OWASP’s Top 10 guidance explicitly says patch management should remove unused dependencies, unnecessary features, components, files, and documentation; GitHub also warns that repositories expose organizations to vulnerabilities in code and dependencies. ([OWASP Foundation][9])
+
+## 7. Build artifacts and generated junk
+
+These are not “dead code” in the narrow sense, but they create the same repo pollution.
+
+131. `dist/` committed when CI can build it.
+132. `build/` committed without a release reason.
+133. `target/`, `bin/`, `obj/`, `.gradle/`, `.next/`, `.nuxt/`, `.parcel-cache/`.
+134. Minified bundles checked in beside source.
+135. Compiled JS checked in beside TypeScript without a publishing reason.
+136. Generated API clients checked in with no generator/version pinned.
+137. Generated docs checked in with no release process.
+138. Generated coverage reports.
+139. Local test output files.
+140. Logs.
+141. Temporary RedlineDB/db files.
+142. Binary dumps.
+143. Screenshots from manual QA.
+144. Old benchmark output.
+145. Generated snapshots nobody reviews.
+146. Cache directories.
+147. IDE metadata.
+148. OS junk files.
+149. Release zips/tars inside the repo.
+150. Compiled protobuf/OpenAPI artifacts that are stale relative to source schemas.
+
+A GitHub best-practices page says repositories should be limited to files necessary for building projects and warns against committing large binary build artifacts. ([Webstandards][10])
+
+## 8. Stale branches, tags, PRs, and repo objects
+
+Repo rot is not only in files.
+
+151. Dozens or hundreds of stale remote branches.
+152. Merged branches never deleted.
+153. Abandoned feature branches on the remote.
+154. Branches named `wip`, `test`, `new`, `final`, `try-again`.
+155. Branches from former employees with no owner.
+156. Branches kept as archives instead of tags/releases.
+157. Branches with old secrets or broken experiments.
+158. Stale PRs kept open for months.
+159. Draft PRs nobody plans to finish.
+160. Tags that do not correspond to real releases.
+161. Obsolete tags used as pseudo-branches.
+162. Old release branches that are not maintained or patched.
+163. Default branch renamed but old workflows still target the old branch.
+164. CI still runs on stale branches.
+165. Branch-protection rules for branches nobody uses.
+
+GitHub’s branch-management docs say that as branch lists grow, it is a good idea to delete merged or stale branches; GitHub’s large-repo guidance also recommends cleaning stale PRs and removing or archiving obsolete branches/tags to keep repositories manageable. ([GitHub Docs][11])
+
+## 9. Stale repos and fake archival
+
+This is the org-level version of `old/`.
+
+166. Old repositories left active.
+167. Repos with “deprecated” in README but still accepting issues/PRs.
+168. Repos with no README redirect to the successor.
+169. Repos with “do not use” but no archive/read-only state.
+170. Repos archived while still deployed.
+171. Repos archived while still depended on.
+172. Repos archived without security scanning consideration.
+173. Repos renamed instead of clearly deprecated.
+174. Duplicate successor repos with unclear ownership.
+175. Mirror repos that appear canonical.
+176. Forks that look official.
+177. Template repos that are obsolete but still used.
+178. Public stale repos with forgotten credentials.
+179. Internal stale repos with broad permissions.
+180. Repos nobody owns but CI/deploy still references.
+
+GitHub says archived repositories become read-only and indicate they are no longer actively maintained, and recommends closing issues/PRs and updating README/description before archival. ([GitHub Docs][12])
+
+## 10. Dead routes, endpoints, controllers, jobs, and CLIs
+
+These often evade static analysis.
+
+181. HTTP routes with no traffic.
+182. Admin routes nobody knows about.
+183. Redirect routes for old URLs with no observed hits.
+184. API endpoints no current client calls.
+185. GraphQL fields no client queries.
+186. RPC methods no caller uses.
+187. Webhook handlers for vendors no longer integrated.
+188. Event consumers subscribed to dead topics.
+189. Message queue consumers with no messages.
+190. Cron jobs disabled in production but still in code.
+191. Scheduled jobs that run but do nothing useful.
+192. One-shot migration binaries still buildable.
+193. Diagnostic tools for retired systems.
+194. CLI commands hidden from help output.
+195. Internal tools nobody has invoked in months.
+196. Background workers for removed product areas.
+197. Batch scripts kept after pipeline migration.
+198. Old lambdas/cloud functions not deployed.
+199. Serverless handlers referenced by no infrastructure.
+200. Dead health-check endpoints for removed services.
+
+Google’s Sensenmann post specifically calls out one-shot data migration programs, diagnostic tools for deprecated systems, and the need for runtime liveness signals to know whether binaries are useful. ([Google Testing Blog][2])
+
+## 11. Dead tests and test-suite rot
+
+Dead tests make the repo look safer than it is.
+
+201. Tests for deleted features.
+202. Tests for old behavior intentionally changed.
+203. Tests that assert implementation details of dead code.
+204. Disabled tests: `skip`, `xit`, `@Ignore`, `pending`.
+205. Tests excluded from CI.
+206. Test files no test runner discovers.
+207. Old fixtures no test reads.
+208. Old mocks for deleted APIs.
+209. Snapshot files for removed components.
+210. Golden files no longer compared.
+211. Test data for old schemas.
+212. Contract tests for removed endpoints.
+213. Commented-out assertions.
+214. Tests that always pass because they test nothing.
+215. Tests that are quarantined forever.
+216. Coverage exclusions hiding dead files.
+217. Generated tests for dead generated code.
+218. E2E specs for flows no longer in product.
+219. Flaky tests disabled instead of fixed or deleted.
+220. CI matrix entries for unsupported runtimes.
+
+GitHub’s technical-debt docs list missing tests, outdated dependencies, duplicate code, and inconsistent patterns as common debt that accumulates when feature work wins priority; dead and disabled tests are the test-suite equivalent of dead code. ([GitHub Docs][13])
+
+## 12. Dead configuration
+
+Dead config is dangerous because it can look operationally meaningful.
+
+221. Environment variables no code reads.
+222. Config keys nobody reads.
+223. Config values that cannot change behavior.
+224. Old `.env.example` entries.
+225. Staging/prod configs for retired services.
+226. Feature flags duplicated in config and flag platform.
+227. YAML blocks for removed integrations.
+228. Helm values for deleted charts.
+229. Terraform variables unused by modules.
+230. Kubernetes ConfigMaps for removed apps.
+231. Old secrets referenced by no deployment.
+232. Default values copied from old systems.
+233. Config comments that contradict code.
+234. Config toggles with no owner.
+235. Runtime config that points to deleted endpoints.
+236. Old logging config for removed log sinks.
+237. Old metrics config for removed metrics.
+238. Old auth config for removed identity providers.
+239. Multiple config paths where only one is live.
+240. Fallback config that silently masks broken cleanup.
+
+## 13. Secrets preserved in dead places
+
+This is not just messy; it is a security incident waiting to happen.
+
+241. Real secrets in old config files.
+242. Real secrets in `.env.example`.
+243. Real tokens in README examples.
+244. Old credentials in archived folders.
+245. Secrets in commented-out code.
+246. Secrets in old branches.
+247. Secrets in deleted-but-still-in-history files.
+248. Secrets in test fixtures.
+249. Secrets in old Terraform state or plans.
+250. Secrets in CI logs/artifacts.
+251. Secrets in sample curl commands.
+252. Secrets in notebooks.
+253. Secrets in old Docker Compose files.
+254. Secrets in “backup” JSON/YAML.
+255. Secrets in stale repos nobody scans.
+256. Secrets in PR comments or issues.
+257. Rotated secrets left in repo because “they no longer work.”
+258. Credentials for old vendors that were never revoked.
+259. Cloud keys in old deployment scripts.
+260. SSH/private keys in old infrastructure folders.
+
+GitHub warns that committed secrets become hardcoded credentials in source or config, remain in Git history even after removal from the latest commit, and require revocation/replacement—not just file deletion. ([GitHub Docs][14])
+
+## 14. Dead database and data-layer artifacts
+
+These accumulate badly in long-lived systems.
+
+261. Old migrations kept forever when the framework supports squashing/baselining.
+262. Migration attempts that failed but remain committed.
+263. Rollback scripts for states no longer reachable.
+264. Seed files for deleted features.
+265. Old lookup tables.
+266. Dead stored procedures.
+267. Dead triggers.
+268. Dead views.
+269. Dead materialized views.
+270. Dead indexes.
+271. Columns retained for clients that no longer exist.
+272. Tables retained for retired features.
+273. ETL jobs for dead datasets.
+274. Data export scripts for retired reports.
+275. Backfills that already ran once.
+276. One-off repair scripts in the main repo.
+277. SQL files sorted by date but never pruned.
+278. ORM models for deleted tables.
+279. Schema validators for removed payloads.
+280. Old analytics events still defined but never emitted.
+
+Old migrations have legitimate audit/history use in some systems, so the smell is not “any old migration exists.” The inexcusable behavior is keeping unowned, obsolete, never-run, or already-squashed migration debris in the active path. Database-migration guidance emphasizes the lifecycle of migrations and rollbacks; mature repos distinguish historical migration records from random SQL dumping grounds. ([Andrea Leopardi][15])
+
+## 15. Dead API contracts and schemas
+
+These confuse clients and generators.
+
+281. OpenAPI paths no server implements.
+282. OpenAPI schemas no endpoint returns.
+283. Proto messages no RPC uses.
+284. GraphQL types no query exposes.
+285. Deprecated API versions with no sunset date.
+286. Client SDKs for removed APIs.
+287. Old Postman collections.
+288. Old Swagger JSON checked in beside generated current specs.
+289. Webhook schemas for retired vendors.
+290. JSON schemas for old event formats.
+291. Avro/Thrift schemas no producer/consumer uses.
+292. API examples that fail.
+293. Old compatibility adapters.
+294. Old response fields always null.
+295. Request fields ignored by the server.
+296. Enum values accepted but never produced.
+297. Error codes no code throws.
+298. Docs for endpoints that 404.
+299. Mock servers serving dead contracts.
+300. Contract tests for retired clients.
+
+## 16. Dead frontend code and assets
+
+Frontend repos are especially prone to visible junk.
+
+301. Components no route imports.
+302. Pages no router can reach.
+303. Storybook stories for removed components.
+304. CSS classes no markup uses.
+305. Sass variables no stylesheet uses.
+306. Design tokens no component uses.
+307. Icons no UI references.
+308. Images no page references.
+309. Fonts no CSS references.
+310. Old theme files.
+311. Old design-system components after migration.
+312. Duplicate component libraries.
+313. Dead Redux/Zustand/MobX stores.
+314. Dead selectors.
+315. Dead hooks.
+316. Dead context providers.
+317. Dead route guards.
+318. Dead i18n keys.
+319. Dead translations.
+320. Dead accessibility labels for removed UI.
+321. Dead analytics events.
+322. Dead CSS resets.
+323. Old polyfills for unsupported browsers no longer supported.
+324. Stale browser-specific hacks.
+325. Old screenshots in the app tree.
+
+## 17. Dead mobile/client compatibility code
+
+326. Code for app versions below the supported minimum.
+327. Old feature-detection branches.
+328. Old migration code for local storage versions no user has.
+329. Legacy push-notification handlers.
+330. Old deep-link handlers.
+331. Dead permissions flows.
+332. Old onboarding variants.
+333. Dead A/B test screens.
+334. Dead crash-reporting integrations.
+335. Old analytics SDK bridges.
+336. Compatibility shims for OS versions no longer supported.
+337. Old asset catalogs.
+338. Old localization files.
+339. Dead build flavors.
+340. Dead Gradle/Xcode schemes.
+341. Old provisioning/profile references.
+342. Deprecated mobile API clients.
+
+## 18. Dead infrastructure and deployment assets
+
+343. Dockerfiles no build uses.
+344. Docker Compose files for old local stacks.
+345. Kubernetes manifests no cluster applies.
+346. Helm charts for removed services.
+347. Terraform modules with no caller.
+348. Terraform workspaces for deleted environments.
+349. CloudFormation stacks no longer deployed.
+350. Pulumi programs no longer run.
+351. Ansible playbooks for retired hosts.
+352. Chef/Puppet code for dead infrastructure.
+353. Old CI deployment scripts.
+354. Old release scripts.
+355. Old rollback scripts.
+356. Old monitoring dashboards as code.
+357. Old alert rules.
+358. Old runbooks for systems that no longer exist.
+359. Old DNS configs.
+360. Old ingress rules.
+361. Old service accounts.
+362. Old IAM policies.
+363. Old S3/bucket lifecycle config.
+364. Dead load balancer configs.
+365. Deprecated deployment targets.
+
+## 19. Dead CI/CD workflows
+
+366. Workflows not triggered by any event.
+367. Workflows pinned to deleted branches.
+368. Jobs for removed languages.
+369. Jobs for unsupported runtime versions.
+370. Steps commented out instead of removed.
+371. Old deployment jobs disabled by `if: false`.
+372. Build matrix entries for deleted packages.
+373. Cache keys for removed tools.
+374. Artifacts uploaded but never consumed.
+375. Release jobs that no release uses.
+376. Security scans scoped to old paths.
+377. Lint jobs excluding dead folders instead of deleting them.
+378. CI secrets for old integrations.
+379. Cron workflows nobody monitors.
+380. CI scripts duplicated across old and new systems.
+381. Old Jenkinsfiles after migration to GitHub Actions.
+382. Old GitHub Actions after migration to another CI.
+383. Old badge links in README.
+384. PR checks that are permanently allowed to fail.
+385. Build scripts that silently skip dead packages.
+
+## 20. Dead documentation and misleading comments
+
+Outdated docs are dead code’s social twin.
+
+386. README instructions that no longer work.
+387. Architecture docs for old architecture.
+388. Diagrams with deleted services.
+389. API docs for removed endpoints.
+390. Runbooks for retired systems.
+391. Setup docs referencing old package managers.
+392. Docs pointing to archived repos as if active.
+393. Docs describing old env vars.
+394. Docs describing old feature flags.
+395. Docs for old manual deployment processes.
+396. Decision records with no superseding note.
+397. TODO docs with no owner.
+398. Comments explaining code that has changed.
+399. Comments saying “temporary” with no date.
+400. Comments saying “legacy” with no context.
+401. Dead wiki pages.
+402. Dead onboarding docs.
+403. Dead troubleshooting steps.
+404. Dead screenshots.
+405. Dead examples copied into blog/docs.
+
+Outdated documentation can be worse than no documentation because people trust it and act on it; GitHub’s technical-debt docs also recognize documentation-adjacent debt such as inconsistent patterns and missing tests as part of systematic cleanup work. ([trevorlasn.com][16])
+
+## 21. Dead observability and analytics
+
+406. Metrics no code emits.
+407. Dashboards for removed metrics.
+408. Alerts on dead services.
+409. Log parsers for removed log formats.
+410. Traces for endpoints no longer live.
+411. SLOs for retired systems.
+412. Error-code dashboards for errors no code throws.
+413. Analytics events no client emits.
+414. Funnels for removed product flows.
+415. Experiment dashboards after experiment completion.
+416. Dead BI reports.
+417. Dead data contracts.
+418. Dead warehouse tables.
+419. Dead reverse-ETL jobs.
+420. Monitoring exceptions for systems no longer present.
+
+## 22. Dead permissions and auth artifacts
+
+421. Roles no user can receive.
+422. Permissions no code checks.
+423. Scopes no API validates.
+424. OAuth clients for retired apps.
+425. Service accounts for removed services.
+426. API keys for old integrations.
+427. IAM policies for deleted infra.
+428. ACL entries for old teams.
+429. Groups for retired products.
+430. Auth middleware branches for removed identity providers.
+431. Hardcoded allowlists for old clients.
+432. Old CORS origins.
+433. Old redirect URIs.
+434. Old SAML/OIDC metadata.
+435. Dead admin tools with privileged access.
+
+## 23. Dead package/workspace/monorepo behavior
+
+436. Packages with no dependents.
+437. Workspace entries for deleted packages.
+438. `tsconfig` references to dead projects.
+439. Bazel/BUILD targets no binary/test depends on.
+440. Gradle modules no app includes.
+441. Maven modules no reactor builds.
+442. Cargo workspace members no crate uses.
+443. Go packages no module imports.
+444. Python packages not installed or imported.
+445. Internal libraries with no consumers.
+446. Old package names kept after rename.
+447. Deprecated packages still published.
+448. Packages with readmes saying “moved” but still active.
+449. Example apps that fail to build.
+450. Demo packages that pin ancient dependencies.
+
+Google’s Sensenmann relies on build/dependency graphs to find libraries not linked into any binary, which is exactly the class of monorepo rot these items represent. ([Google Testing Blog][2])
+
+## 24. Dead generated/scaffolded AI code
+
+This is increasingly common in modern repos.
+
+451. AI-generated helper files never imported.
+452. Markdown plans left in the repo root.
+453. Duplicate implementations generated during prompt iterations.
+454. Dead tests generated for code that changed.
+455. Stub services generated but never wired.
+456. Generated types not connected to schemas.
+457. “Proposed” files committed with production code.
+458. Multiple alternative approaches committed together.
+459. Overbroad utility modules generated speculatively.
+460. README sections hallucinating commands or architecture.
+461. Agent scratchpads in source directories.
+462. Dead TODO files created by coding agents.
+463. AI-created dependencies left after the generated code was removed.
+464. AI-created scripts not referenced by `package.json`, Makefile, CI, or docs.
+465. Cleanup prompts accepted without verifying dynamic usage.
+
+## 25. Dead naming and social camouflage
+
+These names hide rot.
+
+466. `legacy` used as a permanent excuse.
+467. `temporary` older than one sprint.
+468. `deprecated` without a deadline.
+469. `experimental` without an experiment.
+470. `new` older than the current implementation.
+471. `final` followed by `final2`.
+472. `backup` inside version control.
+473. `copy` inside source control.
+474. `misc` hiding abandoned files.
+475. `utils` full of one-off dead helpers.
+476. `common` full of unused abstractions.
+477. `shared` with no active consumers.
+478. `core` containing obsolete pathways.
+479. `compat` with no compatibility matrix.
+480. `future` features nobody plans to ship.
+
+## 26. Dead-code process failures
+
+These are the behaviors that let rot keep returning.
+
+481. No owner for files/modules.
+482. No deletion checklist in code review.
+483. No “remove old path” acceptance criterion.
+484. No feature-flag expiry policy.
+485. No branch cleanup policy.
+486. No stale-repo review.
+487. No dependency pruning.
+488. No secret scanning.
+489. No usage telemetry for endpoints/jobs.
+490. No CI enforcement for unused imports/exports.
+491. No static analysis in CI.
+492. No runtime liveness analysis for dynamic systems.
+493. No policy for generated artifacts.
+494. No rule against commented-out code.
+495. No doc freshness checks.
+496. No dependency ownership.
+497. No deprecation calendar.
+498. No archive process.
+499. No migration cleanup process.
+500. No willingness to delete code in the same PR that replaces it.
+
+## 27. The most inexcusable “red flag” combinations
+
+These are especially damning:
+
+501. `archive/` folder plus no Git tags/releases.
+502. `old/` folder plus commented-out code.
+503. Stale feature flags plus no owner/expiry.
+504. Dead dependencies plus security exceptions.
+505. Archived repo plus active deployment.
+506. Active repo plus README says “do not use.”
+507. Deleted secrets only from HEAD, not revoked/rotated.
+508. Old branches containing secrets.
+509. Generated build artifacts plus constant merge conflicts.
+510. Dead tests plus high claimed coverage.
+511. Deprecated endpoints plus no traffic data.
+512. Legacy code plus no tests plus no owner.
+513. “Temporary” migration scripts committed for years.
+514. Old infra code with live credentials.
+515. Multiple old implementations plus no product decision.
+516. Stale docs plus automated agents using those docs.
+517. CI excludes dead folders instead of deleting them.
+518. “Do not delete” comments without a ticket, owner, or date.
+519. Public stale repos with broad org permissions.
+520. Stale branches from former employees.
+521. Old vendor integrations plus active secrets.
+522. Dead API contracts plus generated clients.
+523. Stale flags plus stale experiments plus stale dashboards.
+524. Old package versions kept only for dead code.
+525. Hidden dynamic usages with no telemetry, tests, or documentation.
+
+## A hardline cleanup standard
+
+A repo is healthy when obsolete things are **deleted, archived intentionally, or justified with ownership and expiry**. The inexcusable version is leaving them in the active path where developers, CI, scanners, agents, and future maintainers must keep paying attention to them.
+
+A good policy is:
+
+**Delete** dead code and unneeded files.
+**Archive** whole repos only when they are truly inactive, read-only, and clearly redirected.
+**Tag/release** historical states instead of keeping `old/` folders.
+**Expire** feature flags at creation time.
+**Measure runtime liveness** for endpoints, jobs, CLIs, and dynamic dispatch.
+**Prune dependencies** as part of security hygiene.
+**Reject commented-out code** in review.
+**Treat stale docs/tests/config as dead code** because they preserve obsolete behavior in people’s heads.
+
+[1]: https://link.springer.com/article/10.1007/s10664-023-10303-0 "On the spread and evolution of dead methods in Java desktop applications: an exploratory study | Empirical Software Engineering | Springer Nature Link"
+[2]: https://testing.googleblog.com/2023/04/sensenmann-code-deletion-at-scale.html "
+Google Testing Blog: Sensenmann: Code Deletion at Scale
+"
+[3]: https://refactoring.guru/smells/dead-code "Dead Code"
+[4]: https://github.com/visualon/OpenXmlPowerTools-old "GitHub - visualon/OpenXmlPowerTools-old: Do not use this repo! · GitHub"
+[5]: https://opensource.google/documentation/reference/github/management "Repository management  |  Google Open Source"
+[6]: https://kentcdodds.com/blog/please-dont-commit-commented-out-code "Please, don't commit commented out code"
+[7]: https://engineering.fb.com/2023/10/24/data-infrastructure/automating-dead-code-cleanup/ "Automating dead code cleanup - Engineering at Meta"
+[8]: https://martinfowler.com/articles/feature-toggles.html "Feature Toggles (aka Feature Flags)"
+[9]: https://owasp.org/Top10/2021/A06_2021-Vulnerable_and_Outdated_Components/ "A06 Vulnerable and Outdated Components - OWASP Top 10:2021"
+[10]: https://webstandards.ca.gov/2023/04/19/github-best-practices/ "GitHub Best Practices - Webstandards"
+[11]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository "Managing branches in your repository - GitHub Docs"
+[12]: https://docs.github.com/en/repositories/archiving-a-github-repository/archiving-repositories "Archiving repositories - GitHub Docs"
+[13]: https://docs.github.com/en/copilot/tutorials/reduce-technical-debt "Using GitHub Copilot to reduce technical debt - GitHub Docs"
+[14]: https://docs.github.com/en/code-security/concepts/secret-security/secret-leakage-risks "Secret leakage risks - GitHub Docs"
+[15]: https://andrealeopardi.com/posts/get-rid-of-your-old-database-migrations/ "Get Rid of Your Old Database Migrations – Andrea Leopardi"
+[16]: https://www.trevorlasn.com/blog/outdated-docs-are-tech-debt "Outdated Docs Are Tech Debt"
+

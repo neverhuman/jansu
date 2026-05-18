@@ -9,20 +9,19 @@ keywords.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
+publish = false
 
 [lints]
 workspace = true
 
 [features]
 default = []
-delta = []
+delta = ["jansu-schema/delta"]
 dynostore = []
-iceberg = []
-libsql = []
-parquet = []
-postgres = []
+iceberg = ["jansu-schema/iceberg"]
+parquet = ["jansu-schema/parquet"]
+redlinedb = []
 slatedb = []
-turso = []
 
 [dependencies]
 bytes.workspace = true

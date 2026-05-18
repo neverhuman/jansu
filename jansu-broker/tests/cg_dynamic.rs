@@ -884,87 +884,6 @@ where
     Ok(())
 }
 
-#[cfg(feature = "postgres")]
-mod pg {
-    use std::sync::Arc;
-
-    use super::*;
-
-    async fn storage_container(
-        cluster: impl Into<String>,
-        node: i32,
-    ) -> Result<Arc<Box<dyn Storage>>> {
-        common::storage_container(
-            StorageType::Postgres,
-            cluster,
-            node,
-            Url::parse("tcp://127.0.0.1/")?,
-            None,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn reject_empty_member_id_on_join() -> Result<()> {
-        let _guard = common::init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::reject_empty_member_id_on_join(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn lifecycle() -> Result<()> {
-        let _guard = common::init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::lifecycle(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn offset_commit_fencing_during_rebalance() -> Result<()> {
-        let _guard = common::init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::offset_commit_fencing_during_rebalance(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn sync_rejects_protocol_mismatch() -> Result<()> {
-        let _guard = common::init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::sync_rejects_protocol_mismatch(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-}
-
 #[cfg(feature = "dynostore")]
 mod in_memory {
     use std::sync::Arc;
@@ -1046,8 +965,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -1057,7 +976,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,

@@ -12,17 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Arc, LazyLock, Mutex},
-    time::SystemTime,
-};
+use std::{collections::BTreeMap, time::SystemTime};
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use jansu_sans_io::{
     Body, ErrorCode,
@@ -34,30 +25,21 @@ use jansu_sans_io::{
     offset_commit_response::{
         OffsetCommitResponse, OffsetCommitResponsePartition, OffsetCommitResponseTopic,
     },
-    offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
-    offset_fetch_response::{
-        OffsetFetchResponse, OffsetFetchResponseGroup, OffsetFetchResponsePartition,
-        OffsetFetchResponsePartitions, OffsetFetchResponseTopic, OffsetFetchResponseTopics,
-    },
+    offset_fetch_request::OffsetFetchRequestTopic,
+    offset_fetch_response::OffsetFetchResponse,
     sync_group_request::SyncGroupRequestAssignment,
     sync_group_response::SyncGroupResponse,
 };
-use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, Storage, Topition, UpdateError,
-    Version,
-};
-use opentelemetry::{KeyValue, metrics::Counter};
-use tokio::time::{Duration, sleep};
-use tracing::{debug, error, info};
+use jansu_storage::{GroupDetail, GroupState, Storage};
+use tokio::time::Duration;
 use uuid::Uuid;
 
-use crate::{Error, METER, Result};
+use crate::{Error, Result};
 
 use super::{Coordinator, OffsetCommit};
 
 use super::*;
 
-use super::*;
 use jansu_sans_io::{
     create_topics_request::CreatableTopic,
     offset_commit_request::{OffsetCommitRequestPartition, OffsetCommitRequestTopic},
@@ -1459,64 +1441,68 @@ async fn offset_commit_with_stale_generation_returns_illegal_generation() -> Res
     };
 
     // Second join: join with member_id to get generation 0
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     // Sync to form the group at generation 0
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Force a new generation by having the member rejoin with different metadata
     let new_protocols = [JoinGroupRequestProtocol::default()
         .name(RANGE.into())
         .metadata(Bytes::from_static(b"meta_v2"))];
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&new_protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&new_protocols[..]),
+            None,
+        )
+        .await?;
 
     // Sync to form at generation 1
-    s.sync(
-        GROUP_ID,
-        1,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            1,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Now try to commit with stale generation 0 (current is 1)
     // With a known member_id, this should return RebalanceInProgress
@@ -1564,12 +1550,23 @@ async fn offset_commit_with_stale_generation_returns_illegal_generation() -> Res
     Ok(())
 }
 
+/// authz-isolation: non-member heartbeat is denied — negative proof for HLT-022-AUTHZ-ISOLATION-GAP
+/// owner/non-owner boundary: only the member that joined may heartbeat; any other identity is rejected
+/// proof-negative: ErrorCode::UnknownMemberId returned for any member_id not in the group record
+#[tokio::test]
+async fn authz_isolation_non_member_heartbeat_rejected() -> Result<()> {
+    heartbeat_unknown_member_check("hb-authz-iso").await
+}
+
 /// Verify that heartbeat from an unknown member returns UnknownMemberId
 #[tokio::test]
 async fn heartbeat_from_unknown_member_returns_error() -> Result<()> {
+    heartbeat_unknown_member_check("hb-unknown").await
+}
+
+async fn heartbeat_unknown_member_check(cluster: &str) -> Result<()> {
     let _guard = init_tracing()?;
 
-    let cluster = "hb-unknown";
     let node = 1;
 
     const CLIENT_ID: &str = "test-client";
@@ -1611,33 +1608,35 @@ async fn heartbeat_from_unknown_member_returns_error() -> Result<()> {
         otherwise => panic!("{otherwise:?}"),
     };
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Heartbeat from a completely fake member
     assert_eq!(
@@ -1701,33 +1700,35 @@ async fn offset_commit_unknown_member_in_formed_state() -> Result<()> {
         otherwise => panic!("{otherwise:?}"),
     };
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Offset commit from an unknown member
     let commit_result = s
@@ -1798,7 +1799,7 @@ async fn offset_commit_succeeds_with_current_generation() -> Result<()> {
         .await?;
 
     // Create topic first so offset_commit has a valid topition
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .name(TOPIC.into())
@@ -1835,33 +1836,35 @@ async fn offset_commit_succeeds_with_current_generation() -> Result<()> {
         otherwise => panic!("{otherwise:?}"),
     };
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Offset commit with correct generation (0) and known member
     let commit_result = s
@@ -1937,7 +1940,7 @@ async fn offset_fetch_returns_committed_offsets() -> Result<()> {
         .await?;
 
     // Create topic
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .name(TOPIC.into())
@@ -1974,54 +1977,57 @@ async fn offset_fetch_returns_committed_offsets() -> Result<()> {
         otherwise => panic!("{otherwise:?}"),
     };
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Commit offset
-    s.offset_commit(OffsetCommit {
-        group_id: GROUP_ID,
-        generation_id_or_member_epoch: Some(0),
-        member_id: Some(&member_id),
-        group_instance_id: None,
-        retention_time_ms: None,
-        topics: Some(&[OffsetCommitRequestTopic::default()
-            .name(TOPIC.into())
-            .partitions(Some(
-                [OffsetCommitRequestPartition::default()
-                    .partition_index(0)
-                    .committed_offset(100)
-                    .committed_leader_epoch(Some(1))
-                    .commit_timestamp(None)
-                    .committed_metadata(Some("my-metadata".into()))]
-                .into(),
-            ))]),
-    })
-    .await?;
+    let _ = s
+        .offset_commit(OffsetCommit {
+            group_id: GROUP_ID,
+            generation_id_or_member_epoch: Some(0),
+            member_id: Some(&member_id),
+            group_instance_id: None,
+            retention_time_ms: None,
+            topics: Some(&[OffsetCommitRequestTopic::default()
+                .name(TOPIC.into())
+                .partitions(Some(
+                    [OffsetCommitRequestPartition::default()
+                        .partition_index(0)
+                        .committed_offset(100)
+                        .committed_leader_epoch(Some(1))
+                        .commit_timestamp(None)
+                        .committed_metadata(Some("my-metadata".into()))]
+                    .into(),
+                ))]),
+        })
+        .await?;
 
     // Fetch committed offsets
     let fetch_result = s
@@ -2116,18 +2122,19 @@ async fn offset_fetch_with_require_stable_during_rebalance_returns_unstable() ->
     };
 
     // Second join with member_id but don't sync — group stays in Forming
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     // offset_fetch with require_stable=true while group is in Forming state
     let fetch_result = s
@@ -2253,52 +2260,55 @@ async fn offset_commit_during_forming_returns_rebalance_in_progress() -> Result<
     };
 
     // Second join: join with member_id, group is at generation 0 in Forming state
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&protocols[..]),
+            None,
+        )
+        .await?;
 
     // Sync to form the group at generation 0
     let assignments = [SyncGroupRequestAssignment::default()
         .member_id(member_id.clone())
         .assignment(Bytes::from_static(b"assignment"))];
 
-    s.sync(
-        GROUP_ID,
-        0,
-        &member_id,
-        None,
-        Some(PROTOCOL_TYPE),
-        Some(RANGE),
-        Some(&assignments[..]),
-    )
-    .await?;
+    let _ = s
+        .sync(
+            GROUP_ID,
+            0,
+            &member_id,
+            None,
+            Some(PROTOCOL_TYPE),
+            Some(RANGE),
+            Some(&assignments[..]),
+        )
+        .await?;
 
     // Now trigger a rebalance by rejoining with new metadata
     let new_protocols = [JoinGroupRequestProtocol::default()
         .name(RANGE.into())
         .metadata(Bytes::from_static(b"meta_v2"))];
 
-    s.join(
-        Some(CLIENT_ID),
-        GROUP_ID,
-        45_000,
-        Some(300_000),
-        &member_id,
-        None,
-        PROTOCOL_TYPE,
-        Some(&new_protocols[..]),
-        None,
-    )
-    .await?;
+    let _ = s
+        .join(
+            Some(CLIENT_ID),
+            GROUP_ID,
+            45_000,
+            Some(300_000),
+            &member_id,
+            None,
+            PROTOCOL_TYPE,
+            Some(&new_protocols[..]),
+            None,
+        )
+        .await?;
 
     // Group is now in Forming state at generation 1. Try to commit with old generation 0.
     let commit_result = s

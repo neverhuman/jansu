@@ -1,6 +1,6 @@
 # Phase 11: finish the replication layer for Jansu
 
-The big architectural point: **do not treat “shared durable storage” as Kafka replication**. Jansu’s current README describes it as a “stateless Kafka-compatible broker with pluggable storage,” including PostgreSQL, SQLite, S3, and memory, and the current quickstart shows `--replication-factor=1` with a single node acting as leader/ISR in the example output. That is a great base, but Phase 11 needs broker-local replica state, leader/follower roles, ISR movement, high-watermark advancement, leader epochs, and truncation after leadership changes. ([GitHub][1])
+The big architectural point: **do not treat “shared durable storage” as Kafka replication**. Jansu’s current README describes it as a “stateless Kafka-compatible broker with pluggable storage,” including PostgreSQL, RedlineDB, S3, and memory, and the current quickstart shows `--replication-factor=1` with a single node acting as leader/ISR in the example output. That is a great base, but Phase 11 needs broker-local replica state, leader/follower roles, ISR movement, high-watermark advancement, leader epochs, and truncation after leadership changes. ([GitHub][1])
 
 Kafka-compatible replication means clients must see topic partitions replicated across brokers, and clients must produce/fetch through the current partition leader discovered via metadata. The official Kafka protocol describes partitions as ordered commit logs replicated with a replication factor, and says clients send publish/fetch requests to the broker currently acting as leader. ([Apache Kafka][2])
 
@@ -95,7 +95,7 @@ That way Phase 12 can replace the temporary/manual/test controller without rewri
 Jansu already has good seams for this work:
 
 * The workspace contains separate crates for broker, storage, service framing, protocol sans-I/O code, client tooling, and CLI tooling. ([GitHub][3])
-* `jansu-storage` currently exposes the central `Storage` abstraction, with storage backends including memory, S3/object storage, PostgreSQL, SQLite/libSQL, and Turso. ([GitHub][4])
+* `jansu-storage` currently exposes the central `Storage` abstraction, with storage backends including memory, S3/object storage, PostgreSQL, RedlineDB, and RedlineDB. ([GitHub][4])
 * The existing storage trait already has `produce`, `fetch`, `offset_stage`, `metadata`, `register_broker`, `brokers`, and topic/admin operations. That is exactly where replication semantics should be enforced or wrapped. ([GitHub][4])
 * `OffsetStage` already contains `last_stable`, `high_watermark`, and `log_start`, which is a useful compatibility anchor for Phase 11 because replication primarily changes how high watermark is computed and persisted. ([GitHub][4])
 * `jansu-broker` registers the broker with storage, starts the TCP listener, builds services from storage/coordinator, and periodically calls `storage.maintain(SystemTime::now())`. That is the right place to start and supervise replication workers. ([GitHub][5])
@@ -110,7 +110,7 @@ I would implement Phase 11 as an opt-in **replicated local log mode** first:
 
 ```text
 replicated-log://var/lib/jansu?metadata=postgres://...
-replicated-log://var/lib/jansu?metadata=sqlite://...
+replicated-log://var/lib/jansu?metadata=redlinedb://...
 replicated-log://var/lib/jansu?metadata=memory://...
 ```
 
@@ -3520,7 +3520,7 @@ services:
       - --cluster-id=jansu-repl
       - --listener=tcp://0.0.0.0:9092
       - --advertised-listener=tcp://localhost:19092
-      - --storage=replicated-log:///var/lib/jansu?metadata=sqlite:///var/lib/jansu/meta.db
+      - --storage=replicated-log:///var/lib/jansu?metadata=redlinedb:///var/lib/jansu/meta.db
       - --replication-enabled=true
     ports:
       - "19092:9092"
@@ -3535,7 +3535,7 @@ services:
       - --cluster-id=jansu-repl
       - --listener=tcp://0.0.0.0:9092
       - --advertised-listener=tcp://localhost:29092
-      - --storage=replicated-log:///var/lib/jansu?metadata=sqlite:///var/lib/jansu/meta.db
+      - --storage=replicated-log:///var/lib/jansu?metadata=redlinedb:///var/lib/jansu/meta.db
       - --replication-enabled=true
     ports:
       - "29092:9092"
@@ -3550,7 +3550,7 @@ services:
       - --cluster-id=jansu-repl
       - --listener=tcp://0.0.0.0:9092
       - --advertised-listener=tcp://localhost:39092
-      - --storage=replicated-log:///var/lib/jansu?metadata=sqlite:///var/lib/jansu/meta.db
+      - --storage=replicated-log:///var/lib/jansu?metadata=redlinedb:///var/lib/jansu/meta.db
       - --replication-enabled=true
     ports:
       - "39092:9092"
@@ -3960,7 +3960,7 @@ consumers see only committed records
 
 That test proves Phase 11 is not merely “copy records to followers,” but a real Kafka-compatible replication layer.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://kafka.apache.org/42/design/protocol "Protocol | Apache Kafka"
 [3]: https://github.com/jansu-io/jansu/blob/main/Cargo.toml "jansu/Cargo.toml at main · jansu-io/jansu · GitHub"
 [4]: https://github.com/jansu-io/jansu/raw/refs/heads/main/jansu-storage/src/lib.rs "raw.githubusercontent.com"

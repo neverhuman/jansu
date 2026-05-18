@@ -85,7 +85,9 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for topic in req.topics.unwrap_or_default() {
+        let topics = req.topics.unwrap_or_default();
+
+        for topic in topics {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
             responses.push(
                 DeletableTopicResult::default()
@@ -96,7 +98,9 @@ where
             );
         }
 
-        for topic in req.topic_names.unwrap_or_default() {
+        let topic_names = req.topic_names.unwrap_or_default();
+
+        for topic in topic_names {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
 
             responses.push(

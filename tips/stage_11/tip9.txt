@@ -2763,7 +2763,7 @@ Use this as the merge checklist.
 
 The most important architectural steering: **do not fake replication by sharing one global log across brokers**. For Phase 11 to be real, each broker needs its own replica log, its own leader epoch history, and its own truncation path. That one decision makes ISR, HW, follower fetch, and leader change tests meaningful rather than cosmetic.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://cwiki.apache.org/confluence/display/KAFKA/Kafka%2BReplication?utm_source=chatgpt.com "Kafka Replication - Apache Kafka - Apache Software Foundation"
 [3]: https://cwiki.apache.org/confluence/x/oQQIB?utm_source=chatgpt.com "KIP-101 - Alter Replication Protocol to use Leader Epoch rather than High Watermark for Truncation - Apache Kafka - Apache Software Foundation"
 [4]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/lib.rs "raw.githubusercontent.com"

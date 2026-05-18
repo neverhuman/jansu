@@ -1,0 +1,43 @@
+advisory_on = [
+    "medium",
+    "low",
+]
+fail_on = [
+    "critical",
+    "high",
+]
+minimum_score = 85
+
+[history]
+dedupe = "consecutive-equivalent"
+max_bytes = 1048576
+max_rows = 500
+mirror_env = "JANKURAI_HISTORY_MIRROR"
+mirror_max_rows = 5000
+mirror_required = false
+
+[scan]
+# Architectural exceptions documented in AUDIT-017.
+# Each path is excluded because the file's size is bound by a Rust language
+# constraint (single impl block per trait, generated wire-format dispatch, etc.),
+# not by avoidable code shape.
+excluded_paths = [
+    "tips/",
+    "fuzz/",
+    "jansu-storage/src/batch.rs",
+    "jansu-broker/src/coordinator/group/administrator/mod.rs",
+    "jansu-schema/src/proto.rs",
+    "jansu-proxy/src/produce.rs",
+    "jansu-schema/src/avro.rs",
+    "jansu-schema/src/json/arrow.rs",
+    "jansu-broker/src/coordinator/group/administrator/forming.rs",
+    "jansu-sans-io/src/record/deflated.rs",
+    "jansu-sans-io/build.rs",
+    "jansu-sans-io/src/de.rs",
+    "jansu-storage/src/service/produce.rs",
+    "jansu-storage/src/service/request_channel.rs"
+]
+
+[smart_scan]
+full_scan_interval_secs = 3600
+roulette_rate = 0.1

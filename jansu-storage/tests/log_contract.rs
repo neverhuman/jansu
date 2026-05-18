@@ -31,7 +31,6 @@ use jansu_sans_io::{
 use jansu_storage::{
     ListOffsetResponse, Storage, StorageCertification, StorageEngine, StorageFeature, Topition,
 };
-use tokio::time::sleep;
 use url::Url;
 
 use crate::common::{Error, build_storage, create_topic, init_tracing, register_broker};
@@ -77,11 +76,11 @@ async fn list_offset(
         )
         .await?;
 
-    Ok(response
+    response
         .into_iter()
         .find(|(candidate, _)| candidate == topition)
         .map(|(_, response)| response)
-        .ok_or_else(|| Error::Message("missing list offset response".into()))?)
+        .ok_or_else(|| Error::Message("missing list offset response".into()))
 }
 
 async fn fetch_record_count(
@@ -112,6 +111,30 @@ async fn produce_record(
 ) -> Result<i64, Error> {
     storage
         .produce(None, topition, single_record_batch(value)?)
+        .await
+        .map_err(Into::into)
+}
+
+async fn produce_record_at(
+    storage: &impl Storage,
+    topition: &Topition,
+    timestamp_ms: i64,
+    value: &'static [u8],
+) -> Result<i64, Error> {
+    let batch = inflated::Batch::builder()
+        .base_timestamp(timestamp_ms)
+        .max_timestamp(timestamp_ms)
+        .record(
+            Record::builder()
+                .timestamp_delta(0)
+                .value(Some(Bytes::from_static(value))),
+        )
+        .build()
+        .and_then(TryInto::try_into)
+        .map_err(Error::from)?;
+
+    storage
+        .produce(None, topition, batch)
         .await
         .map_err(Into::into)
 }
@@ -175,15 +198,32 @@ async fn assert_fetch_counts(storage: &impl Storage, topic: &str) -> Result<(), 
 
 async fn assert_timestamp_lookup(storage: &impl Storage, topic: &str) -> Result<(), Error> {
     let topition = topition(topic, 0);
-    let before = SystemTime::now();
+    let first = 1_000;
+    let second = 2_000;
+    let third = 3_000;
 
-    sleep(Duration::from_millis(25)).await;
-    let _ = produce_record(storage, &topition, b"one").await?;
+    let _ = produce_record_at(storage, &topition, first, b"one").await?;
+    let _ = produce_record_at(storage, &topition, second, b"two").await?;
+    let _ = produce_record_at(storage, &topition, third, b"three").await?;
 
+    let before = SystemTime::UNIX_EPOCH + Duration::from_millis(500);
     let response = list_offset(storage, &topition, ListOffset::Timestamp(before)).await?;
-
     assert_eq!(ErrorCode::None, response.error_code);
     assert_eq!(Some(0), response.offset);
+
+    let middle = SystemTime::UNIX_EPOCH + Duration::from_millis(1_500);
+    let response = list_offset(storage, &topition, ListOffset::Timestamp(middle)).await?;
+    assert_eq!(ErrorCode::None, response.error_code);
+    assert_eq!(Some(1), response.offset);
+
+    let after = SystemTime::UNIX_EPOCH + Duration::from_millis(3_500);
+    let response = list_offset(storage, &topition, ListOffset::Timestamp(after)).await?;
+    assert_eq!(ErrorCode::None, response.error_code);
+    assert_eq!(Some(3), response.offset);
+    assert_eq!(
+        Some(SystemTime::UNIX_EPOCH + Duration::from_millis(third as u64)),
+        response.timestamp
+    );
 
     Ok(())
 }
@@ -240,11 +280,7 @@ async fn empty_partition_offsets_are_zero() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("empty-partition-offsets");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_empty_offsets(&*storage, &topic).await
 }
@@ -254,11 +290,7 @@ async fn produce_assigns_contiguous_offsets() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("produce-contiguous-offsets");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_contiguous_offsets(&*storage, &topic).await
 }
@@ -268,25 +300,17 @@ async fn fetch_reads_written_records() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("fetch-written-records");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_fetch_counts(&*storage, &topic).await
 }
 
 #[tokio::test]
-async fn timestamp_lookup_before_first_record_returns_first_offset() -> Result<(), Error> {
+async fn timestamp_lookup_returns_first_middle_and_end_offsets() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let topic = topic_name("timestamp-lookup");
-    let storage = prepare_storage(
-        Url::parse("memory://phase06-storage-log-contract/")?,
-        &topic,
-    )
-    .await?;
+    let storage = prepare_storage(common::default_storage_url()?, &topic).await?;
 
     assert_timestamp_lookup(&*storage, &topic).await
 }
@@ -304,6 +328,7 @@ async fn null_storage_reports_log_features_unsupported() -> Result<(), Error> {
         StorageFeature::ContiguousOffsets,
         StorageFeature::EmptyPartitionOffsets,
         StorageFeature::FetchVisibility,
+        StorageFeature::LeaderEpochHistory,
         StorageFeature::ListOffsetsEarliestLatest,
         StorageFeature::TimestampLookup,
         StorageFeature::LogStartOffset,
@@ -347,20 +372,19 @@ async fn dynostore_log_contract() -> Result<(), Error> {
     .await
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_log_contract() -> Result<(), Error> {
+async fn redlinedb_log_contract() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     backend_contract(
         || {
-            let storage_path = "phase06-storage-log-contract-libsql.db";
-            let _ = std::fs::remove_file(storage_path);
-            let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
-
-            Ok((None, storage_url))
+            Ok((
+                None,
+                common::redlinedb_storage_url("phase06-storage-log-contract-redlinedb")?,
+            ))
         },
-        "libsql",
+        "redlinedb",
     )
     .await
 }
@@ -371,19 +395,4 @@ async fn slatedb_log_contract() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     backend_contract(|| Ok((None, Url::parse("slatedb://memory")?)), "slatedb").await
-}
-
-#[cfg(feature = "postgres")]
-// Run after `just db-up` then:
-// `rtk cargo test -p jansu-storage log_contract_postgres --features postgres -- --ignored --nocapture`
-#[ignore]
-#[tokio::test]
-async fn log_contract_postgres() -> Result<(), Error> {
-    let _guard = init_tracing()?;
-
-    backend_contract(
-        || Ok((None, Url::parse("postgres://postgres:postgres@localhost")?)),
-        "postgres",
-    )
-    .await
 }

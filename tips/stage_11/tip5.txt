@@ -46,7 +46,7 @@ Kafka’s Fetch protocol already distinguishes follower fetches from normal cons
 
 ## Do not implement “replication” as cosmetic metadata
 
-Jansu currently has strong storage durability options: PostgreSQL, SQLite/libSQL, S3, memory, and lake/schema integrations. But Kafka replication is not the same as “the storage backend is durable.” Kafka replication means:
+Jansu currently has strong storage durability options: PostgreSQL, RedlineDB, S3, memory, and lake/schema integrations. But Kafka replication is not the same as “the storage backend is durable.” Kafka replication means:
 
 ```text
 broker 1 has a local replica log
@@ -216,7 +216,7 @@ SQL/schema files to create or modify, depending on existing backend layout:
 ```text
 jansu-storage/src/ddl/pg/phase11_replication.sql
 jansu-storage/src/ddl/lite/phase11_replication.sql
-jansu-storage/src/ddl/turso/phase11_replication.sql
+jansu-storage/src/ddl/redlinedb/phase11_replication.sql
 
 jansu-storage/src/sql/replication.rs
 jansu-storage/src/sql/broker.rs
@@ -3173,7 +3173,7 @@ Follower fetches can read up to leader LEO.
 
 That is the point where Jansu’s Phase 11 has become a real Kafka-style replication layer rather than durable shared storage with Kafka-shaped metadata.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://kafka.apache.org/22/design/protocol/ "Protocol | Apache Kafka"
 [3]: https://github.com/jansu-io/jansu/tree/main/jansu-storage/src "jansu/jansu-storage/src at main · jansu-io/jansu · GitHub"
 [4]: https://github.com/jansu-io/jansu/tree/main/jansu-broker/src "jansu/jansu-broker/src at main · jansu-io/jansu · GitHub"

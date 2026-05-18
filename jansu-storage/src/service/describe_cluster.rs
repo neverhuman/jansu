@@ -50,7 +50,7 @@ use crate::{Error, Result, Storage};
 ///     )
 ///     .await?;
 ///
-/// let brokers = response.brokers.unwrap_or_default();
+/// let brokers = response.brokers.unwrap_or(vec![]);
 /// assert_eq!(1, brokers.len());
 /// assert_eq!(NODE_ID, brokers[0].broker_id);
 /// assert_eq!(HOST, brokers[0].host.as_str());

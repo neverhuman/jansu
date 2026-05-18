@@ -16,7 +16,7 @@
 -- Bind order matches postgres inference quirks (transaction_timeout_ms first).
 insert into txn_detail ("transaction", producer_epoch, transaction_timeout_ms)
 
-select txn.id, pe.id, $1::integer
+select txn.id, pe.id, $1
 
 from
 
@@ -27,7 +27,7 @@ join producer_epoch pe on pe.producer = p.id
 
 where
 
-c.name = $2::text
-and txn.name = $3::text
-and p.id = $4::bigint
-and pe.epoch = $5::smallint;
+c.name = $2
+and txn.name = $3
+and p.id = $4
+and pe.epoch = $5;

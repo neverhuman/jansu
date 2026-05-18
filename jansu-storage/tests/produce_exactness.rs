@@ -449,7 +449,7 @@ async fn exactness_storage(
     produce_error: Option<StorageError>,
 ) -> Result<(Arc<Box<dyn Storage>>, ExactnessStorage), TestError> {
     let cluster_id = Uuid::now_v7().to_string();
-    let inner = build_storage(&cluster_id, 111, Url::parse("memory://jansu/")?).await?;
+    let inner = build_storage(&cluster_id, 111, common::default_storage_url()?).await?;
 
     if let Some((topic, partitions)) = topic {
         _ = create_topic(&inner, topic, partitions).await?;
@@ -466,7 +466,7 @@ async fn invalid_required_acks_is_rejected() -> Result<(), TestError> {
     let storage = build_storage(
         &Uuid::now_v7().to_string(),
         111,
-        Url::parse("memory://jansu/")?,
+        common::default_storage_url()?,
     )
     .await?;
     let ctx = Context::with_state(storage);

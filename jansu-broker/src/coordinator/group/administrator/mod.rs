@@ -18,11 +18,10 @@ mod forming;
 mod tests;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     fmt::Debug,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    ops::Deref,
     sync::{Arc, LazyLock, Mutex},
     time::SystemTime,
 };
@@ -31,30 +30,16 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use jansu_sans_io::{
     Body, ErrorCode,
-    heartbeat_response::HeartbeatResponse,
     join_group_request::JoinGroupRequestProtocol,
-    join_group_response::{JoinGroupResponse, JoinGroupResponseMember},
+    join_group_response::JoinGroupResponseMember,
     leave_group_request::MemberIdentity,
-    leave_group_response::{LeaveGroupResponse, MemberResponse},
-    offset_commit_response::{
-        OffsetCommitResponse, OffsetCommitResponsePartition, OffsetCommitResponseTopic,
-    },
     offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
-    offset_fetch_response::{
-        OffsetFetchResponse, OffsetFetchResponseGroup, OffsetFetchResponsePartition,
-        OffsetFetchResponsePartitions, OffsetFetchResponseTopic, OffsetFetchResponseTopics,
-    },
     sync_group_request::SyncGroupRequestAssignment,
-    sync_group_response::SyncGroupResponse,
 };
-use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, Storage, Topition, UpdateError,
-    Version,
-};
+use jansu_storage::{GroupDetail, GroupMember, GroupState, Storage, UpdateError, Version};
 use opentelemetry::{KeyValue, metrics::Counter};
 use tokio::time::{Duration, sleep};
-use tracing::{debug, error, info};
-use uuid::Uuid;
+use tracing::{debug, info};
 
 use crate::{Error, METER, Result};
 
@@ -63,12 +48,12 @@ use super::{Coordinator, OffsetCommit};
 const PAUSE_MS: u128 = 3_000;
 
 fn timeout_millis(timeout_ms: i32) -> u128 {
-    u128::try_from(timeout_ms.max(0)).unwrap_or_default()
+    u128::from(timeout_ms.max(0).unsigned_abs())
 }
 
 fn member_timed_out(last_contact: Option<SystemTime>, timeout_ms: i32, now: SystemTime) -> bool {
     last_contact
-        .map(|last_contact| now.duration_since(last_contact).unwrap_or_default())
+        .map(|last_contact| now.duration_since(last_contact).unwrap_or(Duration::ZERO))
         .inspect(|duration| {
             debug!("since last contact: {}ms", duration.as_millis());
         })
@@ -764,24 +749,28 @@ where
 
             let now = SystemTime::now();
 
-            let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers.remove(group_id).unwrap_or_else(|| {
-                    debug!(?iteration, ?group_id);
+            let (mut original, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => {
+                            debug!(?iteration, ?group_id);
 
-                    let inner = Inner {
-                        session_timeout_ms,
-                        rebalance_timeout_ms,
-                        members: Default::default(),
-                        generation_id: -1,
-                        state: Forming::default(),
-                        skip_assignment: Some(false),
-                        storage: self.storage.clone(),
-                        inception: SystemTime::now(),
-                    };
+                            let inner = Inner {
+                                session_timeout_ms,
+                                rebalance_timeout_ms,
+                                members: Default::default(),
+                                generation_id: -1,
+                                state: Forming::default(),
+                                skip_assignment: Some(false),
+                                storage: self.storage.clone(),
+                                inception: SystemTime::now(),
+                            };
 
-                    (Wrapper::Forming(inner), None)
-                })
-            })?;
+                            (Wrapper::Forming(inner), None)
+                        }
+                    })?;
 
             original = original.missed_heartbeat(group_id, now);
 
@@ -917,11 +906,13 @@ where
 
             let now = SystemTime::now();
 
-            let (mut original, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
-            })?;
+            let (mut original, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?original, ?version, ?iteration);
 
@@ -1027,11 +1018,13 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "leave_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 
@@ -1099,11 +1092,13 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "offset_commit_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 
@@ -1174,7 +1169,7 @@ where
 
         let now = SystemTime::now();
         let wrapper = Wrapper::Forming(Inner::new(self.storage.clone()))
-            .missed_heartbeat(group_id.unwrap_or_default(), now);
+            .missed_heartbeat(group_id.unwrap_or(""), now);
         let (_wrapper, body) = wrapper
             .offset_fetch(now, group_id, topics, groups, require_stable)
             .await;
@@ -1196,18 +1191,20 @@ where
         loop {
             COORDINATOR_REQUESTS.add(1, &[KeyValue::new("method", "heartbeat_loop")]);
 
-            let (wrapper, version) = self.wrappers.lock().map(|mut wrappers| {
-                wrappers
-                    .remove(group_id)
-                    .unwrap_or_else(|| (Wrapper::Forming(Inner::new(self.storage.clone())), None))
-            })?;
+            let (wrapper, version) =
+                self.wrappers
+                    .lock()
+                    .map(|mut wrappers| match wrappers.remove(group_id) {
+                        Some(existing) => existing,
+                        None => (Wrapper::Forming(Inner::new(self.storage.clone())), None),
+                    })?;
 
             debug!(?group_id, ?wrapper, ?version, ?iteration);
 
             let now = SystemTime::now();
             let wrapper = wrapper.missed_heartbeat(group_id, now);
 
-            let (mut wrapper, body) = wrapper
+            let (wrapper, body) = wrapper
                 .heartbeat(now, group_id, generation_id, member_id, group_instance_id)
                 .await;
 

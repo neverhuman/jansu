@@ -98,7 +98,7 @@ impl Delete {
             .await
             .inspect(|response| debug!(?response))?;
 
-        let responses = responses.unwrap_or_default();
+        let responses = responses.unwrap_or(Vec::new());
         assert_eq!(1, responses.len());
 
         let DeletableTopicResult { error_code, .. } =

@@ -2,7 +2,7 @@
 
 Phase 11 should end with Jansu supporting **broker-owned partition replicas** with Kafka-compatible replication semantics: leaders accept writes, followers replicate with follower Fetch requests, ISR is maintained, high watermark advances safely, leader epochs prevent divergent logs, and followers truncate correctly after leadership changes.
 
-The key architectural point: Jansu currently advertises itself as a **stateless Kafka-compatible broker with pluggable storage** such as PostgreSQL, SQLite, S3, and memory; the docs explicitly frame this as avoiding broker-replicated storage durability. The README examples also currently show node `111` as both leader and ISR for partitions, and `jansu-broker` still has a fixed `NODE_ID = 111`. Phase 11 therefore should not be bolted onto the existing “shared durable storage” mode as an afterthought. It should introduce an explicit **replicated local-log mode** while preserving the current storage engines as “shared storage” mode. ([GitHub][1])
+The key architectural point: Jansu currently advertises itself as a **stateless Kafka-compatible broker with pluggable storage** such as PostgreSQL, RedlineDB, S3, and memory; the docs explicitly frame this as avoiding broker-replicated storage durability. The README examples also currently show node `111` as both leader and ISR for partitions, and `jansu-broker` still has a fixed `NODE_ID = 111`. Phase 11 therefore should not be bolted onto the existing “shared durable storage” mode as an afterthought. It should introduce an explicit **replicated local-log mode** while preserving the current storage engines as “shared storage” mode. ([GitHub][1])
 
 A second key point: Jansu already has the protocol foundation. The broker routes Kafka API requests through `jansu-broker/src/service/storage.rs`, while `jansu-storage` exposes `FetchService`, `ProduceService`, `MetadataService`, and a `Storage` abstraction. That is great leverage, but the current Produce path drops replication-critical fields like `acks` and timeout before calling storage, and the Fetch path does not propagate follower identity or leader epoch into storage. Those two services must change.
 
@@ -136,7 +136,7 @@ Suggested modes:
 
 ```rust
 pub enum StorageMode {
-    Shared,        // existing memory/postgres/sqlite/s3/turso/slatedb behavior
+    Shared,        // existing memory/postgres/redlinedb/s3/redlinedb/slatedb behavior
     ReplicatedLog, // new broker-owned partition replicas
 }
 ```
@@ -3172,7 +3172,7 @@ Phase 11 is complete when all of this passes:
 
 The most important implementation steering is this: **do the protocol-visible changes first**—Produce options, Fetch visibility, OffsetForLeaderEpoch routing, true Metadata fields—then wire the replication manager and local log behind them. That keeps every sub-step testable with Kafka clients instead of building a large hidden subsystem that only fails at the end.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://docs.redhat.com/en/documentation/red_hat_streams_for_apache_kafka/2.3/html-single/kafka_configuration_properties/index "Kafka configuration properties | Streams for Apache Kafka | 2.3 | Red Hat Documentation"
 [3]: https://cwiki.apache.org/confluence/display/KAFKA/KIP-101%2B-%2BAlter%2BReplication%2BProtocol%2Bto%2Buse%2BLeader%2BEpoch%2Brather%2Bthan%2BHigh%2BWatermark%2Bfor%2BTruncation "KIP-101 - Alter Replication Protocol to use Leader Epoch rather than High Watermark for Truncation - Apache Kafka - Apache Software Foundation"
 [4]: https://docs.rs/jansu-service/latest/jansu_service/ "jansu_service - Rust"

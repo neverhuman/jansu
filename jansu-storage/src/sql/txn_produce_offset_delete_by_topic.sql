@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from txn_produce_offset
-where txn_produce_offset.txn_topition in (
+delete from txn_produce_offset where txn_produce_offset.txn_topition in (
     select txn_tp.id
     from cluster c
     join topic t on t.cluster = c.id

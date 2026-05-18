@@ -131,7 +131,7 @@ pub struct Iceberg {
 
 impl Iceberg {
     async fn new(value: Builder<Url, Url, Registry>) -> Result<Self> {
-        let catalog = iceberg_catalog(&value.catalog, value.warehouse.clone()).await?;
+        let catalog = iceberg_catalog(&value.catalog, value.warehouse).await?;
         Ok(Self {
             catalog,
             namespace: value.namespace.unwrap_or(String::from("jansu")),
@@ -230,7 +230,7 @@ impl Iceberg {
                         .metadata_location()
                         .map(|location| location.to_owned()),
                 )
-                .add_schema(schema.clone())?
+                .add_schema(schema)?
                 .set_current_schema(-1)?
                 .build()
                 .inspect(|update| {
@@ -247,7 +247,7 @@ impl Iceberg {
                     &namespace_ident,
                     TableCreation::builder()
                         .name(name.into())
-                        .schema(schema.clone())
+                        .schema(schema)
                         .build(),
                 )
                 .await
@@ -294,7 +294,7 @@ impl LakeHouse for Iceberg {
             .inspect_err(|err| debug!(?err))?;
 
         let table = self
-            .load_or_create_table(topic, schema.clone())
+            .load_or_create_table(topic, schema)
             .await
             .inspect(|table| {
                 for field in table.metadata().current_schema().as_struct().fields() {
@@ -305,7 +305,7 @@ impl LakeHouse for Iceberg {
 
         let parquet_writer_builder = ParquetWriterBuilder::new(
             WriterProperties::default(),
-            table.metadata().current_schema().clone(),
+            Arc::clone(table.metadata().current_schema()),
         );
 
         let rolling_writer_builder = RollingFileWriterBuilder::new_with_default_file_size(

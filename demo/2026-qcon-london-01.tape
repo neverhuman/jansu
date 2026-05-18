@@ -15,13 +15,13 @@ Hide
 Type "pkill jansu"
 Enter
 
-Type@1ms "rm -f jansu.db*"
+Type@1ms "rm -f jansu.redline*"
 Enter@1ms
 
 Type@1ms "rm -rf lake/*"
 Enter@1ms
 
-Type@1ms "cargo build --bin jansu --no-default-features --features libsql,parquet"
+Type@1ms "cargo build --bin jansu --no-default-features --features redlinedb,parquet"
 Enter@1ms
 
 Type@1ms "export RUST_LOG=warn"
@@ -46,7 +46,7 @@ Type "jansu broker \"
 Enter
 Type "--silent \"
 Enter
-Type "--storage-engine=sqlite://jansu.db \"
+Type "--storage-engine=redlinedb://jansu.redline \"
 Enter
 Type "--schema-registry=file://./etc/schema \"
 Enter
@@ -91,16 +91,16 @@ Enter
 Enter
 Sleep 10s
 
-Type "# No Kafka produced to SQLite"
+Type "# No Kafka produced to RedlineDB"
 Enter
-Type `sqlite3 -box jansu.db "select count(*) from record"`
+Type `jansu storage inspect redlinedb://jansu.redline "select count(*) from record"`
 Enter
 Enter
 Sleep 5s
 
-Type "# topic metadata has been updated in SQLite"
+Type "# topic metadata has been updated in RedlineDB"
 Enter
-Type `sqlite3 -box jansu.db "select * from watermark"`
+Type `jansu storage inspect redlinedb://jansu.redline "select * from watermark"`
 Enter
 Sleep 5s
 

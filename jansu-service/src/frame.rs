@@ -299,13 +299,13 @@ where
         mut ctx: Context<State>,
         req: Bytes,
     ) -> Result<Self::Response, Self::Error> {
-        let sasl_handshake_v0 = self
-            .af
-            .as_ref()
-            .and_then(|af| af.v0.lock().ok())
-            .inspect(|v0| debug!(?v0))
-            .map(|v0| v0.unwrap_or_default())
-            .unwrap_or_default();
+        let sasl_handshake_v0 = match self.af.as_ref().and_then(|af| af.v0.lock().ok()) {
+            Some(v0) => {
+                debug!(?v0);
+                v0.unwrap_or(false)
+            }
+            None => false,
+        };
 
         debug!(request = ?&req[..], sasl_handshake_v0);
 
@@ -353,8 +353,8 @@ where
         }
 
         let attributes = vec![
-            KeyValue::new("api_key", api_key as i64),
-            KeyValue::new("api_version", api_version as i64),
+            KeyValue::new("api_key", i64::from(api_key)),
+            KeyValue::new("api_version", i64::from(api_version)),
         ];
         let response_api_version = response_api_version(api_key, api_version);
 
@@ -623,11 +623,10 @@ where
         debug!(?req);
 
         let api_key = Q::KEY;
-        let api_version = RootMessageMeta::messages()
-            .requests()
-            .get(&api_key)
-            .map(|message_meta| message_meta.version.valid().end)
-            .unwrap_or_default();
+        let api_version = match RootMessageMeta::messages().requests().get(&api_key) {
+            Some(message_meta) => message_meta.version.valid().end,
+            None => 0,
+        };
         let correlation_id = 0;
         let client_id = Some(env!("CARGO_CRATE_NAME").into());
 

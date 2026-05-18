@@ -42,13 +42,13 @@
 
 ```bash
 # Full clean compile check
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo check -p jansu-storage -p jansu-broker --no-default-features --features libsql,dynostore,slatedb --all-targets
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo check -p jansu-storage -p jansu-broker --no-default-features --features redlinedb,dynostore,slatedb --all-targets
 
 # Broker-level fetch + list_offsets regression
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo test -p jansu-broker --test fetch --test list_offsets --no-default-features --features libsql,dynostore,slatedb
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo test -p jansu-broker --test fetch --test list_offsets --no-default-features --features redlinedb,dynostore,slatedb
 
 # Storage epoch tests
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,libsql,slatedb
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,redlinedb,slatedb
 ```
 
 ## Outcome
@@ -58,7 +58,7 @@ env CARGO_TARGET_DIR=/tmp/jansu-verify-phase-08-final cargo test -p jansu-storag
 - Compile: Clean (no errors, only pre-existing warnings)
 - Fetch tests: 6/6 non-PG pass
 - ListOffsets tests: 9/9 non-PG pass
-- Epoch storage tests: 3/3 pass (1 libsql + 2 dynostore)
+- Epoch storage tests: 3/3 pass (1 redlinedb + 2 dynostore)
 
 Key accomplishments:
 1. Removed hardcoded `leader_epoch(Some(0))` from `ListOffsetsService` — now resolves actual epoch from storage

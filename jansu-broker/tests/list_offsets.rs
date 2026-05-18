@@ -661,7 +661,12 @@ where
     Ok(())
 }
 
-pub async fn single_record<G>(cluster_id: impl Into<String>, broker_id: i32, sc: G) -> Result<()>
+pub async fn single_record<G>(
+    cluster_id: impl Into<String>,
+    broker_id: i32,
+    sc: G,
+    expected_after_last_offset: i64,
+) -> Result<()>
 where
     G: Storage + Clone,
 {
@@ -693,15 +698,20 @@ where
 
     let value = Bytes::copy_from_slice(alphanumeric_string(15).as_bytes());
 
-    let before = SystemTime::now();
-    debug!(before = to_timestamp(&before)?);
-    sleep(Duration::from_millis(500)).await;
-
     let batch = inflated::Batch::builder()
-        .record(Record::builder().value(value.clone().into()))
+        .base_timestamp(1_000)
+        .max_timestamp(1_000)
+        .record(
+            Record::builder()
+                .timestamp_delta(0)
+                .value(Some(value.clone())),
+        )
         .build()
         .and_then(TryInto::try_into)
         .inspect(|deflated| debug!(?deflated))?;
+
+    let before = to_system_time(500)?;
+    debug!(before = to_timestamp(&before)?);
 
     assert_eq!(
         0,
@@ -710,7 +720,7 @@ where
             .inspect(|offset| debug!(?offset))?
     );
 
-    let after = SystemTime::now();
+    let after = to_system_time(1_500)?;
     debug!(after = to_timestamp(&after)?);
 
     let offsets = [(topition.clone(), ListOffset::Latest)];
@@ -749,7 +759,8 @@ where
         .await?;
 
     assert_eq!(1, responses.len());
-    assert_eq!(Some(0), responses[0].1.offset);
+    assert_eq!(Some(expected_after_last_offset), responses[0].1.offset);
+    assert_eq!(Some(to_system_time(1_000)?), responses[0].1.timestamp);
 
     Ok(())
 }
@@ -794,7 +805,7 @@ where
                 .replica_id(-1)
                 .topics(Some(
                     [ListOffsetsTopic::default()
-                        .name(topic_name.into())
+                        .name(topic_name)
                         .partitions(Some(
                             [
                                 ListOffsetsPartition::default()
@@ -849,13 +860,13 @@ async fn request_frame_service_uses_latest_list_offsets_version() -> Result<()> 
     let seen_api_version_capture = seen_api_version.clone();
 
     let service = RequestFrameLayer.into_layer(FrameService::new::<(), Error>(
-        move |_ctx: Context<()>, req: jansu_sans_io::Frame| {
+        move |_ctx: Context<()>, req: Frame| {
             let api_version = req.api_version()?;
             *seen_api_version_capture.lock().unwrap() = Some(api_version);
 
-            Ok(jansu_sans_io::Frame {
+            Ok(Frame {
                 size: 0,
-                header: jansu_sans_io::Header::Response {
+                header: Header::Response {
                     correlation_id: req.correlation_id()?,
                 },
                 body: jansu_sans_io::Body::ListOffsetsResponse(
@@ -903,49 +914,47 @@ async fn full_stack_round_trips_list_offsets_v9() -> Result<()> {
         BytesLayer,
         BytesFrameLayer::default(),
     )
-        .into_layer(FrameService::new::<(), Error>(
-            move |_, req: jansu_sans_io::Frame| {
-                assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
-                assert_eq!(9, req.api_version()?);
+        .into_layer(FrameService::new::<(), Error>(move |_, req: Frame| {
+            assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
+            assert_eq!(9, req.api_version()?);
 
-                Ok(jansu_sans_io::Frame {
-                    size: 0,
-                    header: jansu_sans_io::Header::Response {
-                        correlation_id: req.correlation_id()?,
-                    },
-                    body: jansu_sans_io::Body::ListOffsetsResponse(
-                        jansu_sans_io::ListOffsetsResponse::default()
-                            .throttle_time_ms(Some(0))
-                            .topics(Some(
-                                [ListOffsetsTopicResponse::default()
-                                    .name("topic".into())
-                                    .partitions(Some(
-                                        [
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(0)
-                                                .error_code(0)
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(1_725_000_000_000))
-                                                .offset(Some(12))
-                                                .leader_epoch(Some(1)),
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(1)
-                                                .error_code(i16::from(
-                                                    ErrorCode::UnknownTopicOrPartition,
-                                                ))
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(-1))
-                                                .offset(Some(-1))
-                                                .leader_epoch(Some(-1)),
-                                        ]
-                                        .into(),
-                                    ))]
-                                .into(),
-                            )),
-                    ),
-                })
-            },
-        ));
+            Ok(Frame {
+                size: 0,
+                header: Header::Response {
+                    correlation_id: req.correlation_id()?,
+                },
+                body: jansu_sans_io::Body::ListOffsetsResponse(
+                    jansu_sans_io::ListOffsetsResponse::default()
+                        .throttle_time_ms(Some(0))
+                        .topics(Some(
+                            [ListOffsetsTopicResponse::default()
+                                .name("topic".into())
+                                .partitions(Some(
+                                    [
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(0)
+                                            .error_code(0)
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(1_725_000_000_000))
+                                            .offset(Some(12))
+                                            .leader_epoch(Some(1)),
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(1)
+                                            .error_code(i16::from(
+                                                ErrorCode::UnknownTopicOrPartition,
+                                            ))
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(-1))
+                                            .offset(Some(-1))
+                                            .leader_epoch(Some(-1)),
+                                    ]
+                                    .into(),
+                                ))]
+                            .into(),
+                        )),
+                ),
+            })
+        }));
 
     let response = service
         .serve(
@@ -1186,7 +1195,7 @@ async fn storage_route_round_trips_list_offsets_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .num_partitions(2)
@@ -1268,7 +1277,7 @@ async fn storage_route_round_trips_produced_leader_epoch_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .name(topic_name.into())
@@ -1420,86 +1429,6 @@ where
     Ok(())
 }
 
-#[cfg(feature = "postgres")]
-mod pg {
-    use std::sync::Arc;
-
-    use super::*;
-
-    async fn storage_container(
-        cluster: impl Into<String>,
-        node: i32,
-    ) -> Result<Arc<Box<dyn Storage>>> {
-        common::storage_container(
-            StorageType::Postgres,
-            cluster,
-            node,
-            Url::parse("tcp://127.0.0.1/")?,
-            None,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn multiple_record() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        let sc = storage_container(cluster_id, broker_id).await?;
-        register_broker(cluster_id, broker_id, sc.clone()).await?;
-
-        let broker = broker(sc)?;
-        super::multiple_record(broker).await
-    }
-
-    #[tokio::test]
-    async fn new_topic() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::new_topic(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn single_record() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::single_record(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn mixed_partition_errors() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::mixed_partition_errors(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-}
-
 #[cfg(feature = "dynostore")]
 mod in_memory {
     use std::sync::Arc;
@@ -1560,6 +1489,7 @@ mod in_memory {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }
@@ -1595,8 +1525,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -1606,7 +1536,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -1655,6 +1585,7 @@ mod lite {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }
@@ -1750,6 +1681,7 @@ mod slatedb {
             cluster_id,
             broker_id,
             storage_container(cluster_id, broker_id).await?,
+            1,
         )
         .await
     }

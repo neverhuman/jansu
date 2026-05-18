@@ -6,7 +6,7 @@ Below is the plan I would use to finish Phase 11 end-to-end.
 
 # 0. Current repo reality to anchor the plan
 
-Jansu is currently described as a **stateless Kafka-compatible broker** with pluggable storage backends including PostgreSQL, libSQL, S3, and memory, so Phase 11 needs to preserve the shared-storage story while adding Kafka-compatible replicated-broker behavior. ([GitHub][1])
+Jansu is currently described as a **stateless Kafka-compatible broker** with pluggable storage backends including PostgreSQL, RedlineDB, S3, and memory, so Phase 11 needs to preserve the shared-storage story while adding Kafka-compatible replicated-broker behavior. ([GitHub][1])
 
 The current `Storage` abstraction is the main seam: it already owns broker registration, topic creation, produce, fetch, offset stage, metadata, maintenance, node ID, advertised listener, and similar broker-facing functions. That makes it the correct place to introduce partition leadership, ISR, high watermark, leader epochs, and follower append/truncate operations. ([GitHub][2])
 
@@ -131,8 +131,8 @@ The broker should own lifecycle. Storage should own correctness. Replication run
 | `jansu-storage/src/null.rs`                              | Add in-memory replication metadata for tests.                                                                    |
 | `jansu-storage/src/dynostore.rs`                         | Add object-store-backed broker registry, replica assignment, ISR, epoch history, follower append, truncation.    |
 | `jansu-storage/src/pg.rs`                                | Add SQL-backed replication implementation.                                                                       |
-| `jansu-storage/src/lite.rs`                              | Add SQLite/libSQL-backed replication implementation.                                                             |
-| `jansu-storage/src/limbo.rs`                             | Add Turso-backed replication implementation if feature-enabled.                                                  |
+| `jansu-storage/src/lite.rs`                              | Add RedlineDB-backed replication implementation.                                                             |
+| `jansu-storage/src/limbo.rs`                             | Add RedlineDB-backed replication implementation if feature-enabled.                                                  |
 | `jansu-storage/src/sql.rs`                               | Include new SQL files and helpers.                                                                               |
 | `jansu-storage/src/slate/storage.rs`                     | Add local-log style follower append/truncate if slatedb feature is used.                                         |
 | `jansu-storage/src/slate/types.rs`                       | Add persisted replica/epoch metadata if needed.                                                                  |
@@ -2392,7 +2392,7 @@ Add the same logical tests for:
 memory/null
 dynostore memory object store
 postgres
-sqlite/libsql
+redlinedb/redlinedb
 slatedb if enabled
 ```
 
@@ -2840,6 +2840,6 @@ Before calling Phase 11 done, I would require this exact checklist to pass:
 
 The most important steering point: **do not hide replication inside existing `produce()` and `fetch()` alone.** Phase 11 needs durable partition state plus explicit follower append/truncate APIs. Once those primitives are correct, the Kafka protocol services become straightforward, and Phase 12’s controller can later drive leadership changes without rewriting the replication layer.
 
-[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, SQLite, Apache Iceberg and Delta Lake · GitHub"
+[1]: https://github.com/jansu-io/jansu "GitHub - jansu-io/jansu: Apache Kafka® compatible broker with S3, PostgreSQL, RedlineDB, Apache Iceberg and Delta Lake · GitHub"
 [2]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/lib.rs "raw.githubusercontent.com"
 

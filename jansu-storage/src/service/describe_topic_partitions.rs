@@ -50,7 +50,7 @@ use crate::{Error, Result, Storage, TopicId};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or_default();
+/// let topics = response.topics.unwrap_or(vec![]);
 /// assert_eq!(1, topics.len());
 /// assert_eq!(
 ///     ErrorCode::UnknownTopicOrPartition,

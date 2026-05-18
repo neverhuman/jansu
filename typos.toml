@@ -12,3 +12,13 @@ extend-exclude = [
 [default.extend-words]
 ser = "ser"
 flate = "flate"
+lso = "lso"
+LSO = "LSO"
+mis = "mis"
+Ein = "Ein"
+dbe = "dbe"
+Hashi = "Hashi"
+xdescribe = "xdescribe"
+unparseable = "unparseable"
+ure = "ure"
+checksumed = "checksumed"

@@ -809,102 +809,6 @@ where
     Ok(())
 }
 
-#[cfg(feature = "postgres")]
-mod pg {
-    use std::sync::Arc;
-
-    use super::*;
-
-    async fn storage_container(
-        cluster: impl Into<String>,
-        node: i32,
-    ) -> Result<Arc<Box<dyn Storage>>> {
-        common::storage_container(
-            StorageType::Postgres,
-            cluster,
-            node,
-            Url::parse("tcp://127.0.0.1/")?,
-            None,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn simple_non_txn() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::simple_non_txn(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn with_txn() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::with_txn(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn with_multiple_txn() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::with_multiple_txn(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn virtual_keyed_topic_fetch() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::virtual_keyed_topic_fetch(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn non_virtual_topic_with_slash_streams_all() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::non_virtual_topic_with_slash_streams_all(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-}
-
 #[cfg(feature = "dynostore")]
 mod in_memory {
     use std::sync::Arc;
@@ -971,8 +875,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use super::*;
@@ -982,7 +886,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -1133,8 +1037,8 @@ mod slatedb {
     }
 }
 
-#[cfg(feature = "turso")]
-mod turso {
+#[cfg(feature = "redlinedb")]
+mod redlinedb_secondary {
     use std::sync::Arc;
 
     use super::*;
@@ -1144,7 +1048,7 @@ mod turso {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Turso,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -1153,7 +1057,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn simple_non_txn() -> Result<()> {
         let _guard = init_tracing()?;
@@ -1169,7 +1072,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn with_txn() -> Result<()> {
         let _guard = init_tracing()?;
@@ -1185,7 +1087,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn with_multiple_txn() -> Result<()> {
         let _guard = init_tracing()?;

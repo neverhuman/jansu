@@ -1,4 +1,4 @@
-I could not shell-clone GitHub from this environment because DNS resolution failed, but I inspected the repository through the GitHub connector and the live repo page. The repo is currently a multi-crate Rust Kafka-compatible broker with `jansu-broker`, `jansu-storage`, `jansu-sans-io`, compatibility docs, phase logs, and a compatibility ledger; the README describes Jansu as a stateless Kafka-compatible broker with PostgreSQL, SQLite/libSQL, S3, and memory storage, and says compatibility claims are tracked in `docs/compatibility`. ([GitHub][1])
+I could not shell-clone GitHub from this environment because DNS resolution failed, but I inspected the repository through the GitHub connector and the live repo page. The repo is currently a multi-crate Rust Kafka-compatible broker with `jansu-broker`, `jansu-storage`, `jansu-sans-io`, compatibility docs, phase logs, and a compatibility ledger; the README describes Jansu as a stateless Kafka-compatible broker with PostgreSQL, RedlineDB, S3, and memory storage, and says compatibility claims are tracked in `docs/compatibility`. ([GitHub][1])
 
 ## Phase 07 status after reading the plan and code
 
@@ -716,7 +716,7 @@ brokers:
 storage:
   - memory for fast CI proof
   - postgres for production-parity proof
-  - sqlite/slatedb/s3 as limited-parity proof if available
+  - redlinedb/slatedb/s3 as limited-parity proof if available
 
 acks:
   - 0
@@ -781,7 +781,7 @@ Update `docs/compatibility/kafka-4.2-ledger.json` row `api_key: 0`:
   "profiles": {
     "jansu-native": "green",
     "kafka-parity-postgres": "green",
-    "kafka-parity-sqlite": "yellow",
+    "kafka-parity-redlinedb": "yellow",
     "kafka-parity-s3-dynostore": "yellow",
     "kafka-parity-slatedb": "yellow",
     "compat-preview": "green"
@@ -895,7 +895,7 @@ Run client proof:
 ```bash
 tests/compat/produce/produce_matrix.sh --reference apache-kafka-4.2 --target jansu --storage memory
 tests/compat/produce/produce_matrix.sh --reference apache-kafka-4.2 --target jansu --storage postgres
-tests/compat/produce/produce_matrix.sh --reference apache-kafka-4.2 --target jansu --storage sqlite
+tests/compat/produce/produce_matrix.sh --reference apache-kafka-4.2 --target jansu --storage redlinedb
 tests/compat/produce/produce_matrix.sh --reference apache-kafka-4.2 --target jansu --storage slatedb
 ```
 

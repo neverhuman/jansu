@@ -87,8 +87,8 @@ safe_error_route!(
     {
         let responses = req
             .resources
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|resource| {
                 _AlterConfigsResourceResponse::default()
                     .resource_type(resource.resource_type)
@@ -111,14 +111,14 @@ safe_error_route!(
     {
         let results = req
             .dirs
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .flat_map(|dir| {
-                dir.topics.unwrap_or_default().into_iter().map(|topic| {
+                dir.topics.into_iter().flatten().map(|topic| {
                     let partitions = topic
                         .partitions
-                        .unwrap_or_default()
                         .into_iter()
+                        .flatten()
                         .map(|partition_index| {
                             _AlterReplicaLogDirPartitionResult::default()
                                 .partition_index(partition_index)
@@ -147,8 +147,8 @@ safe_error_route!(
     {
         let results = req
             .topics
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|topic| {
                 _CreatePartitionsTopicResult::default()
                     .name(topic.name)
@@ -178,8 +178,8 @@ safe_error_route!(
 safe_error_route!(delete_acls, DeleteAclsRequest, req, DeleteAclsResponse, {
     let filter_results = req
         .filters
-        .unwrap_or_default()
         .into_iter()
+        .flatten()
         .map(|_| {
             _DeleteAclsFilterResult::default()
                 .error_code(unknown_server_error())
@@ -201,18 +201,18 @@ safe_error_route!(
     {
         let markers = req
             .markers
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|marker| {
                 let topics = marker
                     .topics
-                    .unwrap_or_default()
                     .into_iter()
+                    .flatten()
                     .map(|topic| {
                         let partitions = topic
                             .partition_indexes
-                            .unwrap_or_default()
                             .into_iter()
+                            .flatten()
                             .map(|partition_index| {
                                 _WritableTxnMarkerPartitionResult::default()
                                     .partition_index(partition_index)
@@ -288,13 +288,13 @@ safe_error_route!(
     {
         let topics = req
             .topics
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|topic| {
                 let partitions = topic
                     .partitions
-                    .unwrap_or_default()
                     .into_iter()
+                    .flatten()
                     .map(|partition| {
                         _OffsetDeleteResponsePartition::default()
                             .partition_index(partition.partition_index)
@@ -335,8 +335,8 @@ safe_error_route!(
     {
         let results = req
             .feature_updates
-            .unwrap_or_default()
             .into_iter()
+            .flatten()
             .map(|feature| {
                 UpdatableFeatureResult::default()
                     .feature(feature.feature)

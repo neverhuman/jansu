@@ -40,7 +40,7 @@ async fn req() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(NODE_ID)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -69,7 +69,7 @@ async fn req() -> Result<(), Error> {
         ErrorCode::try_from(response.topics.unwrap_or_default()[0].error_code)?
     );
 
-    let config_name = "x.y.z";
+    let config_name = "cleanup.policy";
     let config_value = "pqr";
 
     let describe_configs = {
@@ -142,6 +142,100 @@ async fn req() -> Result<(), Error> {
     let configs = results[0].configs.as_deref().unwrap_or(&[]);
     assert_eq!(1, configs.len());
     assert_eq!(Some(config_value), configs[0].value.as_deref());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn reject_unknown_topic_config() -> Result<(), Error> {
+    let _guard = init_tracing()?;
+
+    let storage = StorageContainer::builder()
+        .cluster_id("jansu")
+        .node_id(111)
+        .advertised_listener(Url::parse("tcp://localhost:9092")?)
+        .storage(common::default_storage_url()?)
+        .build()
+        .await?;
+
+    let topic_name = "pqr";
+    let create_topic = {
+        let storage = storage.clone();
+        MapStateLayer::new(|_| storage).into_layer(CreateTopicsService)
+    };
+
+    let create_response = create_topic
+        .serve(
+            Context::default(),
+            CreateTopicsRequest::default().topics(Some(
+                [CreatableTopic::default()
+                    .name(topic_name.into())
+                    .num_partitions(3)
+                    .replication_factor(1)]
+                .into(),
+            )),
+        )
+        .await?;
+    assert_eq!(
+        ErrorCode::None,
+        ErrorCode::try_from(create_response.topics.unwrap_or_default()[0].error_code)?
+    );
+
+    let alter_configs = {
+        let storage = storage.clone();
+        MapStateLayer::new(|_| storage).into_layer(IncrementalAlterConfigsService)
+    };
+
+    let response = alter_configs
+        .serve(
+            Context::default(),
+            IncrementalAlterConfigsRequest::default().resources(Some(
+                [AlterConfigsResource::default()
+                    .resource_name(topic_name.into())
+                    .resource_type(ConfigResource::Topic.into())
+                    .configs(Some(
+                        [AlterableConfig::default()
+                            .config_operation(OpType::Set.into())
+                            .name("x.y.z".into())
+                            .value(Some("pqr".into()))]
+                        .into(),
+                    ))]
+                .into(),
+            )),
+        )
+        .await?;
+
+    let responses = response.responses.unwrap_or_default();
+    assert_eq!(1, responses.len());
+    assert_eq!(
+        ErrorCode::InvalidRequest,
+        ErrorCode::try_from(responses[0].error_code)?
+    );
+
+    let describe_configs = {
+        let storage = storage.clone();
+        MapStateLayer::new(|_| storage).into_layer(DescribeConfigsService)
+    };
+
+    let response = describe_configs
+        .serve(
+            Context::default(),
+            DescribeConfigsRequest::default()
+                .include_documentation(Some(false))
+                .include_synonyms(Some(false))
+                .resources(Some(
+                    [DescribeConfigsResource::default()
+                        .resource_name(topic_name.into())
+                        .resource_type(ConfigResource::Topic.into())
+                        .configuration_keys(Some(["x.y.z".into()].into()))]
+                    .into(),
+                )),
+        )
+        .await?;
+
+    let results = response.results.unwrap_or_default();
+    assert_eq!(1, results.len());
+    assert!(results[0].configs.as_deref().unwrap_or_default().is_empty());
 
     Ok(())
 }

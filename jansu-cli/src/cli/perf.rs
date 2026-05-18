@@ -100,7 +100,7 @@ impl Arg {
                 .await
                 .map_err(Into::into),
 
-            Command::Consume => todo!(),
+            Command::Consume => Err(crate::Error::Box("perf consume not yet implemented".into())),
         }
     }
 }

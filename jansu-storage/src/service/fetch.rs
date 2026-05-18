@@ -80,7 +80,7 @@ use crate::{Error, Result, Storage, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.unwrap_or_default();
+/// let topics = response.topics.unwrap_or(vec![]);
 /// assert_eq!(1, topics.len());
 /// assert_eq!(ErrorCode::None, ErrorCode::try_from(topics[0].error_code)?);
 ///
@@ -108,9 +108,9 @@ use crate::{Error, Result, Storage, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.responses.as_deref().unwrap_or_default();
+/// let topics = response.responses.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, topics.len());
-/// let partitions = topics[0].partitions.as_deref().unwrap_or_default();
+/// let partitions = topics[0].partitions.as_deref().unwrap_or(&[]);
 /// assert_eq!(1, partitions.len());
 /// assert_eq!(
 ///     ErrorCode::None,
@@ -153,46 +153,45 @@ impl FetchService {
         let current_epoch = current_leader_epoch(&history);
         let leader_id = ctx.state().node().await?;
 
-        if let Some(requested_epoch) = fetch_partition.current_leader_epoch {
-            if requested_epoch != -1
-                && let Some(current_epoch) = current_epoch
-            {
-                if requested_epoch < current_epoch.epoch {
-                    return Ok(PartitionData::default()
-                        .partition_index(partition_index)
-                        .error_code(ErrorCode::FencedLeaderEpoch.into())
-                        .high_watermark(0)
-                        .last_stable_offset(Some(0))
-                        .log_start_offset(Some(-1))
-                        .diverging_epoch(Some(EpochEndOffset::default().epoch(-1).end_offset(-1)))
-                        .current_leader(Some(
-                            LeaderIdAndEpoch::default()
-                                .leader_id(leader_id)
-                                .leader_epoch(current_epoch.epoch),
-                        ))
-                        .snapshot_id(Some(SnapshotId::default().end_offset(-1).epoch(-1)))
-                        .aborted_transactions(Some([].into()))
-                        .preferred_read_replica(Some(-1))
-                        .records(None));
-                }
-                if requested_epoch > current_epoch.epoch {
-                    return Ok(PartitionData::default()
-                        .partition_index(partition_index)
-                        .error_code(ErrorCode::UnknownLeaderEpoch.into())
-                        .high_watermark(0)
-                        .last_stable_offset(Some(0))
-                        .log_start_offset(Some(-1))
-                        .diverging_epoch(Some(EpochEndOffset::default().epoch(-1).end_offset(-1)))
-                        .current_leader(Some(
-                            LeaderIdAndEpoch::default()
-                                .leader_id(leader_id)
-                                .leader_epoch(current_epoch.epoch),
-                        ))
-                        .snapshot_id(Some(SnapshotId::default().end_offset(-1).epoch(-1)))
-                        .aborted_transactions(Some([].into()))
-                        .preferred_read_replica(Some(-1))
-                        .records(None));
-                }
+        if let Some(requested_epoch) = fetch_partition.current_leader_epoch
+            && requested_epoch != -1
+            && let Some(current_epoch) = current_epoch
+        {
+            if requested_epoch < current_epoch.epoch {
+                return Ok(PartitionData::default()
+                    .partition_index(partition_index)
+                    .error_code(ErrorCode::FencedLeaderEpoch.into())
+                    .high_watermark(0)
+                    .last_stable_offset(Some(0))
+                    .log_start_offset(Some(-1))
+                    .diverging_epoch(Some(EpochEndOffset::default().epoch(-1).end_offset(-1)))
+                    .current_leader(Some(
+                        LeaderIdAndEpoch::default()
+                            .leader_id(leader_id)
+                            .leader_epoch(current_epoch.epoch),
+                    ))
+                    .snapshot_id(Some(SnapshotId::default().end_offset(-1).epoch(-1)))
+                    .aborted_transactions(Some([].into()))
+                    .preferred_read_replica(Some(-1))
+                    .records(None));
+            }
+            if requested_epoch > current_epoch.epoch {
+                return Ok(PartitionData::default()
+                    .partition_index(partition_index)
+                    .error_code(ErrorCode::UnknownLeaderEpoch.into())
+                    .high_watermark(0)
+                    .last_stable_offset(Some(0))
+                    .log_start_offset(Some(-1))
+                    .diverging_epoch(Some(EpochEndOffset::default().epoch(-1).end_offset(-1)))
+                    .current_leader(Some(
+                        LeaderIdAndEpoch::default()
+                            .leader_id(leader_id)
+                            .leader_epoch(current_epoch.epoch),
+                    ))
+                    .snapshot_id(Some(SnapshotId::default().end_offset(-1).epoch(-1)))
+                    .aborted_transactions(Some([].into()))
+                    .preferred_read_replica(Some(-1))
+                    .records(None));
             }
         }
 

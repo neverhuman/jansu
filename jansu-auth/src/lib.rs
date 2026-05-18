@@ -96,7 +96,7 @@ impl Debug for Stage {
 
 impl Authentication {
     pub fn server(config: Arc<SASLConfig>) -> Self {
-        let server = SASLServer::<Justification>::new(config.clone());
+        let server = SASLServer::<Justification>::new(Arc::clone(&config));
         Self {
             config,
             stage: Arc::new(Mutex::new(Some(Stage::Server(server)))),
@@ -106,9 +106,7 @@ impl Authentication {
     pub fn is_authenticated(&self) -> bool {
         self.stage
             .lock()
-            .map(|guard| matches!(guard.as_ref(), Some(Stage::Finished(_))))
-            .ok()
-            .unwrap_or_default()
+            .is_ok_and(|guard| matches!(guard.as_ref(), Some(Stage::Finished(_))))
     }
 
     /// Build a fresh `Stage::Server` from the stored config. Used by
@@ -118,7 +116,7 @@ impl Authentication {
     /// initiate a new SASL exchange even though the previous one
     /// already succeeded.
     pub fn fresh_server(&self) -> Stage {
-        Stage::Server(SASLServer::<Justification>::new(self.config.clone()))
+        Stage::Server(SASLServer::<Justification>::new(Arc::clone(&self.config)))
     }
 }
 

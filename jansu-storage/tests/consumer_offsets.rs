@@ -16,8 +16,6 @@ mod common;
 
 use std::{slice::from_ref, time::Duration};
 
-#[cfg(feature = "postgres")]
-use crate::common::ensure_postgres_offset_schema;
 use crate::common::{Error, build_storage, create_topic, init_tracing, register_broker};
 use jansu_sans_io::offset_commit_request::OffsetCommitRequestPartition;
 use jansu_storage::{OffsetCommitRequest, Storage, Topition};
@@ -101,18 +99,16 @@ where
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_offset_commit_fetch_round_trip() -> Result<(), Error> {
+async fn redlinedb_offset_commit_fetch_round_trip() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let group_id = format!("group-{}", Uuid::now_v7());
     let topic = format!("topic-{}", Uuid::now_v7());
-    let storage_path = format!("consumer-offsets-{}.db", Uuid::now_v7());
-    let _ = std::fs::remove_file(&storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("consumer-offsets")?;
 
     let storage = build_storage(&cluster_id, node_id, storage_url).await?;
     register_broker(&*storage, &cluster_id, node_id).await?;
@@ -158,18 +154,16 @@ async fn libsql_offset_commit_fetch_round_trip() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_offset_commit_expires_records() -> Result<(), Error> {
+async fn redlinedb_offset_commit_expires_records() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let group_id = format!("group-{}", Uuid::now_v7());
     let topic = format!("topic-{}", Uuid::now_v7());
-    let storage_path = format!("consumer-offsets-{}.db", Uuid::now_v7());
-    let _ = std::fs::remove_file(&storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("consumer-offsets")?;
 
     let storage = build_storage(&cluster_id, node_id, storage_url).await?;
     register_broker(&*storage, &cluster_id, node_id).await?;
@@ -235,77 +229,6 @@ async fn slatedb_offset_commit_maintain_clears_expired_records() -> Result<(), E
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let storage = build_storage(&cluster_id, node_id, Url::parse("slatedb://memory")?).await?;
-
-    offset_retention_cleanup_round_trip(storage, &cluster_id, node_id).await
-}
-
-#[cfg(feature = "postgres")]
-#[tokio::test]
-async fn postgres_offset_commit_fetch_round_trip() -> Result<(), Error> {
-    let _guard = init_tracing()?;
-
-    let cluster_id = Uuid::now_v7().to_string();
-    let node_id = rng().random_range(0..i32::MAX);
-    let group_id = format!("group-{}", Uuid::now_v7());
-    let topic = format!("topic-{}", Uuid::now_v7());
-    let storage_url = Url::parse("postgres://postgres:postgres@localhost")?;
-    ensure_postgres_offset_schema(&storage_url).await?;
-
-    let storage = build_storage(&cluster_id, node_id, storage_url).await?;
-    register_broker(&*storage, &cluster_id, node_id).await?;
-    _ = create_topic(&*storage, &topic, 1).await?;
-
-    let commit = OffsetCommitRequest::try_from(
-        &OffsetCommitRequestPartition::default()
-            .partition_index(0)
-            .committed_offset(42)
-            .committed_leader_epoch(Some(7))
-            .committed_metadata(Some("meta".into())),
-    )?;
-
-    let topition = Topition::new(topic.clone(), 0);
-    let response = storage
-        .offset_commit(&group_id, None, &[(topition.clone(), commit.clone())])
-        .await?;
-
-    assert_eq!(1, response.len());
-    assert_eq!(jansu_sans_io::ErrorCode::None, response[0].1);
-
-    let fetched = storage
-        .offset_fetch_records(Some(&group_id), from_ref(&topition), None)
-        .await?;
-
-    let record = fetched
-        .get(&topition)
-        .expect("offset fetch must return committed record");
-    assert_eq!(42, record.committed_offset());
-    assert_eq!(Some(7), record.leader_epoch());
-    assert_eq!(Some("meta"), record.metadata());
-    assert!(record.commit_timestamp().is_some());
-    assert!(record.expires_at().is_some());
-
-    let offsets = storage
-        .offset_fetch(Some(&group_id), from_ref(&topition), None)
-        .await?;
-    assert_eq!(Some(&42), offsets.get(&topition));
-
-    let committed = storage.committed_offset_topitions(&group_id).await?;
-    assert_eq!(Some(&42), committed.get(&topition));
-
-    Ok(())
-}
-
-#[cfg(feature = "postgres")]
-#[tokio::test]
-async fn postgres_offset_commit_maintain_clears_expired_records() -> Result<(), Error> {
-    let _guard = init_tracing()?;
-
-    let cluster_id = Uuid::now_v7().to_string();
-    let node_id = rng().random_range(0..i32::MAX);
-    let storage_url = Url::parse("postgres://postgres:postgres@localhost")?;
-    ensure_postgres_offset_schema(&storage_url).await?;
-
-    let storage = build_storage(&cluster_id, node_id, storage_url).await?;
 
     offset_retention_cleanup_round_trip(storage, &cluster_id, node_id).await
 }

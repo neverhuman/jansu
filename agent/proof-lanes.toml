@@ -1,0 +1,29 @@
+[[lane]]
+command = "just fast"
+name = "fast"
+purpose = "deterministic local health proof"
+
+[[lane]]
+command = "just score"
+name = "audit"
+purpose = "write jankurai score artifacts"
+
+[[lane]]
+command = "just security"
+name = "security"
+purpose = "secret, dependency, and workflow proof"
+
+[[lane]]
+command = "just check"
+name = "release"
+purpose = "full merge gate"
+
+[[lane]]
+command = "jankurai audit . --mode advisory --json target/jankurai/repo-score.json --md target/jankurai/repo-score.md"
+name = "contracts-audit"
+purpose = "audit contracts and docs using audit command"
+
+[[lane]]
+command = "jankurai doctor --fail-on critical"
+name = "db-doctor"
+purpose = "run doctor checks for DB docs"

@@ -236,8 +236,7 @@ impl ResourceConfig {
         self.configuration
             .lock()
             .map(|guard| guard.contains_key(resource_name))
-            .ok()
-            .unwrap_or_default()
+            .unwrap_or(false)
     }
 
     pub(crate) fn get(&self, resource_name: &str, key: &str) -> Option<ResourceConfigValue> {
@@ -296,7 +295,7 @@ pub(crate) struct TopicConfigService<I, O> {
 impl<I, O> TopicConfigService<I, O> {
     fn add_topic_configuration(&self, response: DescribeConfigsResponse) -> Result<(), Error> {
         debug!(?response);
-        for result in response.results.unwrap_or_default() {
+        for result in response.results.into_iter().flatten() {
             debug!(?result);
 
             if result.error_code != i16::from(ErrorCode::None)
@@ -306,7 +305,7 @@ impl<I, O> TopicConfigService<I, O> {
                 continue;
             }
 
-            for resource_result in result.configs.as_deref().unwrap_or_default() {
+            for resource_result in result.configs.as_deref().into_iter().flatten() {
                 debug!(?resource_result);
 
                 if let Some(config_value) = resource_result
@@ -516,7 +515,7 @@ mod tests {
                 .build()
                 .and_then(deflated::Batch::try_from)
                 .map(|batch| {
-                    ProduceRequest::default().topic_data(Some(
+                    ProduceRequest::default().acks(-1).topic_data(Some(
                         [TopicProduceData::default()
                             .name(topic.into())
                             .partition_data(Some(
@@ -600,14 +599,11 @@ mod tests {
                 .serve(Context::default(), produce_request(RESOURCE_NAME_0)?)
                 .await?;
 
-            let responses = response.responses.unwrap_or_default();
+            let responses: Vec<_> = response.responses.into_iter().flatten().collect();
             assert_eq!(1, responses.len());
             assert_eq!(RESOURCE_NAME_0, responses[0].name);
 
-            let partitions = responses[0]
-                .partition_responses
-                .as_deref()
-                .unwrap_or_default();
+            let partitions: &[_] = responses[0].partition_responses.as_deref().unwrap_or(&[]);
             assert_eq!(1, partitions.len());
             assert_eq!(0, partitions[0].index);
             assert_eq!(
@@ -629,14 +625,11 @@ mod tests {
                 .serve(Context::default(), produce_request(RESOURCE_NAME_1)?)
                 .await?;
 
-            let responses = response.responses.unwrap_or_default();
+            let responses: Vec<_> = response.responses.into_iter().flatten().collect();
             assert_eq!(1, responses.len());
             assert_eq!(RESOURCE_NAME_1, responses[0].name);
 
-            let partitions = responses[0]
-                .partition_responses
-                .as_deref()
-                .unwrap_or_default();
+            let partitions: &[_] = responses[0].partition_responses.as_deref().unwrap_or(&[]);
             assert_eq!(1, partitions.len());
             assert_eq!(0, partitions[0].index);
             assert_eq!(i16::from(ErrorCode::None), partitions[0].error_code);

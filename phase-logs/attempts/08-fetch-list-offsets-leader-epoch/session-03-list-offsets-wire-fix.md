@@ -38,9 +38,9 @@
 ```bash
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test list_offsets --no-default-features --features dynostore -- mixed_partition_errors leader_epoch_tracks_produced_epoch --nocapture
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test list_offsets --no-default-features --features dynostore -- --nocapture
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test list_offsets --no-default-features --features libsql,dynostore,slatedb -- --nocapture
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,libsql,slatedb -- --nocapture
-env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-storage --test list_offsets --no-default-features --features dynostore,libsql,slatedb -- --nocapture
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test list_offsets --no-default-features --features redlinedb,dynostore,slatedb -- --nocapture
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-storage --test offset_for_leader_epoch --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
+env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-storage --test list_offsets --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test fetch --no-default-features --features dynostore -- --nocapture
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture
 env CARGO_TARGET_DIR=/tmp/jansu-verify-phase08-fix cargo check -p jansu-storage -p jansu-service -p jansu-broker --all-features --all-targets

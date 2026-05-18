@@ -76,19 +76,40 @@ fn epoch_tuples(history: &[jansu_storage::LeaderEpochRecord]) -> Vec<(i32, i64)>
         .collect()
 }
 
-#[cfg(feature = "libsql")]
-async fn insert_lite_epoch_history(
-    storage_path: &str,
+#[cfg(feature = "redlinedb")]
+fn redlinedb_path(storage_url: &Url) -> Result<std::path::PathBuf, Error> {
+    let mut path = std::env::current_dir()?;
+
+    if let Some(domain) = storage_url.domain() {
+        path.push(domain);
+    }
+
+    if let Some(relative) = storage_url.path().strip_prefix("/") {
+        path.push(relative);
+    } else {
+        path.push(storage_url.path());
+    }
+
+    Ok(path)
+}
+
+#[cfg(feature = "redlinedb")]
+async fn insert_redlinedb_epoch_history(
+    storage_url: &Url,
     cluster_id: &str,
     topic: &str,
     partition: i32,
     epochs: &[(i32, i64)],
 ) -> i64 {
-    let db = libsql::Builder::new_local(storage_path)
-        .build()
-        .await
-        .unwrap();
-    let conn = db.connect().unwrap();
+    let db = redlinedb::Database::open_with_options(
+        redlinedb_path(storage_url).unwrap(),
+        redlinedb::OpenOptions {
+            create: true,
+            ..redlinedb::OpenOptions::default()
+        },
+    )
+    .unwrap();
+    let mut conn = db.connect().unwrap();
 
     let mut rows = conn
         .query(
@@ -99,61 +120,57 @@ async fn insert_lite_epoch_history(
         join cluster c on t.cluster = c.id
         where c.name = ?1 and t.name = ?2 and tp.partition = ?3
     ",
-            libsql::params![cluster_id, topic, partition],
+            redlinedb::params![cluster_id, topic, i64::from(partition)],
         )
-        .await
         .unwrap();
-    let row = rows.next().await.unwrap().unwrap();
-    let topition_id: i64 = row.get(0).unwrap();
+    let topition_id: i64 = match rows.step().unwrap() {
+        redlinedb::Step::Row(row) => row.get(0).unwrap(),
+        redlinedb::Step::Done => panic!("topition id must exist"),
+    };
 
     for (epoch, start_offset) in epochs {
         _ = conn.execute(
             "insert into leader_epoch_history (topition, epoch, start_offset) values (?1, ?2, ?3)",
-            libsql::params![topition_id, epoch, start_offset],
+            redlinedb::params![topition_id, i64::from(*epoch), *start_offset],
         )
-        .await
         .unwrap();
     }
 
     topition_id
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_epoch_boundaries_are_recorded_on_produce() -> Result<(), Error> {
+async fn redlinedb_epoch_boundaries_are_recorded_on_produce() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
-    let storage_path = "phase08-libsql-produce-leader-epoch.db";
-    let _ = std::fs::remove_file(storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("phase08-redlinedb-produce-leader-epoch")?;
 
-    let cluster_id = "phase08-libsql-produce-leader-epoch";
+    let cluster_id = "phase08-redlinedb-produce-leader-epoch";
     let node_id = 111;
-    let topic = "libsql-produce-leader-epoch-topic";
+    let topic = "redlinedb-produce-leader-epoch-topic";
 
-    let storage = build_storage(cluster_id, node_id, storage_url).await?;
+    let storage = build_storage(cluster_id, node_id, storage_url.clone()).await?;
     register_broker(&*storage, cluster_id, node_id).await?;
     assert_storage_driven_epoch_boundaries(&**storage, topic).await
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
 async fn offset_for_leader_epoch_service_returns_exact_epoch_errors() -> Result<(), Error> {
     let _guard = init_tracing()?;
 
-    let storage_path = "phase08-offset-for-leader-epoch-service.db";
-    let _ = std::fs::remove_file(storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("phase08-offset-for-leader-epoch-service")?;
 
     let cluster_id = "phase08-leader-epoch-service-test";
     let node_id = 111;
     let topic = "leader-epoch-service-topic";
 
-    let storage = build_storage(cluster_id, node_id, storage_url).await?;
+    let storage = build_storage(cluster_id, node_id, storage_url.clone()).await?;
     register_broker(&*storage, cluster_id, node_id).await?;
     _ = create_topic(&*storage, topic, 1).await?;
 
-    _ = insert_lite_epoch_history(storage_path, cluster_id, topic, 0, &[(1, 5)]).await;
+    _ = insert_redlinedb_epoch_history(&storage_url, cluster_id, topic, 0, &[(1, 5)]).await;
 
     let partition = |leader_epoch, current_leader_epoch| {
         OffsetForLeaderPartition::default()
@@ -265,15 +282,13 @@ async fn offset_for_leader_epoch_service_returns_exact_epoch_errors() -> Result<
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn lite_leader_epoch_history_unknown_topition_returns_unknown_topic_or_partition()
+async fn redlinedb_leader_epoch_history_unknown_topition_returns_unknown_topic_or_partition()
 -> Result<(), Error> {
     let _guard = init_tracing()?;
 
-    let storage_path = "phase08-leader-epoch-history-unknown.db";
-    let _ = std::fs::remove_file(storage_path);
-    let storage_url = Url::parse(&format!("sqlite://{storage_path}"))?;
+    let storage_url = common::redlinedb_storage_url("phase08-leader-epoch-history-unknown")?;
 
     let storage = build_storage("phase08-leader-epoch-history-unknown", 111, storage_url).await?;
 

@@ -237,7 +237,14 @@ impl MessageGenerator {
                     }
                 }
 
-                RuntimeFieldType::Map(key, value) => todo!("key={key:?} value={value:?}"),
+                RuntimeFieldType::Map(key, value) => {
+                    return Err(Error::NotImplemented {
+                        kind: "proto_generate_map",
+                        detail: format!(
+                            "Protobuf map field generator is not yet implemented: key={key:?} value={value:?}"
+                        ),
+                    });
+                }
             }
         }
 
@@ -362,7 +369,10 @@ impl<'a> FieldGenerator<'a> {
                 .map(ReflectValueBox::from)
                 .map_err(Into::into),
 
-            RuntimeType::VecU8 => todo!(),
+            RuntimeType::VecU8 => Err(Error::NotImplemented {
+                kind: "proto_generate_singular",
+                detail: String::from("Protobuf VecU8 singular generator is not yet implemented"),
+            }),
 
             RuntimeType::Enum(descriptor) => self
                 .configuration
@@ -407,9 +417,10 @@ impl<'a> FieldGenerator<'a> {
         engine: &Engine,
         runtime_type: &RuntimeType,
     ) -> Result<Vec<ReflectValueBox>> {
-        let upper = self.configuration.repeated_len().unwrap_or_else(|| {
-            rand::rng().random_range(self.configuration.repeated_range().unwrap_or(0..=1))
-        });
+        let upper = match self.configuration.repeated_len() {
+            Some(len) => len,
+            None => rand::rng().random_range(self.configuration.repeated_range().unwrap_or(0..=1)),
+        };
 
         (0..upper)
             .inspect(|i| debug!(i))
@@ -446,7 +457,7 @@ impl FieldGeneratorConfiguration {
     ) -> FieldGeneratorConfiguration {
         debug!(field = field.name(), generator = generator.full_name(),);
 
-        field
+        let found = field
             .options
             .special_fields
             .unknown_fields()
@@ -466,8 +477,8 @@ impl FieldGeneratorConfiguration {
                 } else {
                     None
                 }
-            })
-            .unwrap_or_default()
+            });
+        found.unwrap_or_default()
     }
 
     fn skip(&self) -> bool {
@@ -475,7 +486,7 @@ impl FieldGeneratorConfiguration {
             .cloned()
             .and_then(|value| value.as_bool())
             .inspect(|skip| debug!(?skip))
-            .unwrap_or_default()
+            .unwrap_or(false)
     }
 
     fn script(&self) -> Option<&str> {
@@ -555,8 +566,10 @@ impl FieldGeneratorConfiguration {
 }
 
 impl From<EnumDescriptor> for FieldGeneratorConfiguration {
-    fn from(_value: EnumDescriptor) -> Self {
-        todo!()
+    fn from(value: EnumDescriptor) -> Self {
+        panic!(
+            "From<EnumDescriptor> for FieldGeneratorConfiguration is not yet implemented: {value:?}"
+        )
     }
 }
 
@@ -611,7 +624,9 @@ impl From<&dyn MessageDyn> for FieldGeneratorConfiguration {
                         ))
                     }
 
-                    RuntimeFieldType::Map(key, value) => todo!("key={key:?} value={value:?}"),
+                    RuntimeFieldType::Map(key, value) => panic!(
+                        "From<&dyn MessageDyn> for FieldGeneratorConfiguration: map field not yet implemented: key={key:?} value={value:?}"
+                    ),
                 })
                 .inspect(|(field, value)| debug!(field, ?value))
                 .collect::<BTreeMap<String, FieldGeneratorConfiguration>>(),

@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Regression test for `describe_groups` on the storage backends that
-//! persist `GroupDetail` as JSON text.
+//! Regression test for `describe_groups` on storage backends that persist
+//! `GroupDetail` as JSON text.
 //!
-//! Both the libsql (`lite.rs`) and turso (`limbo.rs`) backends used to
-//! call `serde_json::Value::from(&str)` on the JSON column, which wraps
-//! the raw JSON text as a `Value::String` instead of parsing it. The
-//! subsequent `serde_json::from_value::<GroupDetail>` then always
-//! failed with `invalid type: string "...", expected struct
+//! Local SQL-backed storage used to call `serde_json::Value::from(&str)` on
+//! the JSON column, which wraps the raw JSON text as a `Value::String` instead
+//! of parsing it. The subsequent `serde_json::from_value::<GroupDetail>` then
+//! always failed with `invalid type: string "...", expected struct
 //! GroupDetail`. The native-JSON Postgres backend was not affected.
 
 mod common;
 
-use std::{slice::from_ref, sync::Arc, thread};
+use std::{slice::from_ref, sync::Arc};
 
 use jansu_storage::{BrokerRegistrationRequest, GroupDetail, Storage, StorageContainer};
 use rand::{prelude::*, rng};
@@ -34,22 +33,8 @@ use uuid::Uuid;
 
 use crate::common::{Error, init_tracing};
 
-fn storage_url(scheme: &str) -> Result<Url, Error> {
-    thread::current()
-        .name()
-        .ok_or_else(|| Error::Message("unnamed thread".into()))
-        .map(|name| {
-            format!(
-                "{scheme}://../logs/{}/{}::{name}.db",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_CRATE_NAME"),
-            )
-        })
-        .and_then(|url| Url::parse(&url).map_err(Into::into))
-}
-
 async fn build_storage(
-    scheme: &str,
+    storage_url: Url,
     cluster: &str,
     node: i32,
 ) -> Result<Arc<Box<dyn Storage>>, Error> {
@@ -57,20 +42,20 @@ async fn build_storage(
         .cluster_id(cluster)
         .node_id(node)
         .advertised_listener(Url::parse("tcp://127.0.0.1:9092")?)
-        .storage(storage_url(scheme)?)
+        .storage(storage_url)
         .build()
         .await
         .map_err(Into::into)
 }
 
-async fn round_trip(scheme: &str) -> Result<(), Error> {
+async fn round_trip(storage_url: Url) -> Result<(), Error> {
     let _guard = init_tracing()?;
 
     let cluster_id = Uuid::now_v7().to_string();
     let node_id = rng().random_range(0..i32::MAX);
     let group_id = format!("test-group-{}", Uuid::now_v7());
 
-    let storage = build_storage(scheme, &cluster_id, node_id).await?;
+    let storage = build_storage(storage_url, &cluster_id, node_id).await?;
 
     storage
         .register_broker(BrokerRegistrationRequest {
@@ -98,18 +83,8 @@ async fn round_trip(scheme: &str) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "libsql")]
+#[cfg(feature = "redlinedb")]
 #[tokio::test]
-async fn libsql_describe_groups_round_trip() -> Result<(), Error> {
-    round_trip("sqlite").await
-}
-
-// The turso end-to-end harness is unstable (existing turso tests in
-// `jansu-broker` are all `#[ignore]`); run this by hand with
-// `cargo test --features turso -- --ignored` once the harness lands.
-#[cfg(feature = "turso")]
-#[ignore]
-#[tokio::test]
-async fn turso_describe_groups_round_trip() -> Result<(), Error> {
-    round_trip("turso").await
+async fn redlinedb_describe_groups_round_trip() -> Result<(), Error> {
+    round_trip(common::redlinedb_storage_url("describe-groups-round-trip")?).await
 }

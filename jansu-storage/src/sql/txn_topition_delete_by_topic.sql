@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from txn_topition
-where txn_topition.topition in (
+delete from txn_topition where txn_topition.topition in (
     select tp.id
 
     from cluster c

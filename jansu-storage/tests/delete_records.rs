@@ -24,7 +24,6 @@ use url::Url;
 
 mod common;
 
-#[ignore]
 #[tokio::test]
 async fn delete_non_existent_records() -> Result<(), Error> {
     let _guard = init_tracing()?;
@@ -33,7 +32,94 @@ async fn delete_non_existent_records() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(111)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
+        .build()
+        .await?;
+
+    let service = MapStateLayer::new(|_| storage).into_layer(DeleteRecordsService);
+
+    let topic = "abcba";
+
+    let response = service
+        .serve(
+            Context::default(),
+            DeleteRecordsRequest::default().topics(Some(
+                [DeleteRecordsTopic::default()
+                    .name(topic.into())
+                    .partitions(Some(
+                        [DeleteRecordsPartition::default()
+                            .offset(32123)
+                            .partition_index(6)]
+                        .into(),
+                    ))]
+                .into(),
+            )),
+        )
+        .await
+        .inspect(|response| debug!(?response))?;
+
+    let topics = response.topics.unwrap_or_default();
+    assert_eq!(1, topics.len());
+
+    Ok(())
+}
+
+#[cfg(feature = "redlinedb")]
+#[tokio::test]
+async fn delete_non_existent_records_redlinedb() -> Result<(), Error> {
+    let _guard = init_tracing()?;
+
+    let storage = StorageContainer::builder()
+        .cluster_id("jansu")
+        .node_id(111)
+        .advertised_listener(Url::parse("tcp://localhost:9092")?)
+        .storage(common::redlinedb_storage_url(
+            "delete-non-existent-records",
+        )?)
+        .build()
+        .await?;
+
+    let service = MapStateLayer::new(|_| storage).into_layer(DeleteRecordsService);
+
+    let topic = "abcba";
+
+    let response = service
+        .serve(
+            Context::default(),
+            DeleteRecordsRequest::default().topics(Some(
+                [DeleteRecordsTopic::default()
+                    .name(topic.into())
+                    .partitions(Some(
+                        [DeleteRecordsPartition::default()
+                            .offset(32123)
+                            .partition_index(6)]
+                        .into(),
+                    ))]
+                .into(),
+            )),
+        )
+        .await
+        .inspect(|response| debug!(?response))?;
+
+    let topics = response.topics.unwrap_or_default();
+    assert_eq!(1, topics.len());
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn delete_non_existent_records_pg() -> Result<(), Error> {
+    if std::env::var("POSTGRES_URL").is_err() {
+        return Ok(());
+    }
+
+    let _guard = init_tracing()?;
+
+    let storage = StorageContainer::builder()
+        .cluster_id("jansu")
+        .node_id(111)
+        .advertised_listener(Url::parse("tcp://localhost:9092")?)
+        .storage(Url::parse(std::env::var("POSTGRES_URL").unwrap().as_str())?)
         .build()
         .await?;
 

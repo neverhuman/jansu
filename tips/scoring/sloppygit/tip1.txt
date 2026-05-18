@@ -1,0 +1,492 @@
+You’re right to treat this as more than “style.” In Git, fake versioning habits create unreproducible releases, impossible reviews, broken rollbacks, bloated history, and security exposure.
+
+One caveat: nobody can prove a literally complete list of every bad behavior ever mentioned on Reddit, X, LinkedIn, Quora, etc. I treated this as a practical exhaustive blacklist: recurring public-discussion anti-patterns plus the canonical Git/GitHub/SemVer guidance that makes them objectively indefensible. Quora-specific pages were not reliably accessible, so I am not inventing unverifiable Quora claims.
+
+Below is the list I’d call **inexcusable in a professional repo unless explicitly documented, automated, and justified**.
+
+---
+
+## 1. Manual “version control outside version control”
+
+These are the core bad behaviors you called out: using filenames, folders, comments, zips, or copies as a fake version-control system even though Git already records history. Public discussions repeatedly call out `file_v1/file_v2`, dated folder copies, binary `FINAL_v2` files, and the recommendation to use tags/commits instead. ([Reddit][1])
+
+1. Creating folders like `project_v2/`, `project_v3/`, `app_old/`, `app_new/`, `backup/`, `archive/`, `latest/`, or `final/`.
+2. Creating files like `foo_v1.py`, `foo_v2.py`, `foo_final.py`, `foo_final_final.py`, `foo_really_final.py`.
+3. Keeping old versions as `module_old.js`, `module_backup.js`, `module_DO_NOT_USE.js`.
+4. Copying entire source trees before making a change.
+5. Keeping “current” and “previous” copies of the same code in the repo.
+6. Using dates as folder versions: `2024-05-01/`, `2024-05-15-fixed/`, `release_2026_05_06/`.
+7. Using deployment folders as source history: `prod_copy/`, `prod_before_patch/`, `qa_v2/`.
+8. Committing zipped source snapshots: `source.zip`, `project_2026_05_06.zip`, `backup.tar.gz`.
+9. Exporting code from another system, zipping it, and bulk-committing the archive as “the version.”
+10. Keeping file-level version numbers independent of the repository version.
+11. Adding manual version comments at the top of files instead of relying on commit history.
+12. Leaving old code commented out as “history.”
+13. Adding “changed by Alice on date X” comment blocks as a replacement for `git blame`, commits, or changelog.
+14. Naming build outputs with version numbers manually while source stays untagged.
+15. Renaming files every release just to include a version number, breaking stable imports and references.
+16. Making code import `utils_v2.py`, `database_new.py`, `api_old.py` instead of using branches, modules, package versions, or deprecation paths.
+17. Keeping multiple major versions as copied directories inside one branch: `api_v1/`, `api_v2/`, `api_v3/` without a real release/versioning strategy.
+18. Maintaining customer-specific copies as folders: `clientA/`, `clientB/`, `clientC/`, instead of configuration, feature flags, packages, or branches.
+19. Manually copying files between “versions” instead of merging/cherry-picking.
+20. Deploying from a copied folder instead of a tagged commit or immutable release artifact.
+21. Saying “the folder name is the version” when no Git tag, commit SHA, package version, or artifact digest identifies the release.
+22. Keeping old generated reports, dashboards, notebooks, or spreadsheets as `final_v2` binary files rather than using source-friendly formats, Git LFS, or artifact storage where appropriate.
+
+**Correct replacement:** use commits for history, branches for parallel work, tags for released versions, package versions for distributed code, and release artifacts for built outputs.
+
+---
+
+## 2. Bad release, tag, and semantic-versioning behavior
+
+Official Git docs distinguish lightweight tags from annotated tags and describe annotated tags as full tag objects with metadata; SemVer requires MAJOR/MINOR/PATCH meaning and says released version contents must not be modified; GitHub also supports immutable releases to prevent tags/assets from changing after publication. ([Git][2])
+
+23. Not tagging releases at all.
+24. Tagging the wrong commit.
+25. Tagging after deployment “from memory.”
+26. Tagging whatever happens to be on `main` without proving it is what was built or deployed.
+27. Reusing the same version number for different code.
+28. Moving a published tag to a new commit.
+29. Force-updating release tags.
+30. Deleting and recreating tags to hide mistakes.
+31. Publishing `v1.2.3` and later silently changing what `v1.2.3` means.
+32. Using lightweight tags for public releases when annotated or signed tags are expected.
+33. Never signing tags in a repo where provenance matters.
+34. Creating a release artifact that does not correspond exactly to the release tag.
+35. Rebuilding “the same release” later and replacing binaries without changing the version.
+36. Treating mutable branch names like `main`, `release`, `prod`, or `latest` as versions.
+37. Using Docker/image/package tag `latest` as the only release identity.
+38. Using `v2`, `2.0`, `release-2`, and `version2-final` inconsistently for the same release line.
+39. Bumping versions manually in multiple files and letting them drift.
+40. Having package version, Git tag, changelog, documentation, Docker tag, and deployed version disagree.
+41. Shipping breaking changes as patch releases.
+42. Shipping breaking changes as minor releases without a documented compatibility policy.
+43. Shipping features as patch releases when using SemVer.
+44. Using `1.0`, `1.0.0`, `v1`, and `release-1` interchangeably with no rules.
+45. Using leading-zero versions like `01.02.003`.
+46. Using date versions and SemVer together inconsistently.
+47. Tagging every CI build as a public release version.
+48. Creating release tags for broken builds.
+49. Creating release tags before tests pass.
+50. Tagging a merge commit that differs from the actual artifact source.
+51. Not recording the exact commit SHA in deployment metadata.
+52. Not having a changelog or release notes for user-visible changes.
+53. Dumping raw commit logs as changelogs when they are unreadable.
+54. Editing historical release notes to hide changes instead of issuing a corrective release note.
+55. Not maintaining an “Unreleased” section or equivalent release-prep process.
+56. Not marking pre-releases clearly as alpha, beta, rc, preview, etc.
+57. Treating pre-release builds as stable.
+58. Promoting a release candidate to stable without preserving the exact commit/artifact relationship.
+59. Versioning only the artifact, not the source.
+60. Versioning only the source, not the artifact.
+61. Publishing release assets manually from a developer laptop with no reproducible build.
+62. No rollback target tied to a known tag/artifact.
+
+---
+
+## 3. Branching and workflow anti-patterns
+
+GitHub branch-protection rules exist specifically to restrict force pushes, deletion, unreviewed changes, unsigned commits, and missing status checks on important branches. Atlassian’s workflow guidance also emphasizes agreeing on a workflow, using feature branches intentionally, and keeping mainline branches healthy. ([GitHub Docs][3])
+
+63. Committing directly to `main`/`master` on a team repo without review or automation.
+64. Allowing anyone to push directly to release branches.
+65. Having no protected branches.
+66. Allowing force-pushes to protected branches.
+67. Allowing deletion of protected branches.
+68. Allowing failed CI to be merged.
+69. Allowing admins to casually bypass protections.
+70. Having no agreed Git workflow.
+71. Changing workflows every few weeks without documenting the rules.
+72. Using GitFlow dogmatically when the team actually releases continuously.
+73. Using trunk-based development dogmatically when the product genuinely needs stabilization branches.
+74. Treating `dev`, `qa`, `stage`, and `prod` branches as separate long-term versions of reality.
+75. Letting environment branches drift from each other.
+76. Cherry-picking randomly between environment branches until nobody knows what is where.
+77. Hotfixing only the production branch and never merging back.
+78. Releasing from a branch that is not reproducible from `main` or a release branch.
+79. Keeping long-lived feature branches open for weeks or months with no sync plan.
+80. Keeping personal forever branches like `john`, `mary`, `my-work`, `test`, `stuff`.
+81. Naming branches with no purpose: `changes`, `fix`, `new`, `branch2`, `temp`.
+82. Reusing the same branch name for unrelated work.
+83. Letting merged branches accumulate forever.
+84. Deleting active branches other people still use.
+85. Branching from stale `main`.
+86. Building features on top of unrelated unmerged work.
+87. Opening PRs from branches containing multiple unrelated features.
+88. Opening PRs too large to review.
+89. Using PRs only as a bureaucratic gate rather than as a communication and review tool.
+90. Merging without code review on shared code.
+91. Merging without test evidence.
+92. Squash-merging everything even when preserving a meaningful series would help.
+93. Merge-committing everything even when it creates useless noise.
+94. Having no rule for when to squash, rebase, merge, or fast-forward.
+95. Creating release branches and never merging fixes back.
+96. Creating branches as backups instead of commits/remotes.
+97. Creating branches for every tiny local experiment and never pruning them.
+98. Using branches instead of tags to identify immutable releases.
+99. Using tags instead of branches for moving development targets.
+100. Creating branch and tag names that collide or confuse: branch `v1.0` and tag `v1.0`.
+101. Using nested Git repos inside folders without submodules, subtree, package manager, or documentation.
+102. Splitting one product across many repos without a manifest, lockfile, or release coordinator.
+103. Combining unrelated products in one repo with one forced version number when they release independently.
+
+---
+
+## 4. History rewriting, rebasing, force-pushing, and destructive commands
+
+Both official Git documentation and Git workflow guides warn against rewriting public history that others may have based work on. Public discussions also repeatedly condemn casual `--force`, unstructured WIP logs, and treating history as a scratchpad. ([Git][4])
+
+104. Running `git push --force` on a shared branch without coordination.
+105. Using `--force` instead of `--force-with-lease`.
+106. Force-pushing to `main`.
+107. Force-pushing to release branches.
+108. Rebasing a public/shared branch without telling collaborators.
+109. Rebasing after opening a PR when reviewers or other branches depend on it.
+110. Amending commits that other people have already based work on.
+111. Rewriting history to hide mistakes instead of reverting.
+112. Deleting history and reinitializing the repo to “clean it up.”
+113. Squashing all history into one giant commit.
+114. Never squashing/fixing up local `oops`, `typo`, `fix fix`, `WIP` commits before merge.
+115. Treating `git log` as a personal scratchpad.
+116. Making commits named only `wip`.
+117. Making commits named only `fix`.
+118. Making commits named only `changes`.
+119. Making commits named only `update`.
+120. Leaving default web editor messages like `Update file.ext`.
+121. Mixing unrelated work in one commit.
+122. Mixing formatting changes with logic changes.
+123. Mixing refactors with behavior changes.
+124. Mixing dependency updates with feature work.
+125. Mixing generated files with source changes unless unavoidable and explained.
+126. Making huge commits that cannot be reviewed.
+127. Making microscopic commits on shared branches where most commits do not build.
+128. Breaking bisectability on mainline history.
+129. Pushing broken commits to shared branches.
+130. Never pushing work for long periods, then losing it.
+131. Pushing every experimental scratch commit to a shared branch.
+132. Relying on reflog as a backup strategy.
+133. Running `reset --hard` without understanding what will be lost.
+134. Running `clean -fdx` without checking untracked files.
+135. Running `pull` blindly on a dirty worktree.
+136. Resolving merge conflicts by randomly choosing “ours” or “theirs.”
+137. Committing merge-conflict markers.
+138. Reverting merge commits incorrectly and then re-merging without understanding the effect.
+139. Cherry-picking commits without their dependencies.
+140. Backdating, rewriting, or squashing to obscure accountability.
+141. Removing files in a new commit and assuming that removes them from history.
+142. Copying `.git` directories manually between projects.
+143. Committing a nested `.git` directory.
+
+---
+
+## 5. Staging and commit-message failures
+
+Public developer discussions call out reflexive `git add .`, not using patch staging, committing local junk, weak messages, and failing to split unrelated commits. Conventional Commits and standard commit-message guidance exist because clear history enables review, tooling, changelogs, and SemVer automation. ([Reddit][5])
+
+144. Running `git add .` or `git add -A` reflexively.
+145. Not reviewing `git status` before commit.
+146. Not reviewing `git diff`.
+147. Not reviewing `git diff --staged`.
+148. Not using partial staging for mixed changes.
+149. Accidentally committing temp files.
+150. Accidentally committing debug logs.
+151. Accidentally committing local config.
+152. Accidentally committing credentials.
+153. Accidentally committing editor files.
+154. Accidentally committing OS metadata like `.DS_Store`.
+155. Using vague commit subjects.
+156. Using only ticket IDs with no human-readable context.
+157. Writing commit messages that describe “what” but not “why” when the reason is not obvious.
+158. Not updating commit messages after changing the commit.
+159. Having commit messages that lie about the change.
+160. Using joke commit messages in professional repositories.
+161. Using profanity or blame in commit messages.
+162. Making commits that require external chat history to understand.
+163. Not linking issues/PRs when the commit depends on that context.
+164. Putting sensitive data in commit messages.
+165. Putting huge release notes in individual commit messages instead of structured changelogs.
+166. Using Conventional Commits halfway: some commits follow it, others do not, with no enforcement.
+167. Letting bots create unreadable commit spam.
+168. Not grouping logical changes into reviewable commits.
+
+---
+
+## 6. Secrets, credentials, private config, and sensitive data
+
+GitHub warns that sensitive data in Git history requires coordinated cleanup and secret rotation, and push protection exists to prevent secrets from being pushed in the first place. X’s own developer guidance warns that committed API keys are a common security mistake because bots scrape public repos. ([GitHub Docs][6])
+
+169. Committing API keys.
+170. Committing access tokens.
+171. Committing passwords.
+172. Committing private SSH keys.
+173. Committing TLS/private certificates.
+174. Committing cloud credentials.
+175. Committing service-account JSON files.
+176. Committing database connection strings with real credentials.
+177. Committing `.env`.
+178. Committing `.env.production`.
+179. Committing `.npmrc`, `.pypirc`, Maven credentials, Docker credentials, or package registry tokens.
+180. Committing CI/CD secrets in workflow YAML.
+181. Committing secrets in test fixtures.
+182. Committing secrets in notebooks.
+183. Committing secrets in generated docs.
+184. Committing secrets in screenshots.
+185. Committing secrets in logs.
+186. Committing secrets in commit messages.
+187. Committing secrets in PR descriptions or release notes.
+188. Deleting a secret in a later commit and thinking the leak is fixed.
+189. Not rotating/revoking a leaked secret immediately.
+190. Rewriting history to remove a secret but failing to coordinate forks, clones, caches, and CI logs.
+191. Sharing credentials through Slack, email, Excel, or text files and then committing those files.
+192. Using the same secret values in dev, test, staging, and production.
+193. Storing encrypted secrets in the repo while also committing the decryption key.
+194. Bypassing secret-scanning or push-protection warnings casually.
+195. Committing real customer data.
+196. Committing production database dumps.
+197. Committing PII, PHI, payment data, auth logs, or private analytics data.
+198. Committing machine-specific local settings.
+199. Committing absolute local paths.
+200. Committing developer-specific IDE workspace files.
+
+---
+
+## 7. Large files, binaries, generated files, build artifacts, and dependency junk
+
+GitHub warns at 50 MiB, blocks files over 100 MiB, recommends Git LFS for large files, and states Git is not designed for large SQL files. Git LFS stores lightweight pointers in Git while large content lives elsewhere. Public discussions also criticize committing generated files because it bloats repos, creates bad diffs, and causes contributors to edit generated output instead of source. ([GitHub Docs][7])
+
+201. Committing large binaries directly to Git history.
+202. Committing files that should be in Git LFS.
+203. Committing large files, deleting them later, and assuming the repo is no longer bloated.
+204. Committing SQL dumps.
+205. Committing datasets directly to normal Git history.
+206. Committing ML models directly to normal Git history.
+207. Committing videos, PSDs, PBIX files, CAD files, or other opaque binaries without LFS/artifact strategy.
+208. Versioning binary reports as `report_final_v2.pbix` instead of using source-friendly project formats where available.
+209. Committing build outputs like `dist/`, `build/`, `target/`, `bin/`, `obj/` when they are reproducible and should be artifacts.
+210. Committing compiled files like `.class`, `.o`, `.pyc`, `.dll`, `.exe`, `.jar` without a clear release-artifact reason.
+211. Committing dependency folders like `node_modules/`.
+212. Committing package caches.
+213. Committing virtual environments.
+214. Committing vendored dependencies manually with no update, license, or provenance process.
+215. Editing vendored code without a patch record.
+216. Committing generated code by default without documenting why.
+217. Editing generated files instead of the source generator.
+218. Mixing generated files and handwritten source in the same commit without explanation.
+219. Letting generated timestamps cause constant meaningless diffs.
+220. Committing generated docs that are not reviewed or reproducible.
+221. Committing coverage output.
+222. Committing test reports.
+223. Committing logs.
+224. Committing caches.
+225. Committing temporary files.
+226. Committing screenshots that are not intentional fixtures or documentation.
+227. Committing notebooks with huge outputs, secrets, random execution order, or nondeterministic state.
+228. Committing Excel/CSV data as source of truth without validation, provenance, or diff strategy.
+229. Storing release artifacts only in the repo instead of a package registry, release page, artifact store, or container registry.
+230. Not using checksums, digests, SBOMs, or provenance where release integrity matters.
+231. Misusing Git LFS by adding LFS rules after large files are already committed.
+232. Forgetting to commit `.gitattributes` for LFS patterns.
+233. Allowing some users to commit binary files normally while others use LFS.
+234. Not documenting how contributors install LFS or fetch large assets.
+
+---
+
+## 8. `.gitignore`, `.gitattributes`, line endings, and repo hygiene
+
+GitHub’s `.gitignore` docs are explicit that ignored files are untracked files; already-tracked files are not affected merely by adding ignore rules. The same docs distinguish project ignore rules from personal/global excludes. ([Git][8])
+
+235. Having no `.gitignore`.
+236. Adding `.gitignore` after junk is already tracked and assuming the junk is fixed.
+237. Not removing already-tracked ignored files from the index.
+238. Ignoring too little: build output, caches, logs, temp files keep appearing.
+239. Ignoring too much: real source/config/schema files never get committed.
+240. Using broad patterns like `*.json`, `config/*`, or `*.sql` without exceptions when real source files match.
+241. Relying on `.gitignore` to protect secrets instead of a secret manager.
+242. Putting personal editor preferences in project `.gitignore` when they should be global excludes.
+243. Not ignoring common OS/editor junk at all.
+244. Not documenting intentionally committed template env files like `.env.example`.
+245. Committing real `.env` while ignoring `.env.example`.
+246. Missing `.gitattributes` for line-ending normalization.
+247. Causing mass CRLF/LF churn across the repo.
+248. Mixing formatting-only changes with logic changes.
+249. Not declaring binary files as binary.
+250. Not defining merge strategies for generated lockfiles or binary-ish files where needed.
+251. Not using diff drivers for formats that need custom diffs.
+252. Case-only renames in cross-platform repos without care.
+253. Filenames that differ only by case: `User.js` and `user.js`.
+254. Versioned filenames with spaces/special characters that break scripts or tooling.
+255. Leaving empty placeholder files with no purpose.
+256. Assuming Git tracks empty directories.
+257. Committing `.DS_Store`, `Thumbs.db`, swap files, editor backups.
+258. Committing local IDE project state that changes for every developer.
+259. Letting formatting tools churn the whole repo without a dedicated formatting commit.
+260. Renaming and editing files in the same commit so review and rename detection are painful.
+
+---
+
+## 9. Dependency and external-reference versioning failures
+
+261. Depending on a mutable branch like `main` for production dependencies.
+262. Depending on mutable tags.
+263. Depending on `latest` for production builds.
+264. Not pinning GitHub Actions or CI actions when supply-chain risk matters.
+265. Pinning only to tags when the threat model requires immutable SHAs.
+266. Not using lockfiles for deployable applications.
+267. Committing lockfiles generated by the wrong package manager or wrong version.
+268. Manually editing lockfiles.
+269. Not updating lockfiles when dependencies change.
+270. Updating lockfiles without updating manifests.
+271. Using overly broad version ranges in production apps.
+272. Pinning exact versions forever and never updating/scanning them.
+273. Mixing dependency upgrades with application logic.
+274. Vendoring a dependency and not recording its upstream version.
+275. Patching vendored code without documenting the patch.
+276. Updating submodule pointers with no explanation.
+277. Forgetting to initialize/update submodules in build docs.
+278. Using submodules when a package manager, subtree, vendoring, or monorepo would be clearer.
+279. Using package managers when a submodule/subtree is required for atomic source-level development.
+280. No manifest tying multiple repos to compatible SHAs.
+281. No release train/version matrix for multi-repo products.
+282. Package manifest version does not match Git tag.
+283. Changelog version does not match package manifest.
+284. Docker image tag does not match package/repo release.
+285. Runtime “about/version” endpoint reports a different version from the deployed commit.
+
+---
+
+## 10. CI/CD, review, and release-process failures
+
+286. No CI on PRs.
+287. No CI on protected branches.
+288. No CI on tags/releases.
+289. CI builds something different from what is merged.
+290. CI builds from a dirty working tree.
+291. Release jobs that do not verify the tag, SHA, version file, changelog, and artifact agree.
+292. Manual deployments from a developer machine.
+293. Manual deployments from copied folders.
+294. Manual deployment instructions stored in random `.txt`, Excel, chat messages, or tribal knowledge.
+295. No automated tests before release.
+296. No status checks required before merge.
+297. No code review required for version-critical files.
+298. No owner approval for release scripts, package manifests, CI workflows, or deployment config.
+299. No secret scanning.
+300. No large-file checks.
+301. No formatting/lint checks when the project expects consistent formatting.
+302. Only local pre-commit hooks with no CI enforcement.
+303. CI can be bypassed without audit.
+304. Build artifacts are not traceable to source commits.
+305. Deployment system does not record the commit SHA.
+306. Rollback process says “deploy the old folder” instead of “deploy artifact/tag X.”
+307. Release notes are written manually and often contradict commits.
+308. No release checklist.
+309. No policy for hotfixes.
+310. No policy for reverting.
+311. No policy for backports.
+312. No policy for end-of-life branches.
+313. No signed commits/tags where auditability matters.
+314. No immutable release process where supply-chain integrity matters.
+
+---
+
+## 11. Repository-structure and ownership failures
+
+315. One product split across many repos with no atomic versioning mechanism.
+316. Many products forced into one repo with one version number even though they release independently.
+317. Copy-pasting shared code between repos instead of packaging, submodules, subtree, monorepo tooling, or service boundaries.
+318. Forking internal code by copying folders instead of creating real branches or packages.
+319. Keeping abandoned experiments in the main tree forever.
+320. Keeping dead code because “we might need it,” instead of relying on Git history or an archival branch/tag.
+321. No `README` explaining how versioning works.
+322. No `CONTRIBUTING` guide explaining branching, commits, tags, releases, and reviews.
+323. No ownership for release/version files.
+324. No CODEOWNERS or equivalent for critical paths.
+325. No documented supported versions.
+326. No documented deprecation policy.
+327. No documented branch lifecycle.
+328. No documented tag naming convention.
+329. No documented changelog convention.
+330. No documented package-version convention.
+331. No documented artifact-retention policy.
+332. No documented migration path between major versions.
+333. Repo contains unrelated confidential files because “it was convenient.”
+334. Repo contains third-party binaries with no license/provenance record.
+335. Repo contains generated vendor dumps nobody can regenerate.
+336. Repo contains environment-specific source copies instead of configuration.
+
+---
+
+## 12. Data, analytics, notebooks, and “business file” versioning
+
+337. `analysis_final.ipynb`, `analysis_final_v2.ipynb`, `analysis_REAL_FINAL.ipynb`.
+338. Notebook outputs committed when they are huge/noisy/unreviewable.
+339. Notebooks committed with cells run out of order.
+340. Notebooks committed with secrets in cells or outputs.
+341. Model files committed on every training run.
+342. Full data snapshots committed repeatedly.
+343. Derived datasets committed with no provenance.
+344. CSV/Excel files used as databases with no schema or validation.
+345. Binary office files treated as reviewable source.
+346. BI/dashboard files versioned by filename instead of source-friendly project format where available.
+347. Experiment results committed without seed, environment, or dependency capture.
+348. Parameters not versioned with the results they produced.
+349. Training code, data, and model artifact versions not tied together.
+350. “Rollback” means finding an old file in a folder rather than checking out a commit/tag/artifact.
+
+---
+
+## 13. Socially common but still inexcusable “small” behaviors
+
+351. “I’ll clean it up later” commits merged to main.
+352. “Temporary” files committed permanently.
+353. “Just this once” force pushes.
+354. “Nobody else uses this branch” assumptions.
+355. “It works on my machine” commits.
+356. “The old version is in the folder” instead of in Git.
+357. “The version is in the filename” instead of a tag/package/artifact.
+358. “The secret is deleted now” while it remains in history.
+359. “The binary is only 80 MB” repeated until the repo becomes unusable.
+360. “The generated diff is fine” when it hides the actual source change.
+361. “The PR is big but simple” when reviewers cannot verify it.
+362. “The branch name is obvious to me.”
+363. “We don’t need release notes; the commits are there.”
+364. “We don’t need tags; GitHub releases are enough” when releases are not tied immutably to commits.
+365. “We don’t need GitHub/GitLab protections; we trust everyone.”
+366. “We don’t need docs; everyone knows the workflow.”
+367. “We’ll remember which SHA went to production.”
+368. “Just copy the prod folder before editing.”
+369. “Just rename it `_old`.”
+370. “Just commit the zip.”
+
+---
+
+## The truly unforgivable top tier
+
+These are the ones I would treat as **hard-stop, no-excuse failures** in almost any professional repository:
+
+1. **Versioned folders/files instead of Git history:** `project_v2`, `final_final`, dated source copies.
+2. **No release tags or mutable release tags.**
+3. **Reusing the same version number for different code.**
+4. **Moving or force-overwriting published tags.**
+5. **Committing secrets, then only deleting them without rotation.**
+6. **Force-pushing shared/protected branches without coordination.**
+7. **Committing directly to main/release branches without review/checks.**
+8. **Committing large binaries, datasets, or build artifacts to normal Git history without LFS/artifact storage.**
+9. **Committing generated/build output as if it were source, with no documented reason.**
+10. **Using environment branches/folders as divergent source versions.**
+11. **Shipping releases that cannot be traced to an exact commit, tag, and artifact.**
+12. **Manual deployment from copied folders or developer machines.**
+13. **No branch protection on important branches.**
+14. **No CI/status checks before merge or release.**
+15. **No documented versioning/release process in a team repo.**
+
+A good rule of thumb: **Git versions commits; package managers version packages; tags identify releases; artifact stores hold builds; secret managers hold secrets.** Any workflow that replaces those with filenames, folders, screenshots, zips, Slack messages, or memory is the bad behavior.
+
+[1]: https://www.reddit.com/r/git/comments/ek4kv2/git_is_bad_at_binary_file_management_but_is_it/ "Git is Bad at Binary File Management -- But is it Worse than Duplicate 'Versioned' Files? : r/git"
+[2]: https://git-scm.com/docs/git-tag "Git - git-tag Documentation"
+[3]: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches "About protected branches - GitHub Docs"
+[4]: https://git-scm.com/docs/git-rebase/2.4.12 "Git - git-rebase Documentation"
+[5]: https://www.reddit.com/r/git/comments/1g4xwcn/what_bad_git_habits_do_you_see_in_the_wild/ "What bad git habits do you see in the wild? : r/git"
+[6]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository "Removing sensitive data from a repository - GitHub Docs"
+[7]: https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github "About large files on GitHub - GitHub Docs"
+[8]: https://git-scm.com/docs/gitignore "Git - gitignore Documentation"
+

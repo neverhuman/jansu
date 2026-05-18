@@ -234,20 +234,14 @@ pub async fn produce(
         )
     })?;
 
-    assert!(
-        response
-            .responses
-            .unwrap_or_default()
+    assert!(response.responses.into_iter().flatten().all(|topic| {
+        topic
+            .partition_responses
             .into_iter()
-            .all(|topic| {
-                topic
-                    .partition_responses
-                    .unwrap_or_default()
-                    .iter()
-                    .inspect(|partition| debug!(topic = %topic.name, ?partition))
-                    .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-            })
-    );
+            .flatten()
+            .inspect(|partition| debug!(topic = %topic.name, ?partition))
+            .all(|partition| partition.error_code == i16::from(ErrorCode::None))
+    }));
 
     Ok(())
 }
@@ -292,10 +286,10 @@ impl Generate {
             ));
         };
 
-        let mut interrupt_signal = signal(SignalKind::interrupt()).unwrap();
+        let mut interrupt_signal = signal(SignalKind::interrupt())?;
         debug!(?interrupt_signal);
 
-        let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
+        let mut terminate_signal = signal(SignalKind::terminate())?;
         debug!(?terminate_signal);
 
         let rate_limiter = self
@@ -379,7 +373,7 @@ impl Generate {
                                 },
 
                                 Ok(_) = produce(client.clone(), topic.clone(), partition,  batch_size.get() as i32, frame) => {
-                                    PRODUCE_RECORD_COUNT.add(batch_size.get() as u64, &attributes);
+                                    PRODUCE_RECORD_COUNT.add(u64::from(batch_size.get()), &attributes);
                                     PRODUCE_API_DURATION.record(produce_start.elapsed().inspect(|duration|debug!(produce_duration_ms = duration.as_millis())).map_or(0, |duration| duration.as_millis() as u64), &attributes);
                                 },
                             }

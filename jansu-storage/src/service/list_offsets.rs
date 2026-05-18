@@ -27,6 +27,9 @@ use super::leader_epoch::{
 };
 use crate::{Error, LeaderEpochRecord, Result, Storage, Topition};
 
+/// Response skeleton entry: `(topic_name, [(partition_index, Option<response>)])`.
+type ResponseTopics = Vec<(String, Vec<(i32, Option<ListOffsetsPartitionResponse>)>)>;
+
 /// A [`Service`] using [`Storage`] as [`Context`] taking [`ListOffsetsRequest`] returning [`ListOffsetsResponse`].
 /// ```
 /// use rama::{Context, Layer as _, Service, layer::MapStateLayer};
@@ -77,11 +80,11 @@ use crate::{Error, LeaderEpochRecord, Result, Storage, Topition};
 ///     )
 ///     .await?;
 ///
-/// let topics = response.topics.as_deref().unwrap_or_default();
+/// let topics = response.topics.as_deref().unwrap_or(Vec::new());
 /// assert_eq!(1, topics.len());
 /// assert_eq!(topic, topics[0].name);
 ///
-/// let partitions = topics[0].partitions.as_deref().unwrap_or_default();
+/// let partitions = topics[0].partitions.as_deref().unwrap_or(Vec::new());
 /// assert_eq!(1, partitions.len());
 /// assert_eq!(0, partitions[0].partition_index);
 /// assert!(partitions[0].old_style_offsets.is_none());
@@ -146,10 +149,7 @@ where
         let topics = if let Some(request_topics) = req.topics {
             // Phase 1: Walk the request in order, validate each partition,
             // and build the response skeleton preserving request topology.
-            let mut response_topics: Vec<(
-                String,
-                Vec<(i32, Option<ListOffsetsPartitionResponse>)>,
-            )> = Vec::with_capacity(request_topics.len());
+            let mut response_topics: ResponseTopics = Vec::with_capacity(request_topics.len());
 
             let mut pending = Vec::new();
             let mut histories: BTreeMap<Topition, Vec<LeaderEpochRecord>> = BTreeMap::new();
@@ -157,7 +157,7 @@ where
             for request_topic in request_topics {
                 let topic_slot = response_topics.len();
                 let topic_name = request_topic.name;
-                let request_partitions = request_topic.partitions.unwrap_or_default();
+                let request_partitions = request_topic.partitions.unwrap_or(Vec::new());
 
                 let mut partition_slots: Vec<_> = request_partitions
                     .iter()
@@ -241,13 +241,13 @@ where
                         let history = histories
                             .get(&pending.topition)
                             .map(Vec::as_slice)
-                            .unwrap_or_default();
+                            .unwrap_or(&[]);
 
                         let epoch = if offset.error_code() == ErrorCode::None {
-                            offset.offset().map_or_else(
-                                || leader_epoch_or_unknown(history),
-                                |offset| leader_epoch_for_offset(history, offset),
-                            )
+                            match offset.offset() {
+                                None => leader_epoch_or_unknown(history),
+                                Some(offset) => leader_epoch_for_offset(history, offset),
+                            }
                         } else {
                             -1
                         };
@@ -276,13 +276,12 @@ where
                     .map(|(name, partitions)| {
                         let partitions = partitions
                             .into_iter()
-                            .map(|(partition_index, response)| {
-                                response.unwrap_or_else(|| {
-                                    partition_error(
-                                        partition_index,
-                                        ErrorCode::UnknownTopicOrPartition,
-                                    )
-                                })
+                            .map(|(partition_index, response)| match response {
+                                Some(r) => r,
+                                None => partition_error(
+                                    partition_index,
+                                    ErrorCode::UnknownTopicOrPartition,
+                                ),
                             })
                             .collect();
 

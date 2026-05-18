@@ -74,7 +74,7 @@ pub(super) struct Arg {
     )]
     advertised_listener_url: EnvVarExp<Url>,
 
-    /// Storage engine examples are: postgres://postgres:postgres@localhost, memory://jansu/ or s3://jansu/
+    /// Storage engine examples are: memory://jansu/, redlinedb://jansu.redline, slatedb://memory or s3://jansu/
     #[arg(long, env = "STORAGE_ENGINE", default_value = "memory://jansu/")]
     storage_engine: EnvVarExp<Url>,
 
@@ -208,9 +208,9 @@ impl Arg {
             .map(|env_var_exp| env_var_exp.into_inner());
 
         let schema_registry = schema_registry_url
-            .clone()
+            .as_ref()
             .map(|object_store| {
-                Registry::builder_try_from_url(&object_store).map(|registry| {
+                Registry::builder_try_from_url(object_store).map(|registry| {
                     registry
                         .with_cache_expiry_after(self.schema_registry_cache_expiry)
                         .build()
@@ -230,7 +230,11 @@ impl Arg {
                 jansu_schema::lake::House::iceberg()
                     .location(location.into_inner())
                     .catalog(catalog.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Iceberg lake mode".into(),
+                        ),
+                    )?)
                     .namespace(namespace)
                     .warehouse(warehouse)
                     .build()
@@ -245,7 +249,11 @@ impl Arg {
             }) => Some(
                 jansu_schema::lake::House::delta()
                     .location(location.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Delta lake mode".into(),
+                        ),
+                    )?)
                     .database(database)
                     .records_per_second(records_per_second)
                     .build()?,
@@ -255,7 +263,11 @@ impl Arg {
             Some(Lake::Parquet { location }) => Some(
                 jansu_schema::lake::House::parquet()
                     .location(location.into_inner())
-                    .schema_registry(schema_registry.clone().unwrap())
+                    .schema_registry(schema_registry.clone().ok_or(
+                        jansu_schema::Error::Message(
+                            "a --schema-registry is required for Parquet lake mode".into(),
+                        ),
+                    )?)
                     .build()?,
             ),
 

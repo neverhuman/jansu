@@ -266,8 +266,8 @@ where
     let assignments = Some([].into());
     let configs = Some(
         [CreatableTopicConfig::default()
-            .name("xyz".into())
-            .value(Some("12321".into()))]
+            .name("cleanup.policy".into())
+            .value(Some("compact".into()))]
         .into(),
     );
 
@@ -290,106 +290,6 @@ where
     );
 
     Ok(())
-}
-
-#[cfg(feature = "postgres")]
-mod pg {
-    use std::sync::Arc;
-
-    use common::{StorageType, init_tracing};
-    use rand::{prelude::*, rng};
-    use url::Url;
-
-    use super::*;
-
-    async fn storage_container(
-        cluster: impl Into<String>,
-        node: i32,
-    ) -> Result<Arc<Box<dyn Storage>>> {
-        common::storage_container(
-            StorageType::Postgres,
-            cluster,
-            node,
-            Url::parse("tcp://127.0.0.1/")?,
-            None,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn create_describe_topic_partitions_by_id() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::create_describe_topic_partitions_by_id(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn create_describe_topic_partitions_by_name() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::create_describe_topic_partitions_by_name(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn describe_non_existing_topic_partitions_by_name() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::describe_non_existing_topic_partitions_by_name(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn create_delete() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::create_delete(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
-
-    #[tokio::test]
-    async fn create_with_config_delete() -> Result<()> {
-        let _guard = init_tracing()?;
-
-        let cluster_id = Uuid::now_v7();
-        let broker_id = rng().random_range(0..i32::MAX);
-
-        super::create_with_config_delete(
-            cluster_id,
-            broker_id,
-            storage_container(cluster_id, broker_id).await?,
-        )
-        .await
-    }
 }
 
 #[cfg(feature = "dynostore")]
@@ -492,8 +392,8 @@ mod in_memory {
     }
 }
 
-#[cfg(feature = "libsql")]
-mod lite {
+#[cfg(feature = "redlinedb")]
+mod redlinedb {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -507,7 +407,7 @@ mod lite {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Lite,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -692,8 +592,8 @@ mod slatedb {
     }
 }
 
-#[cfg(feature = "turso")]
-mod turso {
+#[cfg(feature = "redlinedb")]
+mod redlinedb_secondary {
     use std::sync::Arc;
 
     use common::{StorageType, init_tracing};
@@ -707,7 +607,7 @@ mod turso {
         node: i32,
     ) -> Result<Arc<Box<dyn Storage>>> {
         common::storage_container(
-            StorageType::Turso,
+            StorageType::RedlineDb,
             cluster,
             node,
             Url::parse("tcp://127.0.0.1/")?,
@@ -716,7 +616,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_describe_topic_partitions_by_id() -> Result<()> {
         let _guard = init_tracing()?;
@@ -732,7 +631,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_describe_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
@@ -748,7 +646,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn describe_non_existing_topic_partitions_by_name() -> Result<()> {
         let _guard = init_tracing()?;
@@ -764,7 +661,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_delete() -> Result<()> {
         let _guard = init_tracing()?;
@@ -780,7 +676,6 @@ mod turso {
         .await
     }
 
-    #[ignore]
     #[tokio::test]
     async fn create_with_config_delete() -> Result<()> {
         let _guard = init_tracing()?;

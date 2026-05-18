@@ -22,13 +22,13 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher as _},
 };
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 use std::{collections::BTreeMap, ops::Deref, sync::LazyLock};
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 pub(crate) struct Cache(pub BTreeMap<&'static str, String>);
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 impl Deref for Cache {
     type Target = BTreeMap<&'static str, String>;
 
@@ -37,35 +37,23 @@ impl Deref for Cache {
     }
 }
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 impl Cache {
     pub(crate) fn new(inner: BTreeMap<&'static str, String>) -> Self {
         Self(inner)
     }
-
-    #[cfg(any(feature = "postgres", feature = "turso"))]
-    pub(crate) fn get(&self, key: &str) -> Result<&str> {
-        self.0
-            .get(key)
-            .map(|s| s.as_str())
-            .ok_or(Error::UnknownCacheKey(key.to_owned()))
-    }
 }
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 macro_rules! include_sql {
     ($e: expr) => {
         remove_comments(include_str!($e))
     };
 }
 
-#[cfg(any(feature = "libsql", feature = "postgres", feature = "turso"))]
+#[cfg(feature = "redlinedb")]
 pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
     let mapping = [
-        (
-            "maintain-vacuum.sql",
-            include_sql!("sql/maintain-vacuum.sql"),
-        ),
         (
             "consumer_group_delete.sql",
             include_sql!("sql/consumer_group_delete.sql"),
@@ -138,6 +126,10 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/list_latest_offset_committed.sql"),
         ),
         (
+            "redlinedb/list_latest_offset_committed_active.sql",
+            include_sql!("redlinedb/list_latest_offset_committed_active.sql"),
+        ),
+        (
             "list_latest_offset_timestamp.sql",
             include_sql!("sql/list_latest_offset_timestamp.sql"),
         ),
@@ -154,33 +146,60 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/leader_epoch_history_insert.sql"),
         ),
         (
-            "lite/policy_compact_compaction.sql",
-            include_sql!("lite/policy_compact_compaction.sql"),
+            "redlinedb/policy_compact_compaction.sql",
+            include_sql!("redlinedb/policy_compact_compaction.sql"),
         ),
         (
-            "lite/policy_compact_delete.sql",
-            include_sql!("lite/policy_compact_delete.sql"),
+            "redlinedb/policy_compact_delete.sql",
+            include_sql!("redlinedb/policy_compact_delete.sql"),
         ),
         (
-            "lite/policy_compact_distinct_k.sql",
-            include_sql!("lite/policy_compact_distinct_k.sql"),
+            "redlinedb/policy_compact_distinct_k.sql",
+            include_sql!("redlinedb/policy_compact_distinct_k.sql"),
         ),
         (
-            "lite/policy_compact_max_offset_id.sql",
-            include_sql!("lite/policy_compact_max_offset_id.sql"),
+            "redlinedb/policy_compact_max_offset_id.sql",
+            include_sql!("redlinedb/policy_compact_max_offset_id.sql"),
         ),
         (
-            "lite/policy_compact_topitions.sql",
-            include_sql!("lite/policy_compact_topitions.sql"),
+            "redlinedb/policy_compact_topitions.sql",
+            include_sql!("redlinedb/policy_compact_topitions.sql"),
         ),
         (
-            "lite/policy_delete.sql",
-            include_sql!("lite/policy_delete.sql"),
+            "redlinedb/policy_delete_candidates.sql",
+            include_sql!("redlinedb/policy_delete_candidates.sql"),
         ),
-        ("lite/vacuum_into.sql", include_sql!("lite/vacuum_into.sql")),
+        (
+            "redlinedb/topic_select_id_by_name.sql",
+            include_sql!("redlinedb/topic_select_id_by_name.sql"),
+        ),
+        (
+            "redlinedb/topic_select_id_by_uuid.sql",
+            include_sql!("redlinedb/topic_select_id_by_uuid.sql"),
+        ),
+        (
+            "redlinedb/topic_delete_id.sql",
+            include_sql!("redlinedb/topic_delete_id.sql"),
+        ),
+        (
+            "redlinedb/consumer_group_select_id.sql",
+            include_sql!("redlinedb/consumer_group_select_id.sql"),
+        ),
+        (
+            "redlinedb/consumer_offset_delete_by_cg_id.sql",
+            include_sql!("redlinedb/consumer_offset_delete_by_cg_id.sql"),
+        ),
+        (
+            "redlinedb/consumer_group_detail_delete_by_cg_id.sql",
+            include_sql!("redlinedb/consumer_group_detail_delete_by_cg_id.sql"),
+        ),
+        (
+            "redlinedb/consumer_group_delete_id.sql",
+            include_sql!("redlinedb/consumer_group_delete_id.sql"),
+        ),
         ("policy_compact.sql", include_sql!("sql/policy_compact.sql")),
         ("policy_delete.sql", include_sql!("sql/policy_delete.sql")),
-        ("ping.sql", "select 1 + 1".to_string()),
+        ("ping.sql", include_sql!("sql/ping.sql")),
         (
             "producer_detail_delete_by_topic.sql",
             include_sql!("sql/producer_detail_delete_by_topic.sql"),
@@ -202,8 +221,24 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/producer_epoch_insert.sql"),
         ),
         (
+            "redlinedb/producer_epoch_insert.sql",
+            include_sql!("redlinedb/producer_epoch_insert.sql"),
+        ),
+        (
+            "redlinedb/producer_epoch_insert_value.sql",
+            include_sql!("redlinedb/producer_epoch_insert_value.sql"),
+        ),
+        (
             "producer_insert.sql",
             include_sql!("sql/producer_insert.sql"),
+        ),
+        (
+            "redlinedb/producer_select_current_id.sql",
+            include_sql!("redlinedb/producer_select_current_id.sql"),
+        ),
+        (
+            "redlinedb/producer_insert_id.sql",
+            include_sql!("redlinedb/producer_insert_id.sql"),
         ),
         (
             "producer_select_for_update.sql",
@@ -228,13 +263,16 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/record_fetch_keyed.sql"),
         ),
         (
+            "redlinedb/record_fetch.sql",
+            include_sql!("redlinedb/record_fetch.sql"),
+        ),
+        (
+            "redlinedb/record_fetch_keyed.sql",
+            include_sql!("redlinedb/record_fetch_keyed.sql"),
+        ),
+        (
             "offset_for_leader_epoch.sql",
             include_sql!("sql/offset_for_leader_epoch.sql"),
-        ),
-        ("record_fetch_pg.sql", include_sql!("pg/record_fetch.sql")),
-        (
-            "record_fetch_pg_keyed.sql",
-            include_sql!("pg/record_fetch_keyed.sql"),
         ),
         ("record_insert.sql", include_sql!("sql/record_insert.sql")),
         (
@@ -289,8 +327,8 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/topic_select_uuid.sql"),
         ),
         (
-            "pg/topic_select_uuid.sql",
-            include_sql!("pg/topic_select_uuid.sql"),
+            "redlinedb/topic_select_uuid.sql",
+            include_sql!("redlinedb/topic_select_uuid.sql"),
         ),
         (
             "topition_delete_by_topic.sql",
@@ -332,14 +370,38 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             "txn_detail_update_started_at.sql",
             include_sql!("sql/txn_detail_update_started_at.sql"),
         ),
+        (
+            "redlinedb/txn_detail_update_started_at.sql",
+            include_sql!("redlinedb/txn_detail_update_started_at.sql"),
+        ),
+        (
+            "redlinedb/txn_detail_select_started_at_id.sql",
+            include_sql!("redlinedb/txn_detail_select_started_at_id.sql"),
+        ),
+        (
+            "redlinedb/txn_detail_update_started_at_by_id.sql",
+            include_sql!("redlinedb/txn_detail_update_started_at_by_id.sql"),
+        ),
         ("txn_insert.sql", include_sql!("sql/txn_insert.sql")),
         (
             "txn_offset_commit_delete_by_txn.sql",
             include_sql!("sql/txn_offset_commit_delete_by_txn.sql"),
         ),
         (
+            "redlinedb/txn_offset_commit_select_ids_by_txn.sql",
+            include_sql!("redlinedb/txn_offset_commit_select_ids_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_offset_commit_delete_id.sql",
+            include_sql!("redlinedb/txn_offset_commit_delete_id.sql"),
+        ),
+        (
             "txn_offset_commit_insert.sql",
             include_sql!("sql/txn_offset_commit_insert.sql"),
+        ),
+        (
+            "redlinedb/txn_offset_commit_insert.sql",
+            include_sql!("redlinedb/txn_offset_commit_insert.sql"),
         ),
         (
             "txn_offset_commit_tp_delete_by_topic.sql",
@@ -350,8 +412,20 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/txn_offset_commit_tp_delete_by_txn.sql"),
         ),
         (
+            "redlinedb/txn_offset_commit_tp_select_ids_by_txn.sql",
+            include_sql!("redlinedb/txn_offset_commit_tp_select_ids_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_offset_commit_tp_delete_id.sql",
+            include_sql!("redlinedb/txn_offset_commit_tp_delete_id.sql"),
+        ),
+        (
             "txn_offset_commit_tp_insert.sql",
             include_sql!("sql/txn_offset_commit_tp_insert.sql"),
+        ),
+        (
+            "redlinedb/txn_offset_commit_tp_insert.sql",
+            include_sql!("redlinedb/txn_offset_commit_tp_insert.sql"),
         ),
         (
             "txn_produce_offset_delete_by_topic.sql",
@@ -360,6 +434,14 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
         (
             "txn_produce_offset_delete_by_txn.sql",
             include_sql!("sql/txn_produce_offset_delete_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_produce_offset_select_ids_by_txn.sql",
+            include_sql!("redlinedb/txn_produce_offset_select_ids_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_produce_offset_delete_id.sql",
+            include_sql!("redlinedb/txn_produce_offset_delete_id.sql"),
         ),
         (
             "txn_produce_offset_insert.sql",
@@ -372,6 +454,10 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
         (
             "txn_produce_offset_select_overlapping_txn.sql",
             include_sql!("sql/txn_produce_offset_select_overlapping_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_produce_offset_select_overlapping_txn.sql",
+            include_sql!("redlinedb/txn_produce_offset_select_overlapping_txn.sql"),
         ),
         (
             "txn_select_name.sql",
@@ -390,12 +476,28 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/txn_status_update.sql"),
         ),
         (
+            "redlinedb/txn_status_select_ids.sql",
+            include_sql!("redlinedb/txn_status_select_ids.sql"),
+        ),
+        (
+            "redlinedb/txn_status_update_id.sql",
+            include_sql!("redlinedb/txn_status_update_id.sql"),
+        ),
+        (
             "txn_topition_delete_by_topic.sql",
             include_sql!("sql/txn_topition_delete_by_topic.sql"),
         ),
         (
             "txn_topition_delete_by_txn.sql",
             include_sql!("sql/txn_topition_delete_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_topition_select_ids_by_txn.sql",
+            include_sql!("redlinedb/txn_topition_select_ids_by_txn.sql"),
+        ),
+        (
+            "redlinedb/txn_topition_delete_id.sql",
+            include_sql!("redlinedb/txn_topition_delete_id.sql"),
         ),
         (
             "txn_topition_insert.sql",
@@ -440,6 +542,14 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
         (
             "watermark_select.sql",
             include_sql!("sql/watermark_select.sql"),
+        ),
+        (
+            "redlinedb/watermark_update_by_topition_id.sql",
+            include_sql!("redlinedb/watermark_update_by_topition_id.sql"),
+        ),
+        (
+            "redlinedb/watermark_update_low_by_topition_id.sql",
+            include_sql!("redlinedb/watermark_update_low_by_topition_id.sql"),
         ),
         (
             "watermark_update.sql",

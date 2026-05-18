@@ -1,0 +1,91 @@
+schema_version = "1.0.0"
+
+[[tools]]
+evidence_path = "target/jankurai/repo-score.json"
+id = "audit-ci"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/repair-queue.jsonl"
+id = "proof-routing"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/security/evidence.json"
+id = "security"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/ux-qa.json"
+id = "ux-qa"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/migration-report.json"
+id = "db-migration-analyze"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/repo-score.json"
+id = "contract-drift"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/rust/witness-graph.json"
+id = "rust-witness"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/proofbind/surface-witness.json"
+id = "proofbind"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/proofmark/proofmark-receipt.json"
+id = "proofmark-rust"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/language-bad-behavior.log"
+id = "ci-bad-behavior"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/language-bad-behavior.log"
+id = "git-bad-behavior"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/language-bad-behavior.log"
+id = "release-bad-behavior"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/authz/authz-matrix.md"
+id = "authz-matrix"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/input-boundary/input-boundary.md"
+id = "input-boundary"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/agent-tool-supply/agent-tool-supply.md"
+id = "agent-tool-supply"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/release/readiness-checklist.md"
+id = "release-readiness"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/cost/cost-budget.md"
+id = "cost-budget"
+mode = "auto"
+
+[[tools]]
+evidence_path = "target/jankurai/copy-code.json"
+id = "copy-code"
+mode = "auto"

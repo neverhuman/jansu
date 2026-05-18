@@ -216,7 +216,7 @@
 //!
 //! let api_versions = response
 //!     .api_keys
-//!     .unwrap_or_default()
+//!     .unwrap_or(vec![])
 //!     .into_iter()
 //!     .map(|api_version| api_version.api_key)
 //!     .collect::<Vec<_>>();

@@ -279,7 +279,7 @@ mod doctest_template {
     use rama::{Context, Layer as _, Service as _, layer::MapStateLayer};
     use url::Url;
 
-    use crate::common::{Error, init_tracing};
+    use crate::common::{self, Error, init_tracing};
 
     #[tokio::test]
     async fn req() -> Result<(), Error> {
@@ -294,7 +294,7 @@ mod doctest_template {
             .cluster_id(CLUSTER_ID)
             .node_id(NODE_ID)
             .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-            .storage(Url::parse("memory://jansu/")?)
+            .storage(common::default_storage_url()?)
             .build()
             .await?;
 

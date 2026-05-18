@@ -98,8 +98,8 @@
 
 ## Tests Added
 
-- `jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip`
-- `jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records`
+- `jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip`
+- `jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records`
 - `jansu-broker/tests/cg_dynamic.rs::offset_commit_fencing_during_rebalance`
 - `jansu-broker/tests/cg_static.rs::join_with_empty_member_id`
 - `jansu-broker/tests/cg_differential.rs::differential_cg_churn`
@@ -231,7 +231,7 @@
 
 - `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-storage cargo test -p jansu-storage --test consumer_offsets --all-features -- --nocapture` -> passed
 - `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-core cargo test -p jansu-broker --lib coordinator::group::administrator::tests --all-features -- --nocapture` -> passed
-- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-dynamic cargo test -p jansu-broker --test cg_dynamic --all-features -- --nocapture` -> passed in-memory/sqlite/slatedb, PG failed with `Connection refused`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-dynamic cargo test -p jansu-broker --test cg_dynamic --all-features -- --nocapture` -> passed in-memory/redlinedb/slatedb, PG failed with `Connection refused`
 - `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-core-dyn cargo test -p jansu-broker --test cg_dynamic in_memory:: --all-features -- --nocapture` -> passed
 - `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-core-static cargo test -p jansu-broker --test cg_static in_memory:: --all-features -- --nocapture` -> passed
 - `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-clients cargo test -p jansu-broker --test cg_differential --all-features -- --nocapture` -> passed
@@ -363,7 +363,7 @@
 - Added `leader_epoch_history` DDL to PostgreSQL init schema so `create_topic` leader-epoch inserts match production code paths.
 - Fixed `PgStorage::maintain` to execute `consumer_offset_delete_expired.sql` through `prepare_execute`/`sql_lookup` (was passing the filename string to `execute`, breaking expiry cleanup).
 - Added Postgres integration tests for consumer offset round-trip and retention cleanup in `consumer_offsets.rs`.
-- Extended compatibility ledger proof lists for all phase-10-owned API keys with libsql, postgres storage tests, and `cg_*` `pg::` broker tests.
+- Extended compatibility ledger proof lists for all phase-10-owned API keys with redlinedb, postgres storage tests, and `cg_*` `pg::` broker tests.
 - Set manifest phase 10 status to `legacy-complete`; updated `MASTER_PLAN.md` priority queue and resolved `AUDIT-005`.
 
 ## Residual Risks
@@ -434,7 +434,7 @@
 
 ---
 
-## Supplement 2026-05-03 — ListOffsets wire round-trip + libSQL/Limbo unknown partition
+## Supplement 2026-05-03 — ListOffsets wire round-trip + RedlineDB/Limbo unknown partition
 
 ### Files Touched
 
@@ -512,9 +512,9 @@
 
 ## Verification Commands
 
-- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg_dynamic --no-default-features --features dynostore,libsql,slatedb -- --nocapture`
-- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg --no-default-features --features dynostore,libsql,slatedb -- --nocapture`
-- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg_static --test cg_differential --no-default-features --features dynostore,libsql,slatedb -- --nocapture`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg_dynamic --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test cg_static --test cg_differential --no-default-features --features dynostore,redlinedb,slatedb -- --nocapture`
 - `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --lib coordinator::group::administrator::tests -- --nocapture`
 - `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture`
 - `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase10-final cargo check -p jansu-storage -p jansu-service -p jansu-broker --all-features --all-targets`

@@ -1000,7 +1000,7 @@ fn process(messages: &[Message], include_tag: bool) -> TokenStream {
                 let module = syn::parse_str::<syn::Path>(
                     &name.to_token_stream().to_string().to_case(Case::Snake),
                 )
-                .unwrap_or_else(|_| panic!("module: {}", &name.to_token_stream().to_string()));
+                .expect("message type_name converts to a valid snake_case module path");
 
                 let as_name = syn::parse_str::<syn::Path>(
                     &format!("As{}", name.to_token_stream()).to_case(Case::Snake),
@@ -1197,32 +1197,29 @@ fn each_field_meta(
     let tag = OptionWrapper::from(field.tag());
     let tagged = OptionWrapper::from(field.tagged());
 
-    let children = field.fields().as_ref().map_or_else(
-        || {
-            common_structs.as_ref().map_or(Vec::new(), |m| {
-                m.get(&field.kind().type_name()).map_or(Vec::new(), |cs| {
-                    cs.fields()
-                        .iter()
-                        .map(|f| each_field_meta(f, common_structs))
-                        .collect()
-                })
-            })
-        },
-        |fields| {
-            fields
-                .iter()
-                .map(|f| each_field_meta(f, common_structs))
-                .collect()
-        },
-    );
+    let children = match field.fields().as_ref() {
+        Some(fields) => fields
+            .iter()
+            .map(|f| each_field_meta(f, common_structs))
+            .collect(),
+        None => common_structs
+            .as_ref()
+            .and_then(|m| m.get(&field.kind().type_name()))
+            .map_or(Vec::new(), |cs| {
+                cs.fields()
+                    .iter()
+                    .map(|f| each_field_meta(f, common_structs))
+                    .collect()
+            }),
+    };
 
-    let default_token = field.kafka_default().map_or_else(
-        || quote! { None },
-        |s| {
+    let default_token = match field.kafka_default() {
+        None => quote! { None },
+        Some(s) => {
             let lit = LitStr::new(s, Span::call_site());
             quote! { Some(#lit) }
-        },
-    );
+        }
+    };
 
     quote! {
         (#name,
@@ -1280,7 +1277,7 @@ fn message_meta(messages: &[Message]) -> TokenStream {
 pub fn main() {
     let files = "message/[A-Z]*Re[qs]*.json";
 
-    let messages = all(files).unwrap_or_else(|e| panic!("all: {e:?}"));
+    let messages = all(files).expect("failed to read Kafka message descriptor files");
 
     let broker_api_keys = messages
         .iter()
@@ -1312,7 +1309,7 @@ pub fn main() {
         #message_meta
     };
 
-    let r = syn::parse_file(&q.to_string()).unwrap_or_else(|_| panic!("{}", q.to_string()));
+    let r = syn::parse_file(&q.to_string()).expect("generated token stream is valid Rust syntax");
 
     fs::write(&dest_path, prettyplease::unparse(&r)).unwrap();
 

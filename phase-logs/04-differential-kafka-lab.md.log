@@ -97,3 +97,40 @@ Align `differential_produce_round_trip_for_advertised_api` with the compatibilit
 ### Residual Risks
 
 - `differential_librdkafka_full_lifecycle` remains ignored placeholder.
+
+---
+
+## Supplement 2026-05-18 — Parallel Docker sandbox and Fetch frame hardening
+
+### Intent
+
+Make the Kafka 4.2 differential lab safe under Rust's default parallel test execution and fix the read-path evidence harness so it sends a complete Jansu Fetch request frame instead of failing on test-frame shape.
+
+### Files Touched
+
+- `jansu-broker/tests/differential_lab.rs`
+- `etc/differential/compose.kafka-4.2.yaml`
+- `docs/compatibility/differential-lab.md`
+- `phase-logs/04-differential-kafka-lab.md.log`
+- `phase-logs/attempts/04-differential-kafka-lab/20260518-103907-codex.md`
+
+### Verification Commands
+
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-differential-pr11 cargo test --jobs 20 -p jansu-broker --test differential_lab --all-features -- --nocapture`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-contract-pr11 cargo test --jobs 20 -p jansu-broker --test compatibility_contract --all-features -- --nocapture`
+- `env JANSU_DIFFERENTIAL=1 JANSU_DIFF_ARTIFACT_DIR=target/differential CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-differential-pr11 cargo test --jobs 20 -p jansu-broker --test differential_lab --all-features -- --nocapture`
+- `env JANSU_DIFFERENTIAL=1 JANSU_DIFF_ARTIFACT_DIR=target/differential CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-differential-pr11 cargo test --jobs 20 -p jansu-broker --test differential_lab --all-features -- --nocapture` (stress rerun)
+
+### Outcomes
+
+- Docker-managed Kafka now uses a generated Compose project name, generated container name, and free localhost port per test instance.
+- Auto-port startup retries clean up the failed sandbox and allocate a fresh Compose project/container/port; fixed `JANSU_DIFF_KAFKA_PORT` retries keep the caller's requested port.
+- `JANSU_DIFF_KAFKA_BOOTSTRAP` remains the external Kafka escape hatch.
+- Jansu-side Produce and Fetch evidence now uses direct sans-io frames. Kafka reference offsets and consumption remain via librdkafka to avoid conflating Apache Kafka compatibility with harness frame-construction issues.
+- The Fetch evidence request uses v12 with explicit session, forgotten-topic, and rack fields, matching the flexible request shape Jansu's frame layer expects.
+- The Docker-backed differential suite passed twice under parallel test execution.
+
+### Residual Risks
+
+- `differential_librdkafka_full_lifecycle` remains ignored until later Fetch/ListOffsets/group API promotion work.
+- Fetch/ListOffsets remain unadvertised compatibility evidence and do not change the ApiVersions contract.

@@ -276,8 +276,8 @@ async fn explicit_api_versions_advertisement() -> Result<(), Error> {
 
     assert_eq!(
         vec![
+            (MetadataRequest::KEY, 12, 12),
             (ApiVersionsRequest::KEY, 0, 4),
-            (MetadataRequest::KEY, 12, 12)
         ],
         api_versions
     );

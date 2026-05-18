@@ -15,17 +15,16 @@
   "profiles": [
     "jansu-native",
     "kafka-parity-postgres",
-    "kafka-parity-sqlite",
+    "kafka-parity-redlinedb",
     "kafka-parity-s3-dynostore",
     "kafka-parity-slatedb",
     "compat-preview"
   ],
   "storage_engines": [
     "postgres",
-    "sqlite",
+    "redlinedb",
     "s3-dynostore",
     "slatedb",
-    "turso",
     "memory"
   ],
   "apis": [
@@ -51,17 +50,16 @@
       "profiles": {
         "jansu-native": "green",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "green",
         "compat-preview": "green"
       },
       "storage": {
         "postgres": "production-parity",
-        "sqlite": "limited-parity",
+        "redlinedb": "limited-parity",
         "s3-dynostore": "limited-parity",
         "slatedb": "limited-parity",
-        "turso": "uncertified",
         "memory": "development-test-only"
       },
       "proof": {
@@ -124,17 +122,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "production-parity",
-        "sqlite": "limited-parity",
+        "redlinedb": "limited-parity",
         "s3-dynostore": "limited-parity",
         "slatedb": "limited-parity",
-        "turso": "uncertified",
         "memory": "development-test-only"
       },
       "proof": {
@@ -161,7 +158,7 @@
         "client_tests": {},
         "failure_modes": "partial"
       },
-      "notes": "Phase 06 storage contract slice plus Phase 08 Fetch hardening. Fetch still has no advertised versions or compatibility claim. Focused proof covers no extra long-poll sleep once min_bytes is satisfied, partition_max_bytes limiting, broker Fetch across dynostore/libsql/slatedb, leader-epoch fencing, dynostore FetchService ReadCommitted vs ReadUncommitted parity when no in-flight transactions (LSO==HWM), and Phase 04 differential librdkafka consume-after-produce (Fetch path) vs Kafka 4.2 when JANSU_DIFFERENTIAL=1. Remaining Phase 08 gaps include transactional read_committed / aborted-txn visibility, incremental sessions, topic ID behavior, broader max-bytes parity, and API 23 advertisement."
+      "notes": "Phase 06 storage contract slice plus Phase 08 Fetch hardening. Fetch still has no advertised versions or compatibility claim. Focused proof covers no extra long-poll sleep once min_bytes is satisfied, partition_max_bytes limiting, broker Fetch across dynostore/redlinedb/slatedb, leader-epoch fencing, dynostore FetchService ReadCommitted vs ReadUncommitted parity when no in-flight transactions (LSO==HWM), and Phase 04 differential librdkafka consume-after-produce (Fetch path) vs Kafka 4.2 when JANSU_DIFFERENTIAL=1. Remaining Phase 08 gaps include transactional read_committed / aborted-txn visibility, incremental sessions, topic ID behavior, broader max-bytes parity, and API 23 advertisement."
     },
     {
       "api_key": 2,
@@ -179,17 +176,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "production-parity",
-        "sqlite": "limited-parity",
+        "redlinedb": "limited-parity",
         "s3-dynostore": "limited-parity",
         "slatedb": "limited-parity",
-        "turso": "uncertified",
         "memory": "development-test-only"
       },
       "proof": {
@@ -231,17 +227,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -279,17 +274,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "limited-parity",
+        "redlinedb": "limited-parity",
         "s3-dynostore": "limited-parity",
         "slatedb": "limited-parity",
-        "turso": "uncertified",
         "memory": "development-test-only"
       },
       "proof": {
@@ -302,8 +296,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_returns_committed_offsets",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -349,17 +343,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -369,8 +362,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -410,17 +403,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -430,8 +422,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -471,17 +463,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -491,8 +482,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -532,17 +523,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -552,8 +542,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -593,17 +583,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -613,8 +602,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -654,17 +643,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -674,8 +662,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -715,17 +703,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -735,8 +722,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -776,17 +763,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -796,8 +782,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -837,17 +823,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -857,8 +842,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -904,17 +889,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -954,17 +938,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -974,8 +957,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -1015,17 +998,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1035,8 +1017,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -1076,17 +1058,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1096,8 +1077,8 @@
           "jansu-broker/src/coordinator/group/administrator/tests.rs::offset_fetch_with_require_stable_during_rebalance_returns_unstable",
           "jansu-storage/tests/consumer_offsets.rs::dynostore_offset_commit_maintain_deletes_expired_records",
           "jansu-storage/tests/consumer_offsets.rs::slatedb_offset_commit_maintain_clears_expired_records",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_fetch_round_trip",
-          "jansu-storage/tests/consumer_offsets.rs::libsql_offset_commit_expires_records",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_fetch_round_trip",
+          "jansu-storage/tests/consumer_offsets.rs::redlinedb_offset_commit_expires_records",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_fetch_round_trip",
           "jansu-storage/tests/consumer_offsets.rs::postgres_offset_commit_maintain_clears_expired_records"
         ],
@@ -1137,17 +1118,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1174,22 +1154,21 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "limited-parity",
+        "redlinedb": "limited-parity",
         "s3-dynostore": "limited-parity",
         "slatedb": "limited-parity",
-        "turso": "uncertified",
         "memory": "development-test-only"
       },
       "proof": {
         "unit_tests": [
-          "jansu-storage/tests/offset_for_leader_epoch.rs::libsql_epoch_boundaries_are_recorded_on_produce",
+          "jansu-storage/tests/offset_for_leader_epoch.rs::redlinedb_epoch_boundaries_are_recorded_on_produce",
           "jansu-storage/tests/offset_for_leader_epoch.rs::dynostore_epoch_boundaries_are_recorded_on_produce",
           "jansu-storage/tests/offset_for_leader_epoch.rs::slatedb_epoch_boundaries_are_recorded_on_produce",
           "jansu-storage/tests/offset_for_leader_epoch.rs::offset_for_leader_epoch_service_returns_exact_epoch_errors",
@@ -1201,7 +1180,7 @@
         "client_tests": {},
         "failure_modes": "untested"
       },
-      "notes": "Phase 08: routed through broker but unadvertised. SQLite, DynoStore, and SlateDB now persist epoch 0 at topic creation and record newer produced batch leader epochs as storage history; Fetch/ListOffsets use stored epochs, with broker ListOffsets wire-level mixed-partition decoding still under Phase 08 residual risk."
+      "notes": "Phase 08: routed through broker but unadvertised. RedlineDB, DynoStore, and SlateDB now persist epoch 0 at topic creation and record newer produced batch leader epochs as storage history; Fetch/ListOffsets use stored epochs, with broker ListOffsets wire-level mixed-partition decoding still under Phase 08 residual risk."
     },
     {
       "api_key": 24,
@@ -1219,17 +1198,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1256,17 +1234,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1293,17 +1270,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1333,17 +1309,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1370,17 +1345,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1407,17 +1381,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1444,17 +1417,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1481,17 +1453,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1521,17 +1492,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1558,17 +1528,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1598,17 +1567,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1635,17 +1603,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1675,17 +1642,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1712,17 +1678,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1752,17 +1717,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1789,17 +1753,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1826,17 +1789,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1863,17 +1825,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1900,17 +1861,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1937,17 +1897,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -1977,17 +1936,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2014,17 +1972,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2051,17 +2008,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2088,17 +2044,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2128,17 +2083,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2165,17 +2119,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2202,17 +2155,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2239,17 +2191,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2276,17 +2227,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2313,17 +2263,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2350,17 +2299,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2387,17 +2335,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2424,17 +2371,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2461,17 +2407,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2498,17 +2443,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2535,17 +2479,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2572,17 +2515,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2609,17 +2551,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2646,17 +2587,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2686,17 +2626,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2723,17 +2662,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2760,17 +2698,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2797,17 +2734,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2834,17 +2770,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2871,17 +2806,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2908,17 +2842,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2945,17 +2878,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -2982,17 +2914,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -3019,17 +2950,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -3056,17 +2986,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {
@@ -3093,17 +3022,16 @@
       "profiles": {
         "jansu-native": "gray",
         "kafka-parity-postgres": "gray",
-        "kafka-parity-sqlite": "gray",
+        "kafka-parity-redlinedb": "gray",
         "kafka-parity-s3-dynostore": "gray",
         "kafka-parity-slatedb": "gray",
         "compat-preview": "gray"
       },
       "storage": {
         "postgres": "uncertified",
-        "sqlite": "uncertified",
+        "redlinedb": "uncertified",
         "s3-dynostore": "uncertified",
         "slatedb": "uncertified",
-        "turso": "uncertified",
         "memory": "uncertified"
       },
       "proof": {

@@ -999,7 +999,7 @@ Change the Produce row from partial/pre-advertisement to proved/advertised.
   "profiles": {
     "jansu-native": "green",
     "kafka-parity-postgres": "green",
-    "kafka-parity-sqlite": "yellow",
+    "kafka-parity-redlinedb": "yellow",
     "kafka-parity-s3-dynostore": "yellow",
     "kafka-parity-slatedb": "green",
     "compat-preview": "green"

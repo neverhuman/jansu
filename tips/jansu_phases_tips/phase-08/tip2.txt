@@ -844,7 +844,7 @@ where
 Run that against:
 
 * memory / DynoStore
-* SQLite / libSQL
+* RedlineDB
 * PostgreSQL
 * SlateDB
 * S3-backed engine if supported in CI

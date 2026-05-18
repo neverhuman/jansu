@@ -248,8 +248,8 @@ impl Consume {
                             .topic_id(
                                 metadata
                                     .topics
-                                    .unwrap_or_default()
                                     .into_iter()
+                                    .flatten()
                                     .find(|topic| {
                                         topic.name.as_ref().is_some_and(|name| {
                                             self.configuration.topic.as_str() == name
@@ -269,10 +269,10 @@ impl Consume {
             )
             .await?;
 
-        for response in response.responses.unwrap_or_default() {
+        for response in response.responses.into_iter().flatten() {
             debug!(?response);
 
-            for partition in response.partitions.unwrap_or_default() {
+            for partition in response.partitions.into_iter().flatten() {
                 debug!(?partition);
 
                 if let Some(frame) = partition.records {

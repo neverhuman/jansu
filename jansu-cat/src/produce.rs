@@ -276,14 +276,14 @@ impl Produce {
             .map(Client::new)?;
 
         let ProduceResponse { responses, .. } = client.call(req).await?;
-        let responses = responses.unwrap_or_default();
+        let responses: Vec<_> = responses.into_iter().flatten().collect();
         assert_eq!(1, responses.len());
 
         let TopicProduceResponse {
             partition_responses,
             ..
         } = responses.first().expect("responses: {responses:?}");
-        let partition_responses = partition_responses.as_deref().unwrap_or_default();
+        let partition_responses: &[_] = partition_responses.as_deref().unwrap_or(&[]);
         assert_eq!(1, partition_responses.len());
 
         let PartitionProduceResponse { error_code, .. } = partition_responses

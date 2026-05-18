@@ -33,17 +33,24 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use bytes::Bytes;
 use jansu_sans_io::{
-    ApiKey as _, ApiVersionsResponse, Error as SansIoError, Frame, Header, IsolationLevel,
+    Ack, ApiKey as _, ApiVersionsResponse, CreateTopicsRequest, CreateTopicsResponse,
+    Error as SansIoError, ErrorCode, FetchRequest, FetchResponse, Frame, Header, IsolationLevel,
     ListOffset, ListOffsetsRequest, ListOffsetsResponse, MetadataRequest, MetadataResponse,
+    NULL_TOPIC_ID, ProduceRequest, ProduceResponse,
     api_versions_response::ApiVersion,
+    create_topics_request::CreatableTopic,
+    fetch_request::{FetchPartition, FetchTopic},
     list_offsets_request::{ListOffsetsPartition, ListOffsetsTopic},
+    produce_request::{PartitionProduceData, TopicProduceData},
+    record::{Record, deflated, inflated},
 };
 use rand::{prelude::*, rng};
 use rdkafka::{
     ClientConfig, Offset, TopicPartitionList,
     admin::{AdminClient, AdminOptions, NewTopic, TopicReplication},
-    consumer::{Consumer, StreamConsumer},
+    consumer::{BaseConsumer, Consumer, StreamConsumer},
     message::Message,
     producer::{FutureProducer, FutureRecord},
 };
@@ -160,7 +167,7 @@ fn repo_root() -> PathBuf {
 }
 
 fn other_error(message: impl Into<String>) -> DynError {
-    Box::new(io::Error::new(io::ErrorKind::Other, message.into()))
+    Box::new(io::Error::other(message.into()))
 }
 
 fn artifact_dir() -> PathBuf {
@@ -225,7 +232,7 @@ async fn free_port() -> DynResult<u16> {
     Ok(listener.local_addr()?.port())
 }
 
-async fn tcp_round_trip(bootstrap: &str, request: bytes::Bytes) -> DynResult<Vec<u8>> {
+async fn tcp_round_trip(bootstrap: &str, request: Bytes) -> DynResult<Vec<u8>> {
     let mut stream = TcpStream::connect(bootstrap).await?;
     stream.write_all(&request).await?;
 
@@ -297,7 +304,7 @@ async fn api_versions(bootstrap: &str) -> DynResult<ApiVersionsResponse> {
 
     Ok(ApiVersionsResponse::default()
         .error_code(error_code)
-        .api_keys(Some(api_keys.into())))
+        .api_keys(Some(api_keys)))
 }
 
 /// Fetch metadata using Jansu's Frame layer (for talking to Jansu broker).
@@ -325,7 +332,6 @@ async fn metadata_via_frame(bootstrap: &str) -> DynResult<MetadataResponse> {
 /// Fetch metadata summary using rdkafka (for talking to external Kafka brokers
 /// without relying on Jansu's Frame flex-header implementation).
 fn metadata_summary_via_rdkafka(bootstrap: &str) -> DynResult<MetadataSummary> {
-    use rdkafka::consumer::{BaseConsumer, Consumer};
     let consumer: BaseConsumer = ClientConfig::new()
         .set("bootstrap.servers", bootstrap)
         .create()?;
@@ -355,7 +361,217 @@ fn summarize_metadata(response: &MetadataResponse) -> MetadataSummary {
     }
 }
 
+fn librdkafka_partition_watermarks(
+    bootstrap: &str,
+    topic: &str,
+    partition: i32,
+) -> DynResult<(i64, i64)> {
+    let consumer: BaseConsumer = ClientConfig::new()
+        .set("bootstrap.servers", bootstrap)
+        .create()?;
+
+    let (earliest, latest) =
+        consumer.fetch_watermarks(topic, partition, Duration::from_secs(10))?;
+    Ok((earliest, latest))
+}
+
 const LIST_OFFSETS_API_VERSION: i16 = 9;
+const CREATE_TOPICS_API_VERSION: i16 = 7;
+const PRODUCE_API_VERSION: i16 = 11;
+const FETCH_API_VERSION: i16 = 12;
+
+fn record_frame(payload: &[u8]) -> DynResult<deflated::Frame> {
+    inflated::Batch::builder()
+        .record(
+            Record::builder()
+                .key(Some(Bytes::from_static(b"k")))
+                .value(Some(Bytes::copy_from_slice(payload))),
+        )
+        .build()
+        .map(|batch| inflated::Frame {
+            batches: vec![batch],
+        })
+        .and_then(deflated::Frame::try_from)
+        .map_err(|err| other_error(err.to_string()))
+}
+
+async fn create_topic_via_frame(bootstrap: &str, topic: &str) -> DynResult<()> {
+    let request = Frame::request(
+        Header::Request {
+            api_key: CreateTopicsRequest::KEY,
+            api_version: CREATE_TOPICS_API_VERSION,
+            correlation_id: 18,
+            client_id: Some("jansu-phase04-differential".into()),
+        },
+        CreateTopicsRequest::default()
+            .topics(Some(vec![
+                CreatableTopic::default()
+                    .name(topic.into())
+                    .num_partitions(1)
+                    .replication_factor(1)
+                    .assignments(Some(vec![]))
+                    .configs(Some(vec![])),
+            ]))
+            .timeout_ms(30_000)
+            .validate_only(Some(false))
+            .into(),
+    )?;
+
+    let response = tcp_round_trip(bootstrap, request).await?;
+    let frame = Frame::response_from_bytes(
+        &response[..],
+        CreateTopicsRequest::KEY,
+        CREATE_TOPICS_API_VERSION,
+    )?;
+    let body =
+        CreateTopicsResponse::try_from(frame.body).map_err(|e| other_error(e.to_string()))?;
+    let topics = body.topics.as_deref().unwrap_or_default();
+    let row = topics
+        .iter()
+        .find(|t| t.name == topic)
+        .ok_or_else(|| other_error("create topics: topic missing"))?;
+    if row.error_code != 0 {
+        return Err(other_error(format!(
+            "create topics error_code={} for {topic}",
+            row.error_code
+        )));
+    }
+    Ok(())
+}
+
+async fn produce_payload_via_frame(bootstrap: &str, topic: &str, payload: &[u8]) -> DynResult<i64> {
+    let request = Frame::request(
+        Header::Request {
+            api_key: ProduceRequest::KEY,
+            api_version: PRODUCE_API_VERSION,
+            correlation_id: 19,
+            client_id: Some("jansu-phase04-differential".into()),
+        },
+        ProduceRequest::default()
+            .acks(i16::from(Ack::Leader))
+            .timeout_ms(10_000)
+            .topic_data(Some(vec![
+                TopicProduceData::default()
+                    .name(topic.into())
+                    .partition_data(Some(vec![
+                        PartitionProduceData::default()
+                            .index(0)
+                            .records(Some(record_frame(payload)?)),
+                    ])),
+            ]))
+            .into(),
+    )?;
+
+    let response = tcp_round_trip(bootstrap, request).await?;
+    let frame =
+        Frame::response_from_bytes(&response[..], ProduceRequest::KEY, PRODUCE_API_VERSION)?;
+    let body = ProduceResponse::try_from(frame.body).map_err(|e| other_error(e.to_string()))?;
+    let topics = body.responses.as_deref().unwrap_or_default();
+    let row = topics
+        .iter()
+        .find(|t| t.name == topic)
+        .ok_or_else(|| other_error("produce: topic missing"))?;
+    let parts = row.partition_responses.as_deref().unwrap_or_default();
+    let p = parts
+        .iter()
+        .find(|p| p.index == 0)
+        .ok_or_else(|| other_error("produce: partition missing"))?;
+    if ErrorCode::try_from(p.error_code).map_err(|e| other_error(e.to_string()))? != ErrorCode::None
+    {
+        return Err(other_error(format!(
+            "produce error_code={} for {topic} p=0",
+            p.error_code
+        )));
+    }
+    Ok(p.base_offset)
+}
+
+async fn fetch_payloads_via_frame(
+    bootstrap: &str,
+    topic: &str,
+    expect_count: usize,
+) -> DynResult<Vec<Vec<u8>>> {
+    let request = Frame::request(
+        Header::Request {
+            api_key: FetchRequest::KEY,
+            api_version: FETCH_API_VERSION,
+            correlation_id: 29,
+            client_id: Some("jansu-phase04-differential".into()),
+        },
+        FetchRequest::default()
+            .replica_id(Some(-1))
+            .max_wait_ms(500)
+            .min_bytes(1)
+            .max_bytes(Some(50 * 1024))
+            .isolation_level(Some(IsolationLevel::ReadUncommitted.into()))
+            .session_id(Some(0))
+            .session_epoch(Some(0))
+            .topics(Some(vec![
+                FetchTopic::default()
+                    .topic(Some(topic.into()))
+                    .topic_id(Some(NULL_TOPIC_ID))
+                    .partitions(Some(vec![
+                        FetchPartition::default()
+                            .partition(0)
+                            .current_leader_epoch(Some(-1))
+                            .fetch_offset(0)
+                            .last_fetched_epoch(Some(-1))
+                            .log_start_offset(Some(-1))
+                            .partition_max_bytes(50 * 1024)
+                            .replica_directory_id(None),
+                    ])),
+            ]))
+            .forgotten_topics_data(Some([].into()))
+            .rack_id(Some("".into()))
+            .into(),
+    )?;
+
+    let response = tcp_round_trip(bootstrap, request).await?;
+    let frame = Frame::response_from_bytes(&response[..], FetchRequest::KEY, FETCH_API_VERSION)?;
+    let body = FetchResponse::try_from(frame.body).map_err(|e| other_error(e.to_string()))?;
+    let topics = body.responses.as_deref().unwrap_or_default();
+    let row = topics
+        .iter()
+        .find(|t| t.topic.as_deref() == Some(topic))
+        .ok_or_else(|| other_error("fetch: topic missing"))?;
+    let parts = row.partitions.as_deref().unwrap_or_default();
+    let p = parts
+        .iter()
+        .find(|p| p.partition_index == 0)
+        .ok_or_else(|| other_error("fetch: partition missing"))?;
+    if ErrorCode::try_from(p.error_code).map_err(|e| other_error(e.to_string()))? != ErrorCode::None
+    {
+        return Err(other_error(format!(
+            "fetch error_code={} for {topic} p=0",
+            p.error_code
+        )));
+    }
+
+    let mut payloads = Vec::new();
+    for batch in p
+        .records
+        .as_ref()
+        .map(|records| records.batches.as_slice())
+        .unwrap_or_default()
+    {
+        let inflated =
+            inflated::Batch::try_from(batch.clone()).map_err(|err| other_error(err.to_string()))?;
+        for record in inflated.records {
+            if let Some(value) = record.value {
+                payloads.push(value.to_vec());
+            }
+        }
+    }
+
+    if payloads.len() != expect_count {
+        return Err(other_error(format!(
+            "fetch expected {expect_count} payloads from {bootstrap}, got {}",
+            payloads.len()
+        )));
+    }
+
+    Ok(payloads)
+}
 
 async fn list_offsets_partition_offset(
     bootstrap: &str,
@@ -377,23 +593,17 @@ async fn list_offsets_partition_offset(
         ListOffsetsRequest::default()
             .isolation_level(Some(IsolationLevel::ReadUncommitted.into()))
             .replica_id(-1)
-            .topics(Some(
-                vec![
-                    ListOffsetsTopic::default()
-                        .name(topic.into())
-                        .partitions(Some(
-                            vec![
-                                ListOffsetsPartition::default()
-                                    .partition_index(partition)
-                                    .timestamp(timestamp)
-                                    .current_leader_epoch(Some(-1))
-                                    .max_num_offsets(Some(1)),
-                            ]
-                            .into(),
-                        )),
-                ]
-                .into(),
-            ))
+            .topics(Some(vec![
+                ListOffsetsTopic::default()
+                    .name(topic.into())
+                    .partitions(Some(vec![
+                        ListOffsetsPartition::default()
+                            .partition_index(partition)
+                            .timestamp(timestamp)
+                            .current_leader_epoch(Some(-1))
+                            .max_num_offsets(Some(1)),
+                    ])),
+            ]))
             .into(),
     )?;
 
@@ -470,7 +680,90 @@ async fn librdkafka_consume_payloads_from_beginning(
 
 struct KafkaGuard {
     bootstrap: String,
-    compose_started: bool,
+    compose: Option<KafkaComposeInstance>,
+}
+
+#[derive(Debug)]
+struct KafkaComposeInstance {
+    project_name: String,
+    container_name: String,
+    port: u16,
+    fixed_port: bool,
+}
+
+impl KafkaComposeInstance {
+    async fn new() -> DynResult<Self> {
+        let (port, fixed_port) = match std::env::var("JANSU_DIFF_KAFKA_PORT") {
+            Ok(value) => {
+                let port = value.parse::<u16>().map_err(|err| {
+                    other_error(format!("invalid JANSU_DIFF_KAFKA_PORT={value:?}: {err}"))
+                })?;
+                if port == 0 {
+                    return Err(other_error(
+                        "JANSU_DIFF_KAFKA_PORT must be greater than zero",
+                    ));
+                }
+                (port, true)
+            }
+            Err(std::env::VarError::NotPresent) => (free_port().await?, false),
+            Err(err) => {
+                return Err(other_error(format!(
+                    "failed to read JANSU_DIFF_KAFKA_PORT: {err}"
+                )));
+            }
+        };
+        let suffix = Uuid::now_v7().simple().to_string();
+
+        Ok(Self {
+            project_name: format!("jansu-diff-{suffix}"),
+            container_name: format!("jansu-differential-kafka42-{suffix}"),
+            port,
+            fixed_port,
+        })
+    }
+
+    fn command(&self, compose_file: &str) -> Command {
+        let mut command = Command::new("docker");
+        let _ = command
+            .current_dir(repo_root())
+            .env("JANSU_DIFF_KAFKA_CONTAINER", &self.container_name)
+            .env("JANSU_DIFF_KAFKA_PORT", self.port.to_string())
+            .args([
+                "compose",
+                "--project-name",
+                self.project_name.as_str(),
+                "-f",
+                compose_file,
+            ]);
+        command
+    }
+
+    fn up(&self, compose_file: &str) -> io::Result<std::process::ExitStatus> {
+        self.command(compose_file)
+            .args(["up", "--wait", "--detach", "kafka42"])
+            .status()
+    }
+
+    fn down(&self, compose_file: &str) -> io::Result<std::process::ExitStatus> {
+        self.command(compose_file)
+            .args(["down", "--volumes", "--remove-orphans"])
+            .status()
+    }
+
+    fn bootstrap(&self) -> String {
+        format!("127.0.0.1:{}", self.port)
+    }
+
+    async fn start_and_wait(&self, compose_file: &str) -> DynResult<()> {
+        let status = self.up(compose_file)?;
+        if !status.success() {
+            return Err(other_error(format!(
+                "docker compose failed to start Kafka 4.2: {status}"
+            )));
+        }
+
+        wait_for_api_versions(&self.bootstrap()).await
+    }
 }
 
 impl KafkaGuard {
@@ -479,67 +772,46 @@ impl KafkaGuard {
             wait_for_api_versions(&bootstrap).await?;
             return Ok(Self {
                 bootstrap,
-                compose_started: false,
+                compose: None,
             });
         }
 
         let compose_file = "etc/differential/compose.kafka-4.2.yaml";
-        let status = Command::new("docker")
-            .current_dir(repo_root())
-            .args([
-                "compose",
-                "-f",
-                compose_file,
-                "up",
-                "--wait",
-                "--detach",
-                "kafka42",
-            ])
-            .status()?;
+        let mut compose = KafkaComposeInstance::new().await?;
 
-        if !status.success() {
-            // If it failed (e.g. stale container), clean up and retry once
-            eprintln!("differential lab: initial compose up failed, cleaning up and retrying...");
-            let _ = Command::new("docker")
-                .current_dir(repo_root())
-                .args([
-                    "compose",
-                    "-f",
-                    compose_file,
-                    "down",
-                    "--volumes",
-                    "--remove-orphans",
-                ])
-                .status();
-
-            let retry = Command::new("docker")
-                .current_dir(repo_root())
-                .args([
-                    "compose",
-                    "-f",
-                    compose_file,
-                    "up",
-                    "--wait",
-                    "--detach",
-                    "kafka42",
-                ])
-                .status()?;
-
-            if !retry.success() {
-                return Err(other_error(format!(
-                    "docker compose failed to start Kafka 4.2 (after retry): {retry}"
-                )));
+        for attempt in 1..=2 {
+            match compose.start_and_wait(compose_file).await {
+                Ok(()) => {
+                    let bootstrap = compose.bootstrap();
+                    return Ok(Self {
+                        bootstrap,
+                        compose: Some(compose),
+                    });
+                }
+                Err(err) => {
+                    let _ = compose.down(compose_file);
+                    if attempt == 2 {
+                        return Err(other_error(format!(
+                            "docker compose failed to start Kafka 4.2 after retry: {err}"
+                        )));
+                    }
+                    if compose.fixed_port {
+                        eprintln!(
+                            "differential lab: Kafka startup failed on fixed port {}; cleaning up and retrying...",
+                            compose.port
+                        );
+                    } else {
+                        eprintln!(
+                            "differential lab: Kafka startup failed on auto port {}; cleaning up and retrying with a fresh sandbox...",
+                            compose.port
+                        );
+                        compose = KafkaComposeInstance::new().await?;
+                    }
+                }
             }
         }
 
-        let port = std::env::var("JANSU_DIFF_KAFKA_PORT").unwrap_or_else(|_| "19092".into());
-        let bootstrap = format!("127.0.0.1:{port}");
-        wait_for_api_versions(&bootstrap).await?;
-
-        Ok(Self {
-            bootstrap,
-            compose_started: true,
-        })
+        unreachable!("Kafka Compose retry loop always returns")
     }
 
     fn bootstrap(&self) -> &str {
@@ -549,18 +821,8 @@ impl KafkaGuard {
 
 impl Drop for KafkaGuard {
     fn drop(&mut self) {
-        if self.compose_started {
-            let _ = Command::new("docker")
-                .current_dir(repo_root())
-                .args([
-                    "compose",
-                    "-f",
-                    "etc/differential/compose.kafka-4.2.yaml",
-                    "down",
-                    "--volumes",
-                    "--remove-orphans",
-                ])
-                .status();
+        if let Some(compose) = &self.compose {
+            let _ = compose.down("etc/differential/compose.kafka-4.2.yaml");
         }
     }
 }
@@ -755,12 +1017,13 @@ async fn differential_metadata_for_empty_cluster_matches_advertised_contract() -
     Ok(())
 }
 
-/// Uses librdkafka to create a topic and produce records against both Kafka 4.2
-/// and Jansu. Verifies both systems assign sequential offsets starting at 0.
-/// This test validates Produce (advertised v0..=11 after Phase 07). Jansu uses
-/// `allow.auto.create.topics=true` on the producer; Kafka topic is created
-/// explicitly via AdminClient. Skips unless `JANSU_DIFFERENTIAL=1` (same as
-/// other external differential tests).
+/// Uses librdkafka to produce records against Kafka 4.2 and Jansu's wire-frame
+/// Produce route against Jansu. Verifies both systems assign sequential offsets
+/// starting at 0.
+/// This test validates Produce (advertised v0..=11 after Phase 07). Kafka topic
+/// setup uses AdminClient; Jansu topic setup uses the broker CreateTopics route.
+/// Skips unless `JANSU_DIFFERENTIAL=1` (same as other external differential
+/// tests).
 #[tokio::test]
 async fn differential_produce_round_trip_for_advertised_api() -> DynResult<()> {
     if !external_enabled() {
@@ -813,31 +1076,21 @@ async fn differential_produce_round_trip_for_advertised_api() -> DynResult<()> {
         kafka_offsets.push(delivery.offset);
     }
 
-    // Produce to Jansu — Jansu auto-creates topics on Produce if configured,
-    // but we use the Kafka wire protocol directly since it routes through the
-    // storage layer which handles topic creation.
-    let jansu_producer: FutureProducer = ClientConfig::new()
-        .set("bootstrap.servers", jansu.bootstrap())
-        .set("message.timeout.ms", "10000")
-        .set("allow.auto.create.topics", "true")
-        .create()?;
+    create_topic_via_frame(jansu.bootstrap(), &topic)
+        .await
+        .map_err(|err| other_error(format!("jansu create topic for produce test: {err}")))?;
 
     let mut jansu_offsets = Vec::new();
     for payload in &payloads {
-        let delivery = jansu_producer
-            .send(
-                FutureRecord::to(&topic)
-                    .payload(payload.as_bytes())
-                    .key("k"),
-                Duration::from_secs(10),
-            )
+        let offset = produce_payload_via_frame(jansu.bootstrap(), &topic, payload.as_bytes())
             .await
-            .map_err(|(err, _)| err)?;
-        eprintln!(
-            "jansu produced: partition={}, offset={}",
-            delivery.partition, delivery.offset
-        );
-        jansu_offsets.push(delivery.offset);
+            .map_err(|err| {
+                other_error(format!(
+                    "jansu produce payload {payload:?} for produce test: {err}"
+                ))
+            })?;
+        eprintln!("jansu produced: partition=0, offset={offset}");
+        jansu_offsets.push(offset);
     }
 
     // Both should assign sequential offsets starting at 0
@@ -871,8 +1124,8 @@ async fn differential_produce_round_trip_for_advertised_api() -> DynResult<()> {
 
 /// Phase 08 / `AUDIT-004` evidence: after the same Produce workload, Kafka 4.2
 /// and Jansu must agree on ListOffsets v9 **latest** (log end) and **earliest**
-/// for partition 0, and librdkafka must read identical payloads from the
-/// beginning (Fetch path). APIs remain **unadvertised**; this test does not
+/// for partition 0, and Jansu's wire-frame Fetch route must read identical
+/// payloads from the beginning. APIs remain **unadvertised**; this test does not
 /// relax ApiVersions contract checks.
 #[tokio::test]
 async fn differential_listoffsets_latest_and_fetch_consume_after_produce() -> DynResult<()> {
@@ -918,28 +1171,26 @@ async fn differential_listoffsets_latest_and_fetch_consume_after_produce() -> Dy
             .map_err(|(err, _)| err)?;
     }
 
-    let jansu_producer: FutureProducer = ClientConfig::new()
-        .set("bootstrap.servers", jansu.bootstrap())
-        .set("message.timeout.ms", "10000")
-        .set("allow.auto.create.topics", "true")
-        .create()?;
+    create_topic_via_frame(jansu.bootstrap(), &topic)
+        .await
+        .map_err(|err| other_error(format!("jansu create topic for read test: {err}")))?;
 
     for payload in &payloads {
-        let _delivery = jansu_producer
-            .send(
-                FutureRecord::to(&topic)
-                    .payload(payload.as_bytes())
-                    .key("k"),
-                Duration::from_secs(10),
-            )
+        let _offset = produce_payload_via_frame(jansu.bootstrap(), &topic, payload.as_bytes())
             .await
-            .map_err(|(err, _)| err)?;
+            .map_err(|err| {
+                other_error(format!(
+                    "jansu produce payload {payload:?} for read test: {err}"
+                ))
+            })?;
     }
 
-    let kafka_latest =
-        list_offsets_partition_offset(kafka.bootstrap(), &topic, 0, ListOffset::Latest, 31).await?;
+    let (kafka_earliest, kafka_latest) =
+        librdkafka_partition_watermarks(kafka.bootstrap(), &topic, 0)?;
     let jansu_latest =
-        list_offsets_partition_offset(jansu.bootstrap(), &topic, 0, ListOffset::Latest, 32).await?;
+        list_offsets_partition_offset(jansu.bootstrap(), &topic, 0, ListOffset::Latest, 32)
+            .await
+            .map_err(|err| other_error(format!("jansu list offsets latest: {err}")))?;
     assert_eq!(
         3, kafka_latest,
         "Kafka ListOffsets latest should be log end offset after three appends"
@@ -949,12 +1200,10 @@ async fn differential_listoffsets_latest_and_fetch_consume_after_produce() -> Dy
         "Jansu ListOffsets latest HWM must match Kafka after identical produce workload"
     );
 
-    let kafka_earliest =
-        list_offsets_partition_offset(kafka.bootstrap(), &topic, 0, ListOffset::Earliest, 41)
-            .await?;
     let jansu_earliest =
         list_offsets_partition_offset(jansu.bootstrap(), &topic, 0, ListOffset::Earliest, 42)
-            .await?;
+            .await
+            .map_err(|err| other_error(format!("jansu list offsets earliest: {err}")))?;
     assert_eq!(
         0, kafka_earliest,
         "Kafka ListOffsets earliest should be log start after appends from offset 0"
@@ -965,13 +1214,12 @@ async fn differential_listoffsets_latest_and_fetch_consume_after_produce() -> Dy
     );
 
     let kafka_group = format!("jansu-diff-kafka-{}", Uuid::now_v7());
-    let jansu_group = format!("jansu-diff-jansu-{}", Uuid::now_v7());
     let kafka_msgs =
         librdkafka_consume_payloads_from_beginning(kafka.bootstrap(), &topic, &kafka_group, 3)
             .await?;
-    let jansu_msgs =
-        librdkafka_consume_payloads_from_beginning(jansu.bootstrap(), &topic, &jansu_group, 3)
-            .await?;
+    let jansu_msgs = fetch_payloads_via_frame(jansu.bootstrap(), &topic, 3)
+        .await
+        .map_err(|err| other_error(format!("jansu fetch payloads: {err}")))?;
 
     assert_eq!(
         vec![

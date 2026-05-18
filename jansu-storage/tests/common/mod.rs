@@ -58,6 +58,7 @@ impl From<ParseError> for Error {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn init_tracing() -> Result<DefaultGuard, Error> {
     use std::{fs::File, sync::Arc, thread};
 
@@ -88,6 +89,45 @@ pub(crate) fn init_tracing() -> Result<DefaultGuard, Error> {
             )
             .finish(),
     ))
+}
+
+#[allow(dead_code)]
+pub(crate) fn redlinedb_storage_url(prefix: &str) -> Result<Url, Error> {
+    std::fs::create_dir_all("target/jankurai/redlinedb-tests")?;
+
+    let safe_prefix = prefix
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => ch,
+            _ => '-',
+        })
+        .collect::<String>();
+
+    Url::parse(&format!(
+        "redlinedb://target/jankurai/redlinedb-tests/{safe_prefix}-{}.redline",
+        Uuid::now_v7()
+    ))
+    .map_err(Into::into)
+}
+
+#[allow(dead_code)]
+pub(crate) fn default_storage_url() -> Result<Url, Error> {
+    #[cfg(feature = "redlinedb")]
+    {
+        redlinedb_storage_url("jansu")
+    }
+
+    #[cfg(all(not(feature = "redlinedb"), feature = "dynostore"))]
+    {
+        Url::parse("memory://jansu/").map_err(Into::into)
+    }
+
+    #[cfg(all(not(feature = "redlinedb"), not(feature = "dynostore")))]
+    {
+        Err(Error::Message(
+            "no default test storage backend enabled".into(),
+        ))
+    }
 }
 
 #[allow(dead_code)]
@@ -127,41 +167,6 @@ where
 }
 
 #[allow(dead_code)]
-/// Applies idempotent DDL expected by the Postgres storage backend when connecting to a
-/// database that predates `expires_at` / `leader_epoch_history` (see `etc/initdb.d/`).
-#[cfg(feature = "postgres")]
-pub(crate) async fn ensure_postgres_offset_schema(storage_url: &Url) -> Result<(), Error> {
-    use tokio_postgres::NoTls;
-
-    let (client, connection) = tokio_postgres::connect(storage_url.as_str(), NoTls)
-        .await
-        .map_err(|e| Error::Message(format!("postgres schema patch connect: {e}")))?;
-
-    drop(tokio::spawn(async move {
-        let _ = connection.await;
-    }));
-
-    client
-        .batch_execute(
-            r"
-            alter table consumer_offset add column if not exists expires_at timestamp;
-
-            create table if not exists leader_epoch_history (
-                topition int references topition (id) on delete cascade,
-                epoch int not null,
-                start_offset bigint not null,
-                last_updated timestamp default current_timestamp not null,
-                created_at timestamp default current_timestamp not null,
-                primary key (topition, epoch)
-            );
-            ",
-        )
-        .await
-        .map_err(|e| Error::Message(format!("postgres schema patch apply: {e}")))?;
-
-    Ok(())
-}
-
 pub(crate) async fn create_topic<S>(
     storage: &S,
     topic: &str,

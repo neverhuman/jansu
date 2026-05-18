@@ -39,7 +39,7 @@ async fn topic_lifecycle() -> Result<(), Error> {
         .cluster_id(cluster_id)
         .node_id(node_id)
         .advertised_listener(Url::parse(&format!("tcp://{HOST}:{PORT}"))?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 

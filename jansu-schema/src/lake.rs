@@ -186,7 +186,7 @@ impl LakeHouse for House {
         inflated: &Batch,
         configs: DescribeConfigsResult,
     ) -> Result<()> {
-        let _ = (topic, partition, offset, inflated, configs.clone());
+        let _ = (topic, partition, offset, inflated, &configs);
 
         let start = SystemTime::now();
 

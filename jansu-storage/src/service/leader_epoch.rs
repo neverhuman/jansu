@@ -50,7 +50,7 @@ pub(crate) fn leader_epoch_for_offset(history: &[LeaderEpochRecord], offset: i64
         .iter()
         .rev()
         .find(|record| record.start_offset <= offset)
-        .or_else(|| history.first())
+        .or(history.first())
         .map_or(-1, |record| record.epoch)
 }
 

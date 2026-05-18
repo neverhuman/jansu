@@ -19,39 +19,20 @@ use core::{
 use std::{
     io,
     marker::PhantomData,
-    num::{NonZero, NonZeroU32},
-    ops::AddAssign,
+    num::NonZeroU32,
     pin::Pin,
-    sync::{Arc, LazyLock, Mutex, PoisonError},
-    time::{Duration, SystemTime},
+    sync::{Arc, LazyLock, PoisonError},
+    time::Duration,
 };
 
 use bytes::Bytes;
-use governor::{DefaultDirectRateLimiter, InsufficientCapacity, Jitter, Quota, RateLimiter};
-use human_units::{
-    FormatDuration,
-    iec::{Byte, Prefix},
-};
+use governor::{InsufficientCapacity, Quota, RateLimiter};
 use jansu_client::{Client, ConnectionManager};
-use jansu_sans_io::{
-    ByteSize as _, ErrorCode, ProduceRequest,
-    produce_request::{PartitionProduceData, TopicProduceData},
-    record::{Record, deflated, inflated},
-};
+use jansu_sans_io::ErrorCode;
 use nonzero_ext::nonzero;
-use opentelemetry::{
-    InstrumentationScope, KeyValue, global,
-    metrics::{Counter, Meter},
-};
+use opentelemetry::{InstrumentationScope, global, metrics::Meter};
 use opentelemetry_otlp::ExporterBuildError;
-use opentelemetry_sdk::{
-    error::{OTelSdkError, OTelSdkResult},
-    metrics::{
-        SdkMeterProvider, Temporality,
-        data::{AggregatedMetrics, Histogram, Metric, MetricData, ResourceMetrics},
-        exporter::PushMetricExporter,
-    },
-};
+use opentelemetry_sdk::{error::OTelSdkError, metrics::SdkMeterProvider};
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use tokio::{
     signal::unix::{SignalKind, signal},
@@ -59,8 +40,18 @@ use tokio::{
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, instrument};
+use tracing::debug;
 use url::Url;
+
+mod exporter;
+mod observation;
+mod producer;
+
+#[cfg(test)]
+mod tests;
+
+use exporter::MetricExporter;
+use producer::Producer;
 
 pub type Result<T, E = Error> = result::Result<T, E>;
 
@@ -232,31 +223,6 @@ impl Builder<Url, String> {
     }
 }
 
-static RATE_LIMIT_DURATION: LazyLock<opentelemetry::metrics::Histogram<u64>> =
-    LazyLock::new(|| {
-        METER
-            .u64_histogram("rate_limit_duration")
-            .with_unit("ms")
-            .with_description("Rate limit latencies in milliseconds")
-            .build()
-    });
-
-static PRODUCE_RECORD_COUNT: LazyLock<Counter<u64>> = LazyLock::new(|| {
-    METER
-        .u64_counter("produce_record_count")
-        .with_description("Produced record count")
-        .build()
-});
-
-static PRODUCE_API_DURATION: LazyLock<opentelemetry::metrics::Histogram<u64>> =
-    LazyLock::new(|| {
-        METER
-            .u64_histogram("produce_duration")
-            .with_unit("ms")
-            .with_description("Produce API latencies in milliseconds")
-            .build()
-    });
-
 impl Perf {
     pub fn builder() -> Builder<PhantomData<Url>, PhantomData<String>> {
         Builder::default()
@@ -275,10 +241,10 @@ impl Perf {
             meter_provider
         };
 
-        let mut interrupt_signal = signal(SignalKind::interrupt()).unwrap();
+        let mut interrupt_signal = signal(SignalKind::interrupt())?;
         debug!(?interrupt_signal);
 
-        let mut terminate_signal = signal(SignalKind::terminate()).unwrap();
+        let mut terminate_signal = signal(SignalKind::terminate())?;
         debug!(?terminate_signal);
 
         let rate_limiter = self
@@ -390,471 +356,5 @@ impl Perf {
         }
 
         Ok(ErrorCode::None)
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Producer {
-    id: u32,
-    rate_limiter: Option<Arc<DefaultDirectRateLimiter>>,
-    topic: String,
-    partition: i32,
-    record_data: Bytes,
-    token: CancellationToken,
-    client: Client,
-    batch_size: NonZero<u32>,
-    throughput: Option<u32>,
-}
-
-impl Producer {
-    #[instrument(skip_all, fields(record_data_len = self.record_data.len()))]
-    fn frame(&self) -> Result<deflated::Frame> {
-        let mut batch = inflated::Batch::builder();
-        let offset_deltas = 0..(self.batch_size.get() as i32);
-
-        for offset_delta in offset_deltas {
-            batch = batch.record(
-                Record::builder()
-                    .value(Some(self.record_data.clone()))
-                    .offset_delta(offset_delta),
-            )
-        }
-
-        batch
-            .last_offset_delta(self.batch_size.get() as i32)
-            .build()
-            .map(|batch| inflated::Frame {
-                batches: vec![batch],
-            })
-            .and_then(deflated::Frame::try_from)
-            .map_err(Into::into)
-    }
-
-    #[instrument(skip_all)]
-    async fn produce(&self, frame: deflated::Frame) -> Result<()> {
-        let req = ProduceRequest::default().topic_data(Some(
-            [TopicProduceData::default()
-                .name(self.topic.clone())
-                .partition_data(Some(
-                    [PartitionProduceData::default()
-                        .index(self.partition)
-                        .records(Some(frame))]
-                    .into(),
-                ))]
-            .into(),
-        ));
-
-        let response = self.client.call(req).await?;
-
-        assert!(
-            response
-                .responses
-                .unwrap_or_default()
-                .into_iter()
-                .all(|topic| {
-                    topic
-                        .partition_responses
-                        .unwrap_or_default()
-                        .iter()
-                        .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-                })
-        );
-
-        Ok(())
-    }
-
-    #[instrument(skip_all, fields(id = self.id))]
-    async fn rate_limited(&self) -> Result<bool> {
-        let attributes = [KeyValue::new("producer", self.id.to_string())];
-
-        let frame = self.frame()?;
-
-        if let Some(ref rate_limiter) = self.rate_limiter {
-            let rate_limit_start = SystemTime::now();
-
-            let cells = self
-                .throughput
-                .and(
-                    frame
-                        .size_in_bytes()
-                        .ok()
-                        .and_then(|bytes| NonZeroU32::new(bytes as u32)),
-                )
-                .unwrap_or(self.batch_size);
-
-            tokio::select! {
-                cancelled = self.token.cancelled() => {
-                    debug!(?cancelled);
-                    return Ok(false)
-                },
-
-                Ok(_) = rate_limiter.until_n_ready_with_jitter(cells, Jitter::up_to(Duration::from_millis(10))) => {
-                    RATE_LIMIT_DURATION.record(
-                    rate_limit_start
-                        .elapsed()
-                        .inspect(|duration|debug!(rate_limit_duration_ms = duration.as_millis()))
-                        .map_or(0, |duration| duration.as_millis() as u64),
-                        &attributes)
-
-                },
-            }
-        }
-
-        let produce_start = SystemTime::now();
-
-        tokio::select! {
-            cancelled = self.token.cancelled() => {
-                debug!(?cancelled);
-                return Ok(false)
-            },
-
-            Ok(_) = self.produce(frame) => {
-                PRODUCE_RECORD_COUNT.add(self.batch_size.get() as u64, &attributes);
-                PRODUCE_API_DURATION.record(produce_start.elapsed().inspect(|duration|debug!(produce_duration_ms = duration.as_millis())).map_or(0, |duration| duration.as_millis() as u64), &attributes);
-            },
-        }
-
-        Ok(!self.token.is_cancelled())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct Observation {
-    taken_at: SystemTime,
-    bytes_sent: u64,
-    record_count: u64,
-}
-
-impl AddAssign for Observation {
-    fn add_assign(&mut self, rhs: Self) {
-        self.taken_at = self.taken_at.max(rhs.taken_at);
-        self.bytes_sent += rhs.bytes_sent;
-        self.record_count += rhs.record_count;
-    }
-}
-
-impl Default for Observation {
-    fn default() -> Self {
-        Self {
-            taken_at: SystemTime::now(),
-            bytes_sent: Default::default(),
-            record_count: Default::default(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-struct Info {
-    started_at: SystemTime,
-    previous: Option<ObservationLatency>,
-    current: ObservationLatency,
-}
-
-impl Info {
-    fn new(started_at: SystemTime) -> Self {
-        Self {
-            started_at,
-            current: Default::default(),
-            previous: Default::default(),
-        }
-    }
-
-    fn with_previous(self, previous: Option<ObservationLatency>) -> Self {
-        Self { previous, ..self }
-    }
-
-    fn elapsed(&self) -> Duration {
-        self.current
-            .observation
-            .taken_at
-            .duration_since(
-                self.previous
-                    .map_or(self.started_at, |previous| previous.observation.taken_at),
-            )
-            .expect("duration")
-    }
-
-    fn bytes_sent(&self) -> u64 {
-        self.current.observation.bytes_sent
-            - self
-                .previous
-                .map(|previous| previous.observation.bytes_sent)
-                .unwrap_or_default()
-    }
-
-    fn records_sent(&self) -> u64 {
-        self.current.observation.record_count
-            - self
-                .previous
-                .map(|previous| previous.observation.record_count)
-                .unwrap_or_default()
-    }
-
-    fn records_sent_per_second(&self) -> f64 {
-        self.records_sent() as f64 / self.elapsed().as_secs() as f64
-    }
-
-    fn bandwidth(&self) -> Byte {
-        self.bytes_sent()
-            .checked_div(self.elapsed().as_secs())
-            .map(|throughput| Byte::with_iec_prefix(throughput, Prefix::None))
-            .expect("throughput")
-    }
-}
-
-impl Display for Info {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "elapsed: {}, {} records sent, {:.1} records/s, ({}/s), latency: {} min, {:.1}ms avg, {} max",
-            self.elapsed().format_duration(),
-            self.records_sent(),
-            self.records_sent_per_second(),
-            self.bandwidth().format_iec(),
-            self.current
-                .latency
-                .min
-                .map(|min| min.format_duration())
-                .expect("minimum"),
-            self.current.latency.mean.expect("mean"),
-            self.current
-                .latency
-                .max
-                .map(|max| max.format_duration())
-                .expect("max")
-        )
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
-struct Latency {
-    min: Option<Duration>,
-    max: Option<Duration>,
-    mean: Option<f64>,
-}
-
-impl From<&Histogram<u64>> for Latency {
-    fn from(histogram: &Histogram<u64>) -> Self {
-        let min = histogram
-            .data_points()
-            .filter_map(|dp| dp.min())
-            .min()
-            .map(Duration::from_millis);
-
-        let max = histogram
-            .data_points()
-            .filter_map(|dp| dp.max())
-            .max()
-            .map(Duration::from_millis);
-
-        let sum = histogram.data_points().map(|dp| dp.sum()).sum::<u64>() as f64;
-        let count = histogram.data_points().map(|dp| dp.count()).sum::<u64>() as f64;
-
-        let mean = Some(sum / count);
-
-        Self { min, max, mean }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd)]
-struct ObservationLatency {
-    observation: Observation,
-    latency: Latency,
-}
-
-#[derive(Debug)]
-struct MetricExporter {
-    started_at: SystemTime,
-    temporality: Temporality,
-    previous: Mutex<Option<ObservationLatency>>,
-    cancellation: CancellationToken,
-}
-
-impl MetricExporter {
-    fn new(cancellation: CancellationToken) -> Self {
-        let started_at = SystemTime::now();
-        Self {
-            started_at,
-            temporality: Default::default(),
-            previous: Default::default(),
-            cancellation,
-        }
-    }
-
-    #[instrument(skip_all, fields(scope = scope.name(), metric = metric.name()))]
-    fn info(&self, scope: &InstrumentationScope, metric: &Metric, info: &mut Info) {
-        match (scope.name(), metric.name(), metric.data()) {
-            ("jansu-client", "tcp_bytes_sent", AggregatedMetrics::U64(MetricData::Sum(sum))) => {
-                for (point, data) in sum.data_points().enumerate() {
-                    debug!(point, value = ?data.value());
-                }
-
-                info.current.observation.bytes_sent =
-                    sum.data_points().map(|sum| sum.value()).sum::<u64>();
-            }
-
-            (
-                "jansu-perf",
-                "produce_record_count",
-                AggregatedMetrics::U64(MetricData::Sum(sum)),
-            ) => {
-                for (point, data) in sum.data_points().enumerate() {
-                    debug!(point, value = ?data.value());
-                }
-
-                info.current.observation.record_count =
-                    sum.data_points().map(|sum| sum.value()).sum::<u64>();
-            }
-
-            (
-                "jansu-perf",
-                "produce_duration",
-                AggregatedMetrics::U64(MetricData::Histogram(histogram)),
-            ) => {
-                info.current.latency = Latency::from(histogram);
-            }
-
-            _ => (),
-        }
-    }
-}
-
-impl PushMetricExporter for MetricExporter {
-    async fn export(&self, metrics: &ResourceMetrics) -> OTelSdkResult {
-        let cancelled = self.cancellation.is_cancelled();
-
-        if cancelled {
-            if let Some(previous) = *self.previous.lock().expect("previous") {
-                let mut info = Info::new(self.started_at);
-                info.current = previous;
-
-                println!("{}", info);
-            }
-        } else {
-            let mut previous = self.previous.lock().expect("previous");
-
-            let mut info = Info::new(self.started_at).with_previous(previous.take());
-
-            for scope in metrics.scope_metrics() {
-                debug!(scope = scope.scope().name());
-
-                for metric in scope.metrics() {
-                    debug!(scope = scope.scope().name(), metric = metric.name());
-
-                    self.info(scope.scope(), metric, &mut info);
-                }
-            }
-
-            println!("{info}");
-
-            _ = previous.replace(info.current);
-        }
-
-        Ok(())
-    }
-
-    fn force_flush(&self) -> OTelSdkResult {
-        Ok(())
-    }
-
-    #[instrument]
-    fn shutdown_with_timeout(&self, timeout: Duration) -> OTelSdkResult {
-        Ok(())
-    }
-
-    fn temporality(&self) -> Temporality {
-        self.temporality
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn add_assign_observation() {
-        let now = SystemTime::now();
-        let delta = Duration::from_secs(5);
-
-        let previous = Observation {
-            taken_at: now.checked_sub(delta).expect("previous"),
-            bytes_sent: 32_123,
-            record_count: 12_321,
-        };
-
-        let mut current = Observation {
-            taken_at: now,
-            bytes_sent: 43_234,
-            record_count: 54_345,
-        };
-
-        current += previous;
-
-        assert_eq!(now, current.taken_at);
-        assert_eq!(75_357, current.bytes_sent);
-        assert_eq!(66_666, current.record_count);
-    }
-
-    #[test]
-    fn middle_observation() {
-        let now = SystemTime::now();
-        let elapsed = Duration::from_secs(4);
-
-        let previous = {
-            let observation = Observation {
-                taken_at: now.checked_sub(elapsed).expect("previous"),
-                bytes_sent: 43_234,
-                record_count: 212,
-            };
-
-            ObservationLatency {
-                observation,
-                latency: Default::default(),
-            }
-        };
-
-        let mut info = Info::new(now).with_previous(Some(previous));
-
-        info.current = {
-            let observation = Observation {
-                taken_at: now,
-                bytes_sent: 65_456,
-                record_count: 656,
-            };
-
-            ObservationLatency {
-                observation,
-                latency: Default::default(),
-            }
-        };
-
-        assert_eq!(elapsed, info.elapsed());
-        assert_eq!(5_555, info.bandwidth().0);
-        assert_eq!(111f64, info.records_sent_per_second());
-    }
-
-    #[test]
-    fn last_or_first_observation() {
-        let now = SystemTime::now();
-        let elapsed = Duration::from_secs(4);
-
-        let mut info = Info::new(now.checked_sub(elapsed).expect("elapsed"));
-
-        info.current = {
-            let observation = Observation {
-                taken_at: now,
-                bytes_sent: 65_456,
-                record_count: 656,
-            };
-
-            ObservationLatency {
-                observation,
-                latency: Default::default(),
-            }
-        };
-
-        assert_eq!(elapsed, info.elapsed());
-        assert_eq!(16_364, info.bandwidth().0);
-        assert_eq!(164f64, info.records_sent_per_second());
     }
 }

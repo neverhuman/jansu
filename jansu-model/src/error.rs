@@ -37,6 +37,7 @@ pub enum Error {
     Syn(syn::Error),
     TryFromInt(num::TryFromIntError),
     Utf8(str::Utf8Error),
+    AgentException(crate::AgentException),
 }
 
 impl std::error::Error for Error {}
@@ -98,6 +99,12 @@ impl From<serde_json::Error> for Error {
 impl From<syn::Error> for Error {
     fn from(value: syn::Error) -> Self {
         Self::Syn(value)
+    }
+}
+
+impl From<crate::AgentException> for Error {
+    fn from(value: crate::AgentException) -> Self {
+        Self::AgentException(value)
     }
 }
 

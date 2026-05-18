@@ -1,0 +1,768 @@
+Below is a policy-grade taxonomy. I’m using **“inexcusable”** to mean a practice that makes releases ambiguous, destroys traceability, bloats or corrupts history, weakens security, or makes recovery/review materially harder. I cannot certify that this captures literally every individual Reddit/X/LinkedIn/Quora post ever written, but it does cover the distinct bad-behavior classes that recur in accessible community discussions and in official Git/GitHub/GitLab/SemVer/security guidance. Community examples include complaints about versioned folders, force-push disasters, unreviewed `git add .`, huge PRs, secrets, bad branch hygiene, and long-lived branches. ([Reddit][1])
+
+# Inexcusable Git/versioning anti-patterns
+
+## 1. Manual “versioning” by copying files or folders
+
+These are the classic bad behaviors:
+
+* Creating folders like `project_v2/`, `project_v3/`, `old_project/`, `new_project/`, `src_backup/`, `src_2024_05/`, `final/`, `final2/`, `final_REAL/`.
+* Creating filenames like `service_v2.py`, `utils_new.js`, `config_old.yaml`, `schema_final.sql`, `index_backup.ts`, `report_latest.md`.
+* Keeping complete copies such as `/v1`, `/v2`, `/v3` inside the same branch when they are just historical snapshots.
+* Copying the whole repo into a subfolder to “preserve” a version.
+* Committing zip/tar snapshots of the source tree into the repo.
+* Using date-stamped directories as pseudo-releases: `release_2025_01_15/`, `before_refactor/`, `pre_migration/`.
+* Keeping old implementations commented out because “we might need them later.”
+* Adding version numbers in file headers/comments as the source of truth instead of using Git commits, tags, and releases.
+* Treating separate local folders or cloned repos as a versioning system.
+
+This is precisely what Git history, tags, branches, releases, and worktrees are for. A Reddit discussion about putting `0.1`, `0.2`, `0.3` folders under version control was answered with the correct direction: use branches/worktrees/tags, not folder copies. Git tags are designed to mark specific points in history, commonly release points such as `v1.0` and `v2.0`. ([Reddit][1])
+
+**Important exception:** versioned API paths like `/api/v1/users` or versioned documentation for public compatibility are not the same thing as `file_v2.py`. Those can be legitimate when they represent concurrently supported public interfaces, not historical backups.
+
+## 2. Release/version identity malpractice
+
+These are inexcusable because nobody can later prove what code produced a release:
+
+* Shipping from an untagged commit.
+* Shipping from a dirty working tree.
+* Shipping from a local commit that was never pushed.
+* Shipping from a branch name like `release` or `latest` without an immutable tag.
+* Moving a release tag after publication.
+* Deleting and recreating release tags casually.
+* Reusing a tag name for different code.
+* Tagging the wrong commit.
+* Creating release notes that do not match the tagged code.
+* Having a `VERSION` file that says `1.2.3` while the Git tag says `1.2.2`.
+* Building artifacts from one commit but tagging another.
+* Publishing binaries/assets without recording the source commit, tag, build environment, and artifact checksum.
+* Using mutable labels such as `latest`, `stable`, or `prod` as the only release identifier.
+* Mixing version schemes randomly: `v1.2.3`, `release-7`, `2024-final`, `prod-hotfix`, `build42`.
+* Using lightweight tags for official public releases when annotated or signed tags are appropriate.
+* Having no changelog or release notes.
+* Versioning CI templates, generated outputs, or config files by putting version suffixes in filenames instead of versioning the source and release process.
+
+Official Git documentation distinguishes lightweight tags from annotated tags and says annotated tags store metadata such as tagger, date, message, and optional signature; Git’s own docs describe annotated tags as generally recommended for release-style information. GitHub and GitLab releases are also explicitly tied to Git tags and specific history points. ([Git][2])
+
+## 3. Semantic-versioning abuse
+
+Bad versioning is not only about filenames. These are common, damaging SemVer abuses:
+
+* Shipping breaking changes in a patch release.
+* Shipping breaking changes in a minor release.
+* Adding features in patch releases when the project claims SemVer.
+* Treating `1.10.0` as “smaller than” `1.2.0` because someone compares versions as decimals or strings incorrectly.
+* Staying on `0.x.y` forever to avoid declaring compatibility expectations.
+* Not defining what the “public API” means.
+* Changing behavior, config formats, CLI flags, database schemas, wire protocols, or exported types without deciding whether that is a breaking change.
+* Using version bumps as marketing rather than compatibility signals.
+* Publishing prereleases as if they are stable releases.
+* Misusing build metadata as a compatibility signal.
+* Having multiple components with one fake global version when they are not released together.
+* Having multiple independent versions with no manifest explaining which versions work together.
+* Bumping versions manually and forgetting to update all package manifests, lockfiles, docs, charts, images, or deployment manifests.
+
+SemVer’s core rule is simple: incompatible API changes require a major version bump; backward-compatible additions require a minor bump; backward-compatible fixes require a patch bump. ([Semantic Versioning][3])
+
+## 4. Commit hygiene failures
+
+These are not cosmetic. They break review, bisecting, rollback, and incident response:
+
+* Blindly running `git add .`, `git add -A`, or IDE “commit all” without reviewing what is staged.
+* Using `git commit -am` reflexively and missing new files.
+* Never checking `git status`.
+* Never checking `git diff` or `git diff --staged`.
+* Committing unrelated changes together.
+* Mixing refactors, formatting, dependency bumps, feature work, and bug fixes in one giant commit.
+* Making commits that do not build.
+* Making commits that cannot pass tests.
+* Committing half-finished work to shared branches without marking it appropriately.
+* Using meaningless messages: `fix`, `changes`, `update`, `stuff`, `bug`, `WIP`, `asdf`, `final`, `minor`.
+* Using only a ticket number as the commit message.
+* Using GitHub’s default “Update file” message for meaningful changes.
+* Never explaining why a change was made.
+* Hiding risky behavior changes inside “cleanup” commits.
+* Amending/squashing incorrectly so that useful review history is lost.
+* Refusing to split a huge commit when it clearly contains multiple logical changes.
+* Committing generated noise that obscures the real change.
+* Committing local-only files, editor files, debug logs, temp files, or machine-specific config.
+
+Community discussions repeatedly call out blind staging, bad messages, giant/unrelated commits, WIP spam, and committing secrets or local files by accident. Conventional Commits is one widely used convention for making history machine-readable and SemVer-compatible, but the minimum standard is still: atomic commits with a meaningful subject and enough body text to explain non-obvious “why.” ([Reddit][4])
+
+## 5. Branching and history-destruction failures
+
+These are among the most dangerous Git behaviors:
+
+* Committing directly to `main`, `master`, `trunk`, `production`, or release branches when the project requires review.
+* Leaving protected branches unprotected.
+* Force-pushing to shared branches.
+* Force-pushing to `main`.
+* Rebasing public/shared branches without coordination.
+* Disabling branch protection “temporarily” to push something risky.
+* Deleting important branches without knowing whether they are merged or released.
+* Deleting `main`/`master`.
+* Keeping long-lived feature branches alive for weeks or months.
+* Creating “epic branches” that diverge so far they become mini-forks.
+* Branching from feature branches repeatedly until nobody knows the real base.
+* Using branches as permanent environments without a clear promotion/release model.
+* Never merging/rebasing from trunk until the end.
+* Pushing huge conflict resolutions without understanding which side won.
+* Resolving conflicts by deleting code you do not understand.
+* Not pushing local work for months.
+* Treating Git as a personal backup system instead of using remote repositories and review.
+* Naming branches vaguely: `new`, `test`, `fix`, `john`, `stuff`, `final`.
+* Keeping stale branches forever.
+* Reusing branch names for unrelated work.
+* Merging release hotfixes into production but failing to merge/backport them into active development.
+
+GitHub branch protection can require pull requests, approvals, and status checks, and it blocks force pushes by default on protected branches. Trunk-based development guidance emphasizes small, frequent merges to a stable mainline, while many community horror stories involve force-pushes, unprotected main branches, long-lived branches, and rebases gone wrong. ([GitHub Docs][5])
+
+## 6. Repository-content abuse
+
+Git should contain source and small text assets that benefit from diff/history. These are inexcusable unless there is a documented reason and the right storage mechanism:
+
+* Committing secrets.
+* Committing API keys.
+* Committing database passwords.
+* Committing SSH private keys.
+* Committing cloud credentials.
+* Committing `.env` files with real values.
+* Committing production config with sensitive values.
+* Committing PII, customer data, logs with tokens, or database dumps.
+* Committing `node_modules/`, `vendor/`, or dependency caches without a specific vendoring policy.
+* Committing build outputs: `dist/`, `target/`, `build/`, `bin/`, compiled bundles, generated archives.
+* Committing local IDE/project files that do not belong to the whole team.
+* Committing OS junk such as `.DS_Store` or `Thumbs.db`.
+* Committing test screenshots, videos, binary blobs, or large generated files without LFS/artifact storage.
+* Committing VM images, model checkpoints, datasets, media, CAD files, or large binaries directly into normal Git history.
+* Committing SQL dumps as “versioning.”
+* Committing logs.
+* Committing caches.
+* Committing coverage reports unless intentionally published.
+* Committing generated code without documenting why it must be versioned.
+* Committing minified files when they can be built reproducibly.
+* Committing lockfiles inconsistently across similar apps.
+* Committing files that are regenerated differently on every machine because of timestamps, paths, random IDs, or nondeterministic ordering.
+
+GitHub recommends keeping repositories small and using releases, package managers, or Git LFS rather than tracking large files directly. GitLab’s LFS docs explain that normal Git cannot diff binary files like text and that binary changes can cause repository growth and slower clone/fetch/pull operations. GitHub’s `.gitignore` docs also distinguish shared ignore rules from personal/global ignores. ([GitHub Docs][6])
+
+## 7. Secret-handling failures
+
+These deserve their own category because deleting a secret later is not enough:
+
+* Committing a secret and assuming a later delete fixes it.
+* Rotating no credentials after a leak.
+* Rewriting history without coordinating with collaborators.
+* Forgetting forks, clones, caches, pull-request refs, CI logs, and artifact logs.
+* Publishing a secret in a commit message, tag message, issue, PR comment, release note, or CI output.
+* Storing secrets in sample config files.
+* Storing real credentials in documentation.
+* Using fake-looking example secrets that are actually valid.
+* Disabling secret scanning or push protection.
+* Not using pre-commit secret scanning for high-risk repos.
+
+GitHub’s secret-removal guidance explicitly warns that rewriting history has side effects and that you should rotate/revoke exposed secrets first. OWASP identifies hardcoded credentials such as API keys, database credentials, IAM secrets, SSH keys, and certificates as common issues, and GitHub push protection is designed to block supported secrets before they land in a repository. ([GitHub Docs][7])
+
+## 8. Dependency/versioning failures
+
+Bad dependency versioning creates unrepeatable builds:
+
+* Depending on `main`, `master`, `latest`, `HEAD`, or floating branches for production builds.
+* Depending on unpinned Git URLs.
+* Depending on mutable container tags such as `latest` for production.
+* Not committing lockfiles for applications where the ecosystem expects lockfiles.
+* Hand-editing lockfiles instead of using the package manager.
+* Ignoring lockfile changes in review.
+* Updating dependencies without reviewing transitive changes.
+* Vendoring dependencies by copy-paste with no source, version, license, or update path.
+* Copying shared code across repos instead of using a package, module, submodule, subtree, or monorepo strategy.
+* Using submodules without understanding that the parent repo records a specific submodule commit.
+* Updating a submodule pointer but forgetting to push the submodule commit, leaving the parent repo pointing to a commit others cannot fetch.
+* Using Git submodules for casual convenience when a package manager would be simpler.
+* Not recording which component versions are compatible with which other component versions.
+* Not pinning infrastructure providers, base images, actions, modules, or plugins.
+
+Package managers and lockfiles exist to make installs reproducible; npm, for example, uses a lockfile to drive installed dependency versions when one is present. Git submodules can be useful, but they record a specific commit from another repository, so they require discipline. ([npm Docs][8])
+
+## 9. CI/CD and artifact-versioning failures
+
+These break the link between source and what actually shipped:
+
+* Building releases manually on a developer laptop.
+* Not knowing which commit produced an artifact.
+* Not knowing which artifact was deployed.
+* Deploying code that was not reviewed.
+* Deploying code that did not pass CI.
+* Deploying from a branch while tagging a different commit.
+* Publishing release assets that can be overwritten without traceability.
+* Publishing Docker images without immutable digests.
+* Publishing packages without source tag links.
+* Not storing checksums.
+* Not storing build logs or provenance for regulated/high-risk systems.
+* Having CI mutate source-controlled version files unpredictably.
+* Having CI commit directly to `main` without review.
+* Bypassing status checks for releases.
+* Failing to make release builds reproducible enough to debug.
+* Failing to tie release notes, changelog, binaries, container images, docs, and package versions to the same tag/SHA.
+
+GitHub and GitLab both describe releases as being based on Git tags/snapshots, with release notes/assets tied to a specific point in history. Branch protection and required checks are the standard guardrails that prevent unreviewed or failing code from becoming release code. ([GitHub Docs][9])
+
+## 10. Changelog and documentation failures
+
+These are common and damaging:
+
+* No changelog.
+* Changelog says “updated stuff.”
+* Changelog does not mention breaking changes.
+* Changelog does not mention migrations.
+* Changelog does not mention security fixes.
+* Release notes are copied from commit messages with no human summary.
+* Docs describe unreleased code as if it is released.
+* Docs are versioned separately from code with no mapping.
+* Docs for old versions are overwritten instead of preserved through release tags or versioned docs.
+* Migration guides are missing for breaking changes.
+* Deprecations are not documented.
+* Users cannot tell which docs apply to which version.
+
+Keep a Changelog’s guidance is that changelogs are for humans, should have an entry for every version, should group similar changes, should be reverse chronological, and should explicitly include categories like Added, Changed, Deprecated, Removed, Fixed, and Security. ([keepachangelog.com][10])
+
+## 11. Pull-request and review failures
+
+These are process failures that directly damage version quality:
+
+* Giant PRs that do too many things.
+* No PR description.
+* No link to the issue/ticket/design.
+* No migration notes in the PR.
+* No screenshots or test evidence when UI behavior changes.
+* No reviewer for ownership-sensitive code.
+* Rubber-stamp reviews.
+* Merging without CI.
+* Merging while tests are red.
+* Merging security-sensitive changes with no security review.
+* Merging public API changes with no versioning discussion.
+* Merging database changes with no rollback or migration plan.
+* Hiding generated diffs and source diffs together.
+* Hiding dependency updates inside feature PRs.
+* Treating code review as bureaucracy rather than the last chance to preserve history quality.
+
+Google’s engineering guidance emphasizes small changes because they are easier to review, test, roll back, and reason about. Community discussions also call out very large PRs and missing PR descriptions as recurring bad practice. ([Google GitHub][11])
+
+## 12. Monorepo/versioning failures
+
+Monorepos can be excellent, but these are bad:
+
+* One global version for unrelated components that are not actually released together.
+* Independent versions with no release manifest.
+* Ambiguous tags like `v1.2.3` when many packages live in the repo.
+* Reusing the same tag pattern for multiple components.
+* No component ownership boundaries.
+* No path-based CI, so every change triggers everything or, worse, not enough.
+* No policy for shared libraries inside the monorepo.
+* Publishing one package without recording which internal dependency versions it used.
+* Breaking one component while releasing another because all changes are coupled.
+* Keeping old component copies as `component_v1`, `component_v2`, `component_new`.
+
+Better monorepo tags often include component identity, such as `payments/v1.4.2` or `webapp/v3.8.0`, unless the entire repository is truly released in lockstep.
+
+## 13. Polyrepo/versioning failures
+
+Polyrepos also require discipline:
+
+* Shipping a product composed of many repos without a manifest of repo/tag/SHA versions.
+* Coordinating multi-repo releases through chat messages only.
+* Updating one repo’s API without updating dependents.
+* Breaking cross-repo compatibility without contract tests.
+* Using “latest main from every repo” as the integration strategy.
+* No release train, integration branch, manifest repo, lockfile, deployment manifest, or SBOM.
+* Duplicating shared code across repos instead of packaging it.
+* No ownership model for synchronized changes.
+
+A product made of multiple repos still needs one answer to: “exactly what source versions are running in production?”
+
+## 14. Database/schema-versioning failures
+
+These are especially dangerous:
+
+* Editing an already-applied migration.
+* Reordering old migrations.
+* Deleting old migrations because “they already ran.”
+* Combining unrelated schema changes in one migration.
+* Shipping app code that requires a schema migration that has not run.
+* Shipping a schema migration that breaks the currently running app version.
+* No rollback/forward-fix plan.
+* No expansion-and-contraction strategy for breaking DB changes.
+* No data backfill versioning.
+* No record of which app version expects which schema version.
+* Using `schema_v2.sql`, `schema_final.sql`, `schema_prod.sql` instead of migration tooling.
+* Applying manual production DB changes that are not represented in Git.
+
+The right model is immutable, ordered migrations plus release coordination between app version and schema state.
+
+## 15. API/protocol-versioning failures
+
+These are inexcusable when consumers depend on the interface:
+
+* Breaking public API behavior without a major version bump or explicit API-version change.
+* Removing fields without deprecation.
+* Renaming fields without compatibility handling.
+* Changing enum values without compatibility handling.
+* Changing error shapes or status codes silently.
+* Changing authentication behavior silently.
+* Changing CLI flags silently.
+* Changing file formats silently.
+* Changing message/event schemas silently.
+* Versioning implementation filenames instead of public API contracts.
+* Having `/v2` code that is just a copy-paste fork of `/v1` with no ownership or sunset plan.
+* Supporting multiple API versions but not testing all supported versions.
+* No deprecation calendar.
+* No migration guide.
+
+Versioned API routes can be correct; copy-pasted versioned implementation folders with no compatibility policy are not.
+
+## 16. Infrastructure/configuration versioning failures
+
+These are common in IaC and deployment repos:
+
+* `prod_v2.yaml`, `prod_final.yaml`, `terraform_new/`, `helm-old/`.
+* Copy-pasting environment folders until they drift beyond recognition.
+* Storing Terraform state in Git.
+* Storing secrets in IaC files.
+* Not pinning Terraform providers/modules.
+* Not pinning GitHub Actions or CI actions.
+* Not pinning base images.
+* Applying production changes manually and not committing them.
+* Having no relationship between app version and infrastructure version.
+* No promotion path from dev to staging to prod.
+* Environment branches that permanently diverge and require cherry-pick archaeology.
+* Generated manifests committed without source-of-truth tooling.
+
+Use overlays, templates, modules, and promotion manifests; do not use historical folder copies as a deployment strategy.
+
+## 17. “Git as backup” failures
+
+Git is version control, not a complete backup/disaster-recovery strategy:
+
+* Only committing locally and never pushing.
+* Assuming a local `.git` directory is enough backup.
+* Assuming GitHub/GitLab is your only backup.
+* Not backing up self-hosted Git servers.
+* Not protecting tags and releases.
+* Not testing restore procedures.
+* Treating commit history as an archive for huge binary/data backups.
+* Keeping unreleased critical work only on one laptop.
+
+Community horror stories include months of local-only commits and deleted branches; Git history helps only if it exists somewhere durable and recoverable. ([Reddit][12])
+
+# Practices that are controversial, not automatically inexcusable
+
+These are not universally bad; they are bad only when misused:
+
+* **Gitflow:** useful in some release-heavy environments, overkill in others.
+* **Squash merge vs. merge commits vs. rebase:** all can be valid with a clear policy.
+* **Committing generated files:** bad when reproducible noise; valid when consumers require generated artifacts.
+* **Vendoring dependencies:** bad by default; valid for hermetic builds, compliance, or unavailable package infrastructure.
+* **Submodules:** risky if misunderstood; valid when you truly need an independently versioned repo pinned to a commit.
+* **Versioned API routes:** valid for public compatibility; bad when used as source-code backup.
+* **Release branches:** valid for maintained support lines; bad when they become permanent divergent forks.
+* **Monorepo vs. polyrepo:** neither is inherently superior; the bad practice is lacking version boundaries and release traceability.
+
+# Best practices for managing versions in Git
+
+## 1. Define the versioning unit
+
+Decide what gets a version:
+
+* Whole product.
+* Individual service.
+* Individual library/package.
+* API contract.
+* Database schema.
+* Infrastructure module.
+* Documentation set.
+* ML model or dataset.
+* Deployment bundle.
+
+Then document whether versions are **lockstep** or **independent**. Do not guess this release by release.
+
+## 2. Use Git tags as immutable release anchors
+
+For official releases:
+
+* Tag the exact commit that produced the release.
+* Use annotated tags for public releases.
+* Prefer signed tags for high-trust projects.
+* Use consistent names:
+
+  * Single component: `v1.2.3`
+  * Monorepo component: `api/v1.2.3`, `web/v3.4.0`, `cli/v0.9.1`
+  * Calendar versioning: `2026.05.0`
+* Do not move published tags.
+* Do not reuse published tag names.
+* Protect release tags where your platform supports it.
+* Make the artifact, changelog, release notes, docs, and deployment record point back to the tag/SHA.
+
+Git tags mark important points in history; releases on GitHub/GitLab are built around those tag snapshots. ([Git][2])
+
+## 3. Use SemVer when compatibility matters
+
+Use SemVer for libraries, APIs, SDKs, CLIs, shared packages, protocols, and anything consumed by other teams or users:
+
+* `MAJOR`: breaking change.
+* `MINOR`: backward-compatible feature.
+* `PATCH`: backward-compatible fix.
+* Prerelease: `1.3.0-rc.1`, `2.0.0-beta.2`.
+* Build metadata: `1.3.0+build.45`.
+
+Also define what counts as the public API: exported code, REST/GraphQL schemas, CLI flags, config files, event schemas, database migration expectations, or file formats. ([Semantic Versioning][3])
+
+## 4. Use changelogs and release notes
+
+A good release should answer:
+
+* What changed?
+* Why does it matter?
+* Is it breaking?
+* Are there migration steps?
+* Are there security fixes?
+* Which commit/tag produced it?
+* Which artifacts belong to it?
+
+Use categories such as:
+
+* Added
+* Changed
+* Deprecated
+* Removed
+* Fixed
+* Security
+
+Keep a Changelog’s guidance is a strong default for human-readable release history. ([keepachangelog.com][10])
+
+## 5. Keep branches short-lived and protect the mainline
+
+Default modern practice:
+
+* Keep `main`/`trunk` releasable.
+* Use short-lived feature branches.
+* Merge small changes frequently.
+* Require PRs for protected branches.
+* Require passing CI.
+* Require review/approval.
+* Block force pushes to protected branches.
+* Use feature flags for incomplete features.
+* Use release branches only for supported release lines.
+* Merge hotfixes forward so fixes do not disappear from active development.
+
+Trunk-based development emphasizes small, frequent updates to the mainline, and GitHub branch protection can require PRs, reviews, status checks, and block force pushes. ([Atlassian][13])
+
+## 6. Make commits atomic and reviewable
+
+Good commits are:
+
+* Small.
+* Focused.
+* Reviewable.
+* Buildable.
+* Testable.
+* Revertable.
+* Meaningfully named.
+
+Good workflow:
+
+```bash
+git status
+git diff
+git add -p
+git diff --staged
+git commit
+```
+
+Use Conventional Commits where automation helps:
+
+```text
+feat(api): add invoice search endpoint
+fix(auth): reject expired refresh tokens
+docs(cli): document config precedence
+refactor(payments): isolate gateway mapping
+```
+
+Conventional Commits is designed to create explicit history and support automated SemVer-style release tooling. ([Conventional Commits][14])
+
+## 7. Keep source separate from artifacts
+
+Put in Git:
+
+* Source code.
+* Tests.
+* Small text config.
+* Build scripts.
+* Dependency manifests.
+* Lockfiles where appropriate.
+* Migrations.
+* Documentation source.
+* Small fixtures.
+
+Do not put normal large/generated artifacts directly in Git:
+
+* Build directories.
+* Dependency caches.
+* Large binaries.
+* Database dumps.
+* Logs.
+* Model checkpoints.
+* Datasets.
+* Zips/tars of the repo.
+
+Use the right store:
+
+* Git LFS for large versioned binary assets.
+* Package registries for packages.
+* Container registries for images.
+* Artifact repositories for build outputs.
+* Object storage/data versioning tools for large datasets.
+* GitHub/GitLab releases for release assets.
+
+GitHub explicitly recommends releases/package managers/LFS instead of tracking large files directly in normal Git history. ([GitHub Docs][6])
+
+## 8. Use `.gitignore` correctly
+
+Commit project-wide ignore rules:
+
+```gitignore
+node_modules/
+dist/
+build/
+target/
+.env
+*.log
+.DS_Store
+```
+
+Use global ignore rules for personal editor/OS noise. If a file was already committed, adding it to `.gitignore` is not enough; it must be untracked with Git commands and, for secrets, rotated and possibly removed from history. GitHub’s docs explain both committed `.gitignore` files and global ignore patterns. ([GitHub Docs][15])
+
+## 9. Treat secrets as never belonging in Git
+
+Best practice:
+
+* Use environment variables, secret managers, or CI secret stores.
+* Commit `.env.example`, not `.env`.
+* Enable push protection.
+* Enable secret scanning.
+* Use pre-commit secret scanning.
+* Rotate immediately if a secret is exposed.
+* Remove from history only after understanding the side effects.
+* Audit CI logs, releases, artifacts, forks, and caches.
+
+Deleting a later commit does not make the secret safe. Rotation is the first response. ([GitHub Docs][7])
+
+## 10. Version dependencies reproducibly
+
+For applications:
+
+* Commit lockfiles.
+* Use package managers.
+* Pin production dependencies.
+* Review dependency diffs.
+* Update through PRs.
+* Avoid `latest` in production.
+* Prefer immutable image digests for deployments.
+* Record dependency versions in SBOMs where appropriate.
+
+For libraries:
+
+* Follow the ecosystem’s lockfile convention.
+* Declare compatible version ranges carefully.
+* Test against supported dependency ranges.
+* Avoid over-pinning public library dependencies unless necessary.
+
+For Git dependencies:
+
+* Pin to a tag or commit SHA, not a floating branch.
+* Prefer released packages over raw Git dependencies when available.
+
+## 11. Manage monorepo versions deliberately
+
+Use one of two models.
+
+**Lockstep model:**
+
+* Entire repo releases together.
+* One tag: `v4.2.0`.
+* One changelog or coordinated changelog sections.
+* All components compatible by definition.
+
+**Independent component model:**
+
+* Each component has its own version.
+* Tags include component name: `api/v1.7.0`, `worker/v2.3.1`.
+* Each component has its own changelog or release section.
+* CI detects affected components.
+* A release manifest records compatible versions.
+
+Never rely on `file_v2`, `service_new`, or copied component folders.
+
+## 12. Manage polyrepo versions with manifests
+
+For a product composed of multiple repos, keep a release manifest:
+
+```yaml
+product: billing-platform
+version: 2026.05.0
+components:
+  api:
+    repo: billing-api
+    tag: v2.8.1
+    sha: abc123
+  worker:
+    repo: billing-worker
+    tag: v1.14.0
+    sha: def456
+  web:
+    repo: billing-web
+    tag: v3.2.5
+    sha: 987abc
+artifacts:
+  api-image: registry.example.com/billing-api@sha256:...
+  worker-image: registry.example.com/billing-worker@sha256:...
+```
+
+The goal is that production can always answer: “which exact source versions and artifacts are running?”
+
+## 13. Version database changes with immutable migrations
+
+Best practice:
+
+* Use migration tooling.
+* Never edit applied migrations.
+* Add a new migration for every change.
+* Keep migrations ordered.
+* Test migrations and rollbacks/forward fixes.
+* Use expansion-and-contraction for breaking changes:
+
+  1. Add backward-compatible schema.
+  2. Deploy app that writes both/reads new.
+  3. Backfill.
+  4. Deploy app that uses new schema.
+  5. Remove old schema later.
+* Tie app releases to expected schema state.
+* Document manual remediation steps, if any.
+
+Do not use `schema_v2.sql` as version control.
+
+## 14. Version APIs and contracts explicitly
+
+Best practice:
+
+* Define public contracts.
+* Use SemVer for SDKs/libraries.
+* Use route/header/media-type versioning for public APIs where needed.
+* Maintain compatibility tests.
+* Deprecate before removal.
+* Publish migration guides.
+* Keep old API versions tested for as long as they are supported.
+* Make breaking changes impossible to merge without versioning review.
+
+A good breaking-change checklist asks: consumers, docs, tests, deprecation, migration, version bump, rollout, rollback.
+
+## 15. Version infrastructure as code cleanly
+
+Best practice:
+
+* Keep IaC source in Git.
+* Keep state out of Git.
+* Keep secrets out of Git.
+* Pin providers/modules/actions.
+* Use modules, overlays, or templating instead of copied environment folders.
+* Promote the same artifact/config through environments.
+* Record which app version is deployed with which infra version.
+* Review infra changes like code.
+* Use plan/apply checks in CI/CD.
+
+Avoid `terraform_old/`, `helm_v2/`, `prod_final.yaml`, and environment branches that permanently diverge.
+
+## 16. Version documentation with the code
+
+Best practice:
+
+* Keep docs close to source when they describe source behavior.
+* Publish docs from tags for released versions.
+* Preserve docs for supported old versions.
+* Mark unreleased docs clearly.
+* Include migration guides for breaking changes.
+* Link release notes to detailed docs.
+* Update docs in the same PR as behavior changes when possible.
+
+## 17. Version ML/data/binary assets outside normal Git when needed
+
+For ML models, datasets, design assets, media, and other large binaries:
+
+* Store source code in Git.
+* Store large artifacts in LFS, object storage, model registry, dataset registry, or artifact repository.
+* Record checksums.
+* Record training code SHA.
+* Record data version.
+* Record model version.
+* Record environment/dependency version.
+* Do not commit huge checkpoints directly into Git history.
+
+## 18. Enforce the rules automatically
+
+Use guardrails:
+
+* Protected branches.
+* Protected tags.
+* Required PR reviews.
+* Required status checks.
+* CODEOWNERS.
+* Pre-commit hooks.
+* Secret scanning.
+* Push protection.
+* File-size checks.
+* Lint/test/typecheck in CI.
+* Dependency review.
+* Release automation.
+* Version consistency checks.
+* Changelog checks.
+* Artifact provenance/checksum generation.
+
+Rules that are not automated eventually become folklore.
+
+# A concise “inexcusable behavior” policy
+
+You can adopt this almost verbatim:
+
+1. **Do not create versioned copies of files or folders** such as `file_v2`, `project_old`, `src_new`, or `final_final`. Use Git commits, tags, branches, releases, or worktrees.
+2. **Every release must be traceable** to an immutable Git tag and commit SHA.
+3. **Do not move, reuse, or casually delete published release tags.**
+4. **Do not commit secrets, credentials, production `.env` files, customer data, logs, or private keys.**
+5. **Do not commit large binaries, build outputs, dependency folders, caches, database dumps, or zipped source snapshots to normal Git history.**
+6. **Do not force-push shared or protected branches.**
+7. **Do not commit directly to protected main/release branches.**
+8. **Do not ship unreviewed or failing code.**
+9. **Do not use meaningless commit messages.**
+10. **Do not mix unrelated changes in one commit or PR.**
+11. **Do not publish breaking changes without an explicit major version/API version/migration plan.**
+12. **Do not depend on floating `latest`, `main`, `master`, or unpinned production dependencies.**
+13. **Do not edit applied database migrations.**
+14. **Do not manually build releases from a developer machine unless the process records exact source, environment, and artifact identity.**
+15. **Do not let docs, changelog, package version, tag, and artifact version disagree.**
+
+The clean replacement is simple: **source changes live in commits; release identity lives in immutable tags/releases; compatibility promises live in SemVer or an explicit versioning policy; generated/binary artifacts live in artifact storage; secrets never live in Git.**
+
+[1]: https://www.reddit.com/r/git/comments/y9vgiz/putting_different_versions_themselves_under/ "Putting different versions themselves under version control : r/git"
+[2]: https://git-scm.com/book/en/v2/Git-Basics-Tagging "Git - Tagging"
+[3]: https://semver.org/ "Semantic Versioning 2.0.0 | Semantic Versioning"
+[4]: https://www.reddit.com/r/git/comments/1g4xwcn/what_bad_git_habits_do_you_see_in_the_wild/ "What bad git habits do you see in the wild? : r/git"
+[5]: https://docs.github.com/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches "About protected branches - GitHub Docs"
+[6]: https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github "About large files on GitHub - GitHub Docs"
+[7]: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository "Removing sensitive data from a repository - GitHub Docs"
+[8]: https://docs.npmjs.com/cli/v8/commands/npm-install "npm-install | npm Docs"
+[9]: https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases "About releases - GitHub Docs"
+[10]: https://keepachangelog.com/en/1.1.0/ "Keep a Changelog"
+[11]: https://google.github.io/eng-practices/review/developer/small-cls.html "Small CLs | eng-practices"
+[12]: https://www.reddit.com/r/git/comments/1mcppv8/whats_the_worst_git_mistake_youve_seen_or_done/ "What’s the worst Git mistake you’ve seen (or done)? : r/git"
+[13]: https://www.atlassian.com/continuous-delivery/continuous-integration/trunk-based-development "Trunk-based Development | Atlassian"
+[14]: https://www.conventionalcommits.org/en/v1.0.0/ "Conventional Commits"
+[15]: https://docs.github.com/en/get-started/git-basics/ignoring-files "Ignoring files - GitHub Docs"
+

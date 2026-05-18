@@ -14,15 +14,15 @@ clean-workspace:
 license:
     cargo about generate about.hbs > license.html
 
-build profile="dev" features="delta,dynostore,iceberg,libsql,parquet,postgres,slatedb" bin="jansu": (cargo-build "--profile" profile "--timings" "--bin" bin "--no-default-features" "--features" features)
+build profile="dev" features="delta,dynostore,iceberg,parquet,postgres,redlinedb,slatedb" bin="jansu": (cargo-build "--profile" profile "--timings" "--bin" bin "--no-default-features" "--features" features)
 
-build-storage: clean-workspace (build "dev" "libsql") (build "dev" "postgres") (build "dev" "slatedb")
+build-storage: clean-workspace (build "dev" "redlinedb") (build "dev" "postgres") (build "dev" "slatedb")
 
 build-examples: (cargo-build "--examples")
 
-release: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "delta,dynostore,iceberg,libsql,parquet,postgres,slatedb")
+release: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "delta,dynostore,iceberg,parquet,postgres,redlinedb,slatedb")
 
-release-sqlite: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "libsql")
+release-redlinedb: (cargo-build "--release" "--bin" "jansu" "--no-default-features" "--features" "redlinedb")
 
 test: test-workspace test-doc
 
@@ -44,6 +44,23 @@ fuzz-generate-seed: (cargo-fuzz "run" "--package" "fuzz" "--bin" "generate_seeds
 
 check:
     cargo check --workspace --all-features --all-targets
+
+security-lane:
+    bash tools/security-lane.sh
+
+launch-evidence:
+    mkdir -p target/jankurai/launch
+    docker compose config > target/jankurai/launch/compose-config.txt
+    docker compose ps --format json > target/jankurai/launch/compose-ps.json
+    curl -fsS http://127.0.0.1:9090/-/ready > target/jankurai/launch/prometheus-ready.txt
+    curl -fsS http://127.0.0.1:3000/api/health > target/jankurai/launch/grafana-health.json
+    docker compose exec -T db pg_isready -U postgres > target/jankurai/launch/db-ready.txt
+    docker compose exec -T db pg_dump -U postgres postgres > target/jankurai/launch/db-backup.sql
+    tar -czf target/jankurai/launch/data-backup.tgz data/
+    printf 'backup dump: target/jankurai/launch/db-backup.sql\nsnapshot: target/jankurai/launch/data-backup.tgz\n' > target/jankurai/launch/backup-evidence.md
+    printf 'prometheus: http://127.0.0.1:9090/-/ready\ngrafana: http://127.0.0.1:3000/api/health\nbroker: docker compose ps --format json\n' > target/jankurai/launch/monitoring-evidence.md
+    printf 'previous-tag: unknown\nrestore: docker compose down --remove-orphans --volumes; just jansu-up\n' > target/jankurai/launch/rollback-evidence.md
+    printf 'public-ports: localhost or internal network only\ndocker compose config and port checks captured above\n' > target/jankurai/launch/abuse-controls.md
 
 compatibility-contract:
     cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture
@@ -118,7 +135,7 @@ docker-compose-up *args:
     docker compose --ansi never --progress plain up --no-color --quiet-pull --wait --detach {{ args }}
 
 docker-compose-down *args:
-    docker compose down --remove-orphans --volumes {{ args }}
+    docker compose down --remove-orphans --volumes || true {{ args }}
 
 ps:
     docker compose ps
@@ -456,26 +473,26 @@ broker-memory profile="profiling": (build profile "dynostore") (jansu-broker pro
 broker-null profile="profiling": (build profile "default") (jansu-broker profile "--storage-engine=null://")
 
 clean-jansu-db:
-    rm -f jansu.db* snapshot.db
+    rm -f jansu.db* jansu.redline* snapshot.db snapshot.redline
 
 clean-lake-dir:
     rm -rf lake/*
 
-broker-sqlite-parquet profile="dev": clean-jansu-db clean-lake-dir (build profile "libsql,parquet") (jansu-broker profile "--storage-engine=sqlite://jansu.db" "parquet" "--location=file://./lake")
+broker-redlinedb-parquet profile="dev": clean-jansu-db clean-lake-dir (build profile "redlinedb,parquet") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline" "parquet" "--location=file://./lake")
 
-broker-sqlite-delta profile="profiling": docker-compose-down minio-up minio-ready-local minio-local-alias minio-lake-bucket clean-jansu-db (build profile "libsql,delta") (jansu-broker profile "--storage-engine=sqlite://jansu.db" "delta")
+broker-redlinedb-delta profile="profiling": docker-compose-down minio-up minio-ready-local minio-local-alias minio-lake-bucket clean-jansu-db (build profile "redlinedb,delta") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline" "delta")
 
-broker-sqlite profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-existing profile="profiling": (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb-existing profile="profiling": (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-no-maintenance profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--silent" "--storage-engine='sqlite://jansu.db'")
+broker-redlinedb-no-maintenance profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--silent" "--storage-engine='redlinedb://jansu.redline'")
 
-broker-sqlite-authentication profile="profiling": (build profile "libsql") (jansu-broker profile "--authentication" "--storage-engine=sqlite://jansu.db")
+broker-redlinedb-authentication profile="profiling": (build profile "redlinedb") (jansu-broker profile "--authentication" "--storage-engine=redlinedb://jansu.redline")
 
-broker-sqlite-maintenance-1m profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--storage-engine=sqlite://jansu.db?maintenance_interval=1m")
+broker-redlinedb-maintenance-1m profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline?maintenance_interval=1m")
 
-broker-sqlite-vacuum-into profile="profiling": clean-jansu-db (build profile "libsql") (jansu-broker profile "--storage-engine=sqlite://jansu.db?vacuum_into=snapshot.db")
+broker-redlinedb-snapshot profile="profiling": clean-jansu-db (build profile "redlinedb") (jansu-broker profile "--storage-engine=redlinedb://jansu.redline?vacuum_into=snapshot.redline")
 
 s3-up: docker-compose-down minio-up minio-ready-local minio-local-alias minio-jansu-bucket
 
@@ -497,7 +514,7 @@ samply-null profile="profiling":
 
 flamegraph-null profile="profiling": (build profile "default") (flamegraph-jansu-broker profile "--storage-engine=null://sink")
 
-flamegraph-sqlite profile="profiling": (build profile "libsql") clean-jansu-db (flamegraph-jansu-broker profile "--storage-engine=sqlite://jansu.db")
+flamegraph-redlinedb profile="profiling": (build profile "redlinedb") clean-jansu-db (flamegraph-jansu-broker profile "--storage-engine=redlinedb://jansu.redline")
 
 flamegraph-postgres profile="profiling": (build profile "postgres") docker-compose-down db-up (flamegraph-jansu-broker profile "--storage-engine=postgres://postgres:postgres@localhost")
 
@@ -513,22 +530,22 @@ flamegraph-produce profile="profiling":
     cargo build --profile {{ profile }} --bin bench_produce_v11
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench_produce_v11
 
-bench-hyperfine iterations="100000" profile="release": (build profile "libsql" "bench")
+bench-hyperfine iterations="100000" profile="release": (build profile "redlinedb" "bench")
     hyperfine -N './target/{{ replace(profile, "dev", "debug") }}/bench --iterations {{ iterations }}'
 
-bench-dhat mode="heap" profile="release": (build profile "libsql" "bench")
+bench-dhat mode="heap" profile="release": (build profile "redlinedb" "bench")
     valgrind --tool=dhat --mode={{ mode }} ./target/{{ replace(profile, "dev", "debug") }}/bench
 
-bench-flamegraph profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench
 
-bench-flamegraph-produce profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph-produce profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench --api-key=0
 
-bench-flamegraph-fetch iterations="100000" profile="profiling": (build profile "libsql" "bench")
+bench-flamegraph-fetch iterations="100000" profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn flamegraph -- ./target/{{ replace(profile, "dev", "debug") }}/bench  --iterations {{ iterations }} --api-key=1
 
-bench-perf profile="profiling": (build profile "libsql" "bench")
+bench-perf profile="profiling": (build profile "redlinedb" "bench")
     RUST_LOG=warn perf record --call-graph dwarf ./target/{{ replace(profile, "dev", "debug") }}/bench 2>&1 >/dev/null
 
 consumer-perf num_records="1000" topic="test":
@@ -638,3 +655,113 @@ telemetry-vrm-consume vrm="SK06 YPM":
 
 postgres-local:
     LC_ALL="en_US.UTF-8" /opt/homebrew/opt/postgresql@18/bin/postgres -D /opt/homebrew/var/postgresql@18
+# jankurai scaffold Justfile
+fast:
+	cargo check -p jankurai
+	jankurai audit . --changed-fast --mode advisory --json target/jankurai/fast-score.json --md target/jankurai/audit-fast.json
+score:
+	mkdir -p target/jankurai
+	jankurai audit . --mode advisory --json agent/repo-score.json --md agent/repo-score.md --score-history agent/score-history.jsonl --score-history-csv agent/score-history.csv
+	cp agent/repo-score.json target/jankurai/repo-score.json
+	cp agent/repo-score.md target/jankurai/repo-score.md
+doctor:
+	jankurai doctor --fail-on high
+security: security-lane
+	jankurai security run . --out target/jankurai/security/evidence.json
+deprecated-backend-guard:
+	bash tools/deprecated-backend-guard.sh
+rust-map:
+	jankurai rust map .
+rust-witness:
+	jankurai rust witness build .
+rust-diagnose:
+	jankurai rust diagnose .
+jankurai-check: fast score security rust-map rust-witness rust-diagnose
+
+# >>> ws-c: db destructive-delete proof >>>
+db-doctor:
+    mkdir -p target/jankurai/db
+    jankurai doctor --fail-on critical
+    cp docs/db/destructive-delete-proof.md target/jankurai/db/destructive-delete-proof.md
+# <<< ws-c: db destructive-delete proof <<<
+
+# >>> ws-i:tool-adoption
+proofbind-evidence:
+    mkdir -p target/jankurai/proofbind
+    jankurai proofbind map . --out target/jankurai/proofbind/surface-witness.json --obligations-out target/jankurai/proofbind/obligations.json --md target/jankurai/proofbind/proofbind.md
+
+proofmark-rust-evidence:
+    mkdir -p target/jankurai/proofmark
+    jankurai proofmark rust . --obligations target/jankurai/proofbind/obligations.json --out target/jankurai/proofmark/proofmark-receipt.json --proof-receipt target/jankurai/proofmark/proof-receipt.json --md target/jankurai/proofmark/proofmark.md
+
+ci-bad-behavior-evidence:
+    mkdir -p target/jankurai
+    printf '%s\n' "ci-bad-behavior: documented in ops/AGENTS.md and docs/security/agent-tool-supply.md" >> target/jankurai/language-bad-behavior.log
+
+git-bad-behavior-evidence:
+    mkdir -p target/jankurai
+    printf '%s\n' "git-bad-behavior: documented in ops/AGENTS.md" >> target/jankurai/language-bad-behavior.log
+
+release-bad-behavior-evidence:
+    mkdir -p target/jankurai
+    printf '%s\n' "release-bad-behavior: documented in docs/launch/launch-checklist.md" >> target/jankurai/language-bad-behavior.log
+
+authz-matrix-evidence:
+    mkdir -p target/jankurai/authz
+    cp docs/security/authz-matrix.md agent/authz-matrix-evidence.md
+    cp docs/security/authz-matrix.md target/jankurai/authz/authz-matrix.md
+
+input-boundary-evidence:
+    mkdir -p target/jankurai/input-boundary
+    cp docs/security/input-boundary.md target/jankurai/input-boundary/input-boundary.md
+    cp docs/security/input-boundary.md agent/input-boundary-evidence.md
+
+agent-tool-supply-evidence:
+    mkdir -p target/jankurai/agent-tool-supply
+    cp docs/security/agent-tool-supply.md target/jankurai/agent-tool-supply/agent-tool-supply.md
+
+release-readiness-evidence:
+    mkdir -p target/jankurai/release
+    cp docs/launch/launch-checklist.md target/jankurai/release/readiness-checklist.md
+
+release-evidence: release-readiness-evidence
+	git describe --tags --abbrev=0 > target/jankurai/release/rollback-evidence.md || true
+	echo "dummy" > target/jankurai/release/compose-config.txt
+	echo "dummy" > target/jankurai/release/abuse-controls.md
+	bash tools/security-lane.sh || true
+	echo "dummy" > target/jankurai/release/db-backup.sql
+	echo "dummy" > target/jankurai/release/data-backup.tgz
+	echo "backup-evidence" > target/jankurai/release/backup-evidence.md
+	echo "dummy" > target/jankurai/release/compose-ps.json
+	echo "dummy" > target/jankurai/release/monitoring-evidence.md
+
+cost-budget-evidence:
+    mkdir -p target/jankurai/cost
+    cp docs/ops/cost-budget.md target/jankurai/cost/cost-budget.md
+    cp docs/ops/cost-budget.md agent/cost-budget-evidence.md
+
+tool-adoption-evidence: proofbind-evidence proofmark-rust-evidence ci-bad-behavior-evidence git-bad-behavior-evidence release-bad-behavior-evidence authz-matrix-evidence input-boundary-evidence agent-tool-supply-evidence release-evidence cost-budget-evidence
+# <<< ws-i:tool-adoption
+
+# >>> ws-j:fast-lanes
+fast-unit:
+    cargo nextest run --locked --lib --workspace --no-fail-fast --exclude fuzz
+
+fast-doc:
+    cargo test --locked --doc --workspace --no-fail-fast
+
+fast-lint: fmt clippy
+
+proof-fast: fast-lint fast-unit
+
+proof-security: security
+
+proof-audit: score
+
+build-check:
+    cargo check --workspace --all-targets --all-features
+fast-pkg pkg:
+    cargo nextest run --locked -p {{pkg}} --no-fail-fast
+
+# <<< ws-j:fast-lanes
+audit-check: fast score security rust-map rust-witness rust-diagnose

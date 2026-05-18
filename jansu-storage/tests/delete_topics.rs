@@ -36,7 +36,7 @@ async fn delete_unknown_by_name() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -74,7 +74,7 @@ async fn delete_unknown_by_uuid() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 
@@ -114,7 +114,7 @@ async fn create_delete_create_by_name() -> Result<(), Error> {
         .cluster_id("jansu")
         .node_id(node_id)
         .advertised_listener(Url::parse("tcp://localhost:9092")?)
-        .storage(Url::parse("memory://jansu/")?)
+        .storage(common::default_storage_url()?)
         .build()
         .await?;
 

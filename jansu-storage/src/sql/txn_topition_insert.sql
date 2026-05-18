@@ -30,9 +30,9 @@ join txn_detail txn_d on txn_d."transaction" = txn.id and txn_d.producer_epoch =
 
 where
 
-c.name = $1::text
-and t.name = $2::text
-and tp.partition = $3::integer
-and txn.name = $4::text
-and p.id = $5::bigint
-and pe.epoch = $6::smallint;
+c.name = $1
+and t.name = $2
+and tp.partition = $3
+and txn.name = $4
+and p.id = $5
+and pe.epoch = $6;

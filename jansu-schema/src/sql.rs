@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::Result;
+use crate::{Error, Result};
 use arrow::datatypes::DataType;
 use datafusion::sql::sqlparser::{
     ast::{DataType as SqlDataType, Expr},
@@ -30,7 +30,10 @@ pub(crate) fn typeof_sql_expr(expr: &str) -> Result<DataType> {
     {
         Expr::Cast { data_type, .. } => delta_sql_type(data_type),
 
-        otherwise => todo!("{otherwise:?}"),
+        otherwise => Err(Error::NotImplemented {
+            kind: "sql_typeof_expr",
+            detail: format!("unsupported SQL expression in typeof_sql_expr: {otherwise:?}"),
+        }),
     }
 }
 
@@ -39,7 +42,10 @@ fn delta_sql_type(data_type: SqlDataType) -> Result<DataType> {
         SqlDataType::Date => Ok(DataType::Date32),
         SqlDataType::Int(_) | SqlDataType::Integer(_) => Ok(DataType::Int32),
 
-        otherwise => todo!("{otherwise:?}"),
+        otherwise => Err(Error::NotImplemented {
+            kind: "delta_sql_type",
+            detail: format!("unsupported SQL data type in delta_sql_type: {otherwise:?}"),
+        }),
     }
 }
 

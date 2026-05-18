@@ -9,7 +9,7 @@ Can run with: none. This phase defines the contract that every later parallel ph
 Goal: Define the public Kafka replacement contract before more feature work lands. Kafka 4.2 client and protocol behavior is the baseline for the first official replacement target. Kafka 4.3 should be tracked as a future target until it has an official release. Jansu remains stateless and storage-backed internally, but replacement claims must be per certified profile, not blanket claims.
 
 Current code anchors:
-- `README.md` currently positions Jansu as a stateless Kafka-compatible broker with PostgreSQL, SQLite, S3, and memory storage.
+- `README.md` currently positions Jansu as a stateless Kafka-compatible broker with PostgreSQL, RedlineDB, S3, and memory storage.
 - `docs/` and `docs/sarama.md` already show ecosystem-facing usage examples.
 - `jansu-sans-io/src/lib.rs` owns generated Kafka protocol metadata through `RootMessageMeta`.
 - `jansu-service/src/api.rs` builds ApiVersions from routed API keys today.
@@ -21,7 +21,7 @@ Current code anchors:
 Implementation steps:
 - Create a compatibility ledger that is generated or checked from code, not hand-waved in prose.
 - Track every Kafka API key and version with columns for codec support, route presence, advertised range, semantic status, Java client status, librdkafka status, franz-go or Sarama status, Kafka CLI status, storage-engine status, and failure-mode coverage.
-- Define product profiles: `jansu-native`, `kafka-parity-postgres`, `kafka-parity-sqlite`, `kafka-parity-s3-dynostore`, `kafka-parity-slatedb`, and `compat-preview`.
+- Define product profiles: `jansu-native`, `kafka-parity-postgres`, `kafka-parity-redlinedb`, `kafka-parity-s3-dynostore`, `kafka-parity-slatedb`, and `compat-preview`.
 - Define storage certification tiers: production parity, limited parity, development/test only, and unsupported for a given feature.
 - Make "no advertised API without proof" the rule that blocks Phase 02 and every API route added later.
 - Define how Jansu's stateless broker model maps to Kafka-visible terms: broker ID, controller ID, leader, ISR, high watermark, leader epoch, and coordinator.

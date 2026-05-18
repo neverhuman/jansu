@@ -39,6 +39,8 @@ where
         ctx: Context<G>,
         req: jansu_sans_io::TxnOffsetCommitRequest,
     ) -> Result<Self::Response, Self::Error> {
+        let topics = req.topics.unwrap_or_default();
+
         let responses = ctx
             .state()
             .txn_offset_commit(crate::TxnOffsetCommitRequest {
@@ -49,7 +51,7 @@ where
                 generation_id: req.generation_id,
                 member_id: req.member_id,
                 group_instance_id: req.group_instance_id,
-                topics: req.topics.unwrap_or_default(),
+                topics,
             })
             .await?;
 

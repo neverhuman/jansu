@@ -55,14 +55,14 @@ impl<'de> Decoder<'de> {
 
             if buf[0] & CONTINUATION == CONTINUATION {
                 accumulator = u32::from(buf[0] & MASK)
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
 
                 shift = shift.checked_add(7).ok_or(Error::Overflow)?;
             } else {
                 accumulator = u32::from(buf[0])
-                    .checked_shl(shift as u32)
+                    .checked_shl(u32::from(shift))
                     .and_then(|intermediate| accumulator.checked_add(intermediate))
                     .ok_or(Error::Overflow)?;
                 done = true;
@@ -232,53 +232,41 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
     where
         V: Visitor<'de>,
     {
-        self.length
-            .take()
-            .map_or_else(
-                || {
-                    self.unsigned_varint()
-                        .and_then(|length| length.checked_sub(1).ok_or(Error::Overflow))
-                        .and_then(|length| length.try_into().map_err(Into::into))
-                },
-                Ok,
-            )
-            .and_then(|length| {
-                let mut buf = vec![0u8; length];
-                self.reader.read_exact(&mut buf)?;
-                std::str::from_utf8(buf.as_slice())
-                    .map_err(Into::into)
-                    .inspect(|v| debug!("value: {v}:{}", type_name::<V::Value>(),))
-                    .and_then(|s| visitor.visit_str(s))
-            })
+        let length: usize = match self.length.take() {
+            Some(n) => n,
+            None => {
+                let n = self.unsigned_varint()?;
+                n.checked_sub(1).ok_or(Error::Overflow)?.try_into()?
+            }
+        };
+        let mut buf = vec![0u8; length];
+        self.reader.read_exact(&mut buf)?;
+        std::str::from_utf8(buf.as_slice())
+            .map_err(Into::into)
+            .inspect(|v| debug!("value: {v}:{}", type_name::<V::Value>(),))
+            .and_then(|s| visitor.visit_str(s))
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>,
     {
-        self.length
-            .take()
-            .map_or_else(
-                || {
-                    self.unsigned_varint()
-                        .and_then(|length| length.checked_sub(1).ok_or(Error::Overflow))
-                        .and_then(|length| length.try_into().map_err(Into::into))
-                },
-                Ok,
-            )
-            .and_then(|length| {
-                if length > self.message_max_size.unwrap_or(MESSAGE_MAX_SIZE) {
-                    return Err(Error::MessageMaxSizeExceeded(length));
-                }
-
-                let mut buf = vec![0u8; length];
-                self.reader.read_exact(&mut buf)?;
-
-                String::from_utf8(buf)
-                    .map_err(Into::into)
-                    .inspect(|v| debug!("value: {v}:{}", type_name::<V::Value>(),))
-                    .and_then(|s| visitor.visit_string(s))
-            })
+        let length: usize = match self.length.take() {
+            Some(n) => n,
+            None => {
+                let n = self.unsigned_varint()?;
+                n.checked_sub(1).ok_or(Error::Overflow)?.try_into()?
+            }
+        };
+        if length > self.message_max_size.unwrap_or(MESSAGE_MAX_SIZE) {
+            return Err(Error::MessageMaxSizeExceeded(length));
+        }
+        let mut buf = vec![0u8; length];
+        self.reader.read_exact(&mut buf)?;
+        String::from_utf8(buf)
+            .map_err(Into::into)
+            .inspect(|v| debug!("value: {v}:{}", type_name::<V::Value>(),))
+            .and_then(|s| visitor.visit_string(s))
     }
 
     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error>

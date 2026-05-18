@@ -18,9 +18,9 @@ create table if not exists consumer_offset (
     topition integer references topition (id) on delete cascade,
     committed_offset integer,
     leader_epoch integer,
-    timestamp text,
+    timestamp integer,
     metadata text,
-    expires_at text,
+    expires_at integer,
     last_updated datetime default current_timestamp not null,
     created_at datetime default current_timestamp not null,
     unique (consumer_group, topition)

@@ -104,7 +104,7 @@ Jansu already has useful hooks:
 | `jansu-storage/src/dynostore.rs`                         | Split shared metadata from per-broker replica-log paths or implement a `ReplicaLog` adapter under broker-specific prefixes.                                                                                                                                                     |
 | `jansu-storage/src/pg.rs`                                | Add replication metadata tables and per-broker replica records if PostgreSQL remains a supported metadata store in replicated mode.                                                                                                                                             |
 | `jansu-storage/src/lite.rs`                              | Same as PostgreSQL, but single-node or test-only multi-node unless file locking semantics are proven.                                                                                                                                                                           |
-| `jansu-storage/src/limbo.rs`                             | Same as SQLite/Turso backend strategy.                                                                                                                                                                                                                                          |
+| `jansu-storage/src/limbo.rs`                             | Same as RedlineDB backend strategy.                                                                                                                                                                                                                                          |
 | `jansu-storage/src/slate/storage.rs`                     | Implement replication state and local replica-log adapter.                                                                                                                                                                                                                      |
 | `jansu-storage/src/proxy.rs`                             | If `Storage` trait expands, implement forwarding or explicit “not available” for new replication methods.                                                                                                                                                                       |
 | `jansu-storage/src/batch.rs`                             | Add helpers for batch offset range, byte size, leader epoch stamping, and offset validation if not already available.                                                                                                                                                           |
@@ -534,7 +534,7 @@ pub trait Storage {
 
 ### Why this belongs in `Storage`
 
-Jansu already routes API services through `Storage`. `RequestChannelService` wraps storage calls using a `Request`/`Response` enum. Adding these methods at the trait layer lets `DynoStore`, PostgreSQL, SQLite, SlateDB, and test stores implement the same semantics and lets services stay backend-agnostic.
+Jansu already routes API services through `Storage`. `RequestChannelService` wraps storage calls using a `Request`/`Response` enum. Adding these methods at the trait layer lets `DynoStore`, PostgreSQL, RedlineDB, SlateDB, and test stores implement the same semantics and lets services stay backend-agnostic.
 
 ---
 
@@ -1632,7 +1632,7 @@ clusters/{cluster}/replication/topics/{topic}/partitions/{partition}/state.json
 
 Do not reuse the existing single `Watermark` for all brokers. Each broker has local LEO/log-start/HW checkpoint. The partition’s authoritative HW can live in `PartitionReplicaState`.
 
-## PostgreSQL / SQLite / Turso
+## PostgreSQL / RedlineDB
 
 Add tables conceptually like:
 
@@ -1689,7 +1689,7 @@ CREATE TABLE leader_epoch_checkpoint (
 );
 ```
 
-For PostgreSQL use JSONB; for SQLite/Turso use JSON text.
+For PostgreSQL use JSONB; for RedlineDB use JSON text.
 
 ---
 

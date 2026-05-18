@@ -28,9 +28,9 @@ cg.id,
 tp.id,
 txn_oc_tp.committed_offset,
 txn_oc_tp.leader_epoch,
-txn_oc_tp.created_at,
+$5,
 txn_oc_tp.metadata,
-$5::timestamp
+$6
 
 from
 
@@ -47,10 +47,10 @@ join txn_offset_commit_tp txn_oc_tp on txn_oc_tp.offset_commit = txn_oc.id and t
 
 where
 
-c.name = $1::text
-and txn.name = $2::text
-and p.id = $3::bigint
-and pe.epoch = $4::smallint
+c.name = $1
+and txn.name = $2
+and p.id = $3
+and pe.epoch = $4
 
 on conflict (consumer_group, topition)
 
