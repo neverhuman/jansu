@@ -12,15 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Arc, LazyLock, Mutex},
-    time::SystemTime,
-};
+use std::time::SystemTime;
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -35,25 +27,15 @@ use jansu_sans_io::{
         OffsetCommitResponse, OffsetCommitResponsePartition, OffsetCommitResponseTopic,
     },
     offset_fetch_request::{OffsetFetchRequestGroup, OffsetFetchRequestTopic},
-    offset_fetch_response::{
-        OffsetFetchResponse, OffsetFetchResponseGroup, OffsetFetchResponsePartition,
-        OffsetFetchResponsePartitions, OffsetFetchResponseTopic, OffsetFetchResponseTopics,
-    },
+    offset_fetch_response::OffsetFetchResponse,
     sync_group_request::SyncGroupRequestAssignment,
     sync_group_response::SyncGroupResponse,
 };
-use jansu_storage::{
-    GroupDetail, GroupMember, GroupState, OffsetCommitRequest, Storage, Topition, UpdateError,
-    Version,
-};
-use opentelemetry::{KeyValue, metrics::Counter};
-use tokio::time::{Duration, sleep};
-use tracing::{debug, error, info};
+use jansu_storage::Storage;
+use tracing::debug;
 use uuid::Uuid;
 
-use crate::{Error, METER, Result};
-
-use super::{Coordinator, OffsetCommit};
+use super::OffsetCommit;
 
 use super::*;
 
@@ -639,37 +621,36 @@ where
     ) -> (Self::OffsetCommitState, Body) {
         let _ = now;
 
-        if let Some(member_id) = detail.member_id {
-            if !member_id.is_empty() && !self.members.contains_key(member_id) {
-                return (
-                    self,
-                    OffsetCommitResponse::default()
-                        .throttle_time_ms(Some(0))
-                        .topics(detail.topics.map(|topics| {
-                            topics
-                                .as_ref()
-                                .iter()
-                                .map(|topic| {
-                                    OffsetCommitResponseTopic::default()
-                                        .name(topic.name.clone())
-                                        .partitions(topic.partitions.as_ref().map(|partitions| {
-                                            partitions
-                                                .iter()
-                                                .map(|partition| {
-                                                    OffsetCommitResponsePartition::default()
-                                                        .partition_index(partition.partition_index)
-                                                        .error_code(
-                                                            ErrorCode::UnknownMemberId.into(),
-                                                        )
-                                                })
-                                                .collect()
-                                        }))
-                                })
-                                .collect()
-                        }))
-                        .into(),
-                );
-            }
+        if let Some(member_id) = detail.member_id
+            && !member_id.is_empty()
+            && !self.members.contains_key(member_id)
+        {
+            return (
+                self,
+                OffsetCommitResponse::default()
+                    .throttle_time_ms(Some(0))
+                    .topics(detail.topics.map(|topics| {
+                        topics
+                            .as_ref()
+                            .iter()
+                            .map(|topic| {
+                                OffsetCommitResponseTopic::default()
+                                    .name(topic.name.clone())
+                                    .partitions(topic.partitions.as_ref().map(|partitions| {
+                                        partitions
+                                            .iter()
+                                            .map(|partition| {
+                                                OffsetCommitResponsePartition::default()
+                                                    .partition_index(partition.partition_index)
+                                                    .error_code(ErrorCode::UnknownMemberId.into())
+                                            })
+                                            .collect()
+                                    }))
+                            })
+                            .collect()
+                    }))
+                    .into(),
+            );
         }
 
         if let Some(error_code) = self.offset_commit_error_code(detail) {

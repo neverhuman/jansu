@@ -77,11 +77,11 @@ async fn list_offset(
         )
         .await?;
 
-    Ok(response
+    response
         .into_iter()
         .find(|(candidate, _)| candidate == topition)
         .map(|(_, response)| response)
-        .ok_or_else(|| Error::Message("missing list offset response".into()))?)
+        .ok_or_else(|| Error::Message("missing list offset response".into()))
 }
 
 async fn fetch_record_count(

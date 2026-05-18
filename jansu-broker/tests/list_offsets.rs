@@ -794,7 +794,7 @@ where
                 .replica_id(-1)
                 .topics(Some(
                     [ListOffsetsTopic::default()
-                        .name(topic_name.into())
+                        .name(topic_name)
                         .partitions(Some(
                             [
                                 ListOffsetsPartition::default()
@@ -849,13 +849,13 @@ async fn request_frame_service_uses_latest_list_offsets_version() -> Result<()> 
     let seen_api_version_capture = seen_api_version.clone();
 
     let service = RequestFrameLayer.into_layer(FrameService::new::<(), Error>(
-        move |_ctx: Context<()>, req: jansu_sans_io::Frame| {
+        move |_ctx: Context<()>, req: Frame| {
             let api_version = req.api_version()?;
             *seen_api_version_capture.lock().unwrap() = Some(api_version);
 
-            Ok(jansu_sans_io::Frame {
+            Ok(Frame {
                 size: 0,
-                header: jansu_sans_io::Header::Response {
+                header: Header::Response {
                     correlation_id: req.correlation_id()?,
                 },
                 body: jansu_sans_io::Body::ListOffsetsResponse(
@@ -903,49 +903,47 @@ async fn full_stack_round_trips_list_offsets_v9() -> Result<()> {
         BytesLayer,
         BytesFrameLayer::default(),
     )
-        .into_layer(FrameService::new::<(), Error>(
-            move |_, req: jansu_sans_io::Frame| {
-                assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
-                assert_eq!(9, req.api_version()?);
+        .into_layer(FrameService::new::<(), Error>(move |_, req: Frame| {
+            assert_eq!(ListOffsetsRequest::KEY, req.api_key()?);
+            assert_eq!(9, req.api_version()?);
 
-                Ok(jansu_sans_io::Frame {
-                    size: 0,
-                    header: jansu_sans_io::Header::Response {
-                        correlation_id: req.correlation_id()?,
-                    },
-                    body: jansu_sans_io::Body::ListOffsetsResponse(
-                        jansu_sans_io::ListOffsetsResponse::default()
-                            .throttle_time_ms(Some(0))
-                            .topics(Some(
-                                [ListOffsetsTopicResponse::default()
-                                    .name("topic".into())
-                                    .partitions(Some(
-                                        [
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(0)
-                                                .error_code(0)
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(1_725_000_000_000))
-                                                .offset(Some(12))
-                                                .leader_epoch(Some(1)),
-                                            ListOffsetsPartitionResponse::default()
-                                                .partition_index(1)
-                                                .error_code(i16::from(
-                                                    ErrorCode::UnknownTopicOrPartition,
-                                                ))
-                                                .old_style_offsets(None)
-                                                .timestamp(Some(-1))
-                                                .offset(Some(-1))
-                                                .leader_epoch(Some(-1)),
-                                        ]
-                                        .into(),
-                                    ))]
-                                .into(),
-                            )),
-                    ),
-                })
-            },
-        ));
+            Ok(Frame {
+                size: 0,
+                header: Header::Response {
+                    correlation_id: req.correlation_id()?,
+                },
+                body: jansu_sans_io::Body::ListOffsetsResponse(
+                    jansu_sans_io::ListOffsetsResponse::default()
+                        .throttle_time_ms(Some(0))
+                        .topics(Some(
+                            [ListOffsetsTopicResponse::default()
+                                .name("topic".into())
+                                .partitions(Some(
+                                    [
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(0)
+                                            .error_code(0)
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(1_725_000_000_000))
+                                            .offset(Some(12))
+                                            .leader_epoch(Some(1)),
+                                        ListOffsetsPartitionResponse::default()
+                                            .partition_index(1)
+                                            .error_code(i16::from(
+                                                ErrorCode::UnknownTopicOrPartition,
+                                            ))
+                                            .old_style_offsets(None)
+                                            .timestamp(Some(-1))
+                                            .offset(Some(-1))
+                                            .leader_epoch(Some(-1)),
+                                    ]
+                                    .into(),
+                                ))]
+                            .into(),
+                        )),
+                ),
+            })
+        }));
 
     let response = service
         .serve(
@@ -1186,7 +1184,7 @@ async fn storage_route_round_trips_list_offsets_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .num_partitions(2)
@@ -1268,7 +1266,7 @@ async fn storage_route_round_trips_produced_leader_epoch_v9() -> Result<()> {
 
     register_broker(cluster_id, broker_id, storage.clone()).await?;
 
-    storage
+    let _ = storage
         .create_topic(
             CreatableTopic::default()
                 .name(topic_name.into())

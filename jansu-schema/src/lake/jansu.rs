@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use jansu_broker::{TracingFormat, otel};
 use jansu_cli::{Cli, Result};
 use jansu_sans_io::ErrorCode;

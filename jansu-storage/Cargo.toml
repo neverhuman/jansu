@@ -69,7 +69,7 @@ uuid.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 criterion.workspace = true
-dotenv.workspace = true
+dotenvy.workspace = true
 pretty_assertions.workspace = true
 jansu-schema.workspace = true
 tempfile.workspace = true

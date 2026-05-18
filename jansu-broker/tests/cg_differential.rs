@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jansu_broker::broker::Broker;
 use rand::{prelude::*, rng};
 use rdkafka::{
     ClientConfig, Message,
@@ -53,7 +52,7 @@ async fn differential_cg_churn() -> Result<(), Box<dyn std::error::Error>> {
 
     let started = Instant::now();
     let _broker_task = tokio::spawn(async move {
-        broker.main(started).await.unwrap();
+        let _ = broker.main(started).await.unwrap();
     });
 
     // Wait for the broker to start
@@ -68,7 +67,7 @@ async fn differential_cg_churn() -> Result<(), Box<dyn std::error::Error>> {
             .set("enable.partition.eof", "false")
             .set("session.timeout.ms", "6000")
             .set("enable.auto.commit", "true")
-            .set("client.id", &format!("consumer-{}", i))
+            .set("client.id", format!("consumer-{}", i))
             .create()?;
 
         consumer.subscribe(&["test-topic"])?;
@@ -78,9 +77,9 @@ async fn differential_cg_churn() -> Result<(), Box<dyn std::error::Error>> {
     // We'll poll for a bit to let the consumer group stabilize
     // The consumer event loop will negotiate with our coordinator.
     // We expect it to successfully receive an assignment.
-    for i in 0..10 {
+    for _i in 0..10 {
         for consumer in &consumers {
-            let timeout = tokio::time::sleep(Duration::from_millis(500));
+            let timeout = sleep(Duration::from_millis(500));
             tokio::pin!(timeout);
             tokio::select! {
                 _ = &mut timeout => {}

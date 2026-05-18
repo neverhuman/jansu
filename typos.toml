@@ -12,3 +12,5 @@ extend-exclude = [
 [default.extend-words]
 ser = "ser"
 flate = "flate"
+LSO = "LSO"
+lso = "lso"
