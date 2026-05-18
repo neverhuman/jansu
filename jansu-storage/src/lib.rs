@@ -820,6 +820,12 @@ impl From<&TopicId> for [u8; 16] {
 
 impl From<&FetchTopic> for TopicId {
     fn from(value: &FetchTopic) -> Self {
+        if let Some(ref id) = value.topic_id {
+            if id != &NULL_TOPIC_ID {
+                return Self::Id(Uuid::from_bytes(*id));
+            }
+        }
+
         if let Some(ref name) = value.topic {
             Self::Name(name.into())
         } else if let Some(ref id) = value.topic_id {

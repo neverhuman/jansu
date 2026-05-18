@@ -146,7 +146,9 @@
           "jansu-storage/tests/log_contract.rs::null_storage_reports_log_features_unsupported",
           "jansu-storage/tests/fetch.rs::phase08::fetch_returns_without_waiting_when_min_bytes_is_satisfied",
           "jansu-storage/tests/fetch.rs::phase08::fetch_enforces_partition_max_bytes",
+          "jansu-storage/tests/fetch.rs::phase08::fetch_stops_after_global_max_bytes_is_spent",
           "jansu-storage/tests/fetch.rs::phase08::fetch_read_committed_matches_uncommitted_when_no_transactions",
+          "jansu-storage/tests/fetch.rs::phase08::fetch_prefers_topic_id_when_topic_name_is_stale",
           "jansu-broker/tests/fetch.rs::in_memory::empty_topic",
           "jansu-broker/tests/fetch.rs::in_memory::simple_non_txn",
           "jansu-broker/tests/fetch.rs::lite::empty_topic",
@@ -161,7 +163,7 @@
         "client_tests": {},
         "failure_modes": "partial"
       },
-      "notes": "Phase 06 storage contract slice plus Phase 08 Fetch hardening. Fetch still has no advertised versions or compatibility claim. Focused proof covers no extra long-poll sleep once min_bytes is satisfied, partition_max_bytes limiting, broker Fetch across dynostore/libsql/slatedb, leader-epoch fencing, dynostore FetchService ReadCommitted vs ReadUncommitted parity when no in-flight transactions (LSO==HWM), and Phase 04 differential librdkafka consume-after-produce (Fetch path) vs Kafka 4.2 when JANSU_DIFFERENTIAL=1. Remaining Phase 08 gaps include transactional read_committed / aborted-txn visibility, incremental sessions, topic ID behavior, broader max-bytes parity, and API 23 advertisement."
+      "notes": "Phase 06 storage contract slice plus Phase 08 Fetch hardening. Fetch still has no advertised versions or compatibility claim. Focused proof covers no extra long-poll sleep once min_bytes is satisfied, partition_max_bytes limiting, broker Fetch across dynostore/libsql/slatedb, leader-epoch fencing, dynostore FetchService ReadCommitted vs ReadUncommitted parity when no in-flight transactions (LSO==HWM), Fetch topic-id precedence over stale names, global max_bytes ceiling behavior across partitions, and Phase 04 differential librdkafka consume-after-produce (Fetch path) vs Kafka 4.2 when JANSU_DIFFERENTIAL=1. Remaining Phase 08 gaps include transactional read_committed / aborted-txn visibility, incremental sessions, and API 23 advertisement."
     },
     {
       "api_key": 2,

@@ -393,7 +393,7 @@ impl FetchService {
             }
 
             Ok(FetchableTopicResponse::default()
-                .topic(fetch.topic.to_owned())
+                .topic(Some(name.to_owned()))
                 .topic_id(topic_id.to_owned())
                 .partitions(Some(partitions)))
         } else {

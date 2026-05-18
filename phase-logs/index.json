@@ -282,7 +282,7 @@
       "residual_risks": [
         "No API 23 version advertisement yet — needs Postgres/Turso epoch certification and failure-mode proof where ledger is gray.",
         "Leader epoch truncation/recovery and transactional read-committed + LSO + aborted-txn integration remain unproven; returned-offset ListOffsets leader-epoch mapping now has dynostore earliest/latest regression proof.",
-        "Fetch incremental sessions vs advertised max version, topic ID consistency across APIs, broader max-bytes parity, and Java/seek/timestamp differential workloads remain unproven."
+        "Fetch incremental sessions vs advertised max version and Java/seek/timestamp differential workloads remain unproven."
       ]
     },
     {
