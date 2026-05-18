@@ -627,35 +627,32 @@ where
             && !member_id.is_empty()
             && !self.members.contains_key(member_id)
         {
-                return (
-                    self,
-                    OffsetCommitResponse::default()
-                        .throttle_time_ms(Some(0))
-                        .topics(detail.topics.map(|topics| {
-                            topics
-                                .as_ref()
-                                .iter()
-                                .map(|topic| {
-                                    OffsetCommitResponseTopic::default()
-                                        .name(topic.name.to_owned())
-                                        .partitions(topic.partitions.as_ref().map(|partitions| {
-                                            partitions
-                                                .iter()
-                                                .map(|partition| {
-                                                    OffsetCommitResponsePartition::default()
-                                                        .partition_index(partition.partition_index)
-                                                        .error_code(
-                                                            ErrorCode::UnknownMemberId.into(),
-                                                        )
-                                                })
-                                                .collect()
-                                        }))
-                                })
-                                .collect()
-                        }))
-                        .into(),
-                );
-            }
+            return (
+                self,
+                OffsetCommitResponse::default()
+                    .throttle_time_ms(Some(0))
+                    .topics(detail.topics.map(|topics| {
+                        topics
+                            .as_ref()
+                            .iter()
+                            .map(|topic| {
+                                OffsetCommitResponseTopic::default()
+                                    .name(topic.name.to_owned())
+                                    .partitions(topic.partitions.as_ref().map(|partitions| {
+                                        partitions
+                                            .iter()
+                                            .map(|partition| {
+                                                OffsetCommitResponsePartition::default()
+                                                    .partition_index(partition.partition_index)
+                                                    .error_code(ErrorCode::UnknownMemberId.into())
+                                            })
+                                            .collect()
+                                    }))
+                            })
+                            .collect()
+                    }))
+                    .into(),
+            );
         }
 
         if let Some(error_code) = self.offset_commit_error_code(detail) {
