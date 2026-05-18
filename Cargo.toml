@@ -134,7 +134,7 @@ quote = "1.0"
 rama = { version = "0.2.0", features = ["http", "tcp"] }
 rand = "0.10"
 regex = "1.12.3"
-redlinedb = { git = "https://github.com/neverhuman/redlineDB.git", rev = "8f252e05777b470ef4cf245e6b1e44de2a5a4dcd", features = ["tokio", "chrono", "uuid", "json"] }
+redlinedb = { git = "https://github.com/neverhuman/redlineDB.git", rev = "7baf1501ad14e6be8cebffb2beb3f42abf730827", features = ["tokio", "chrono", "uuid", "json"] }
 rhai = { version = "1.24.0", features = ["sync"] }
 rhai-rand = "0.1"
 rsasl = { version = "2.2.0", features = ["config_builder", "provider", "oauthbearer", "scram-sha-2"], default-features = false }
