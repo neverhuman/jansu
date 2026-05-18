@@ -623,8 +623,10 @@ where
     ) -> (Self::OffsetCommitState, Body) {
         let _ = now;
 
-        if let Some(member_id) = detail.member_id {
-            if !member_id.is_empty() && !self.members.contains_key(member_id) {
+        if let Some(member_id) = detail.member_id
+            && !member_id.is_empty()
+            && !self.members.contains_key(member_id)
+        {
                 return (
                     self,
                     OffsetCommitResponse::default()

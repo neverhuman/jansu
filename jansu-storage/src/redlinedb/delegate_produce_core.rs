@@ -427,7 +427,6 @@ impl Delegate {
                 let offset_start = row.get::<i64>(0).map_err(Error::from)?;
                 let offset_end = row.get::<i64>(1).map_err(Error::from)?;
                 debug!(offset_start, offset_end);
-                drop(row);
                 drop(rows2);
 
                 let s3 = sql("redlinedb/txn_produce_offset_select_overlapping_txn.sql")
