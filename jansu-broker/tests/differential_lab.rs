@@ -160,7 +160,7 @@ fn repo_root() -> PathBuf {
 }
 
 fn other_error(message: impl Into<String>) -> DynError {
-    Box::new(io::Error::new(io::ErrorKind::Other, message.into()))
+    Box::new(io::Error::other(message.into()))
 }
 
 fn artifact_dir() -> PathBuf {
@@ -297,7 +297,7 @@ async fn api_versions(bootstrap: &str) -> DynResult<ApiVersionsResponse> {
 
     Ok(ApiVersionsResponse::default()
         .error_code(error_code)
-        .api_keys(Some(api_keys.into())))
+        .api_keys(Some(api_keys)))
 }
 
 /// Fetch metadata using Jansu's Frame layer (for talking to Jansu broker).
@@ -377,23 +377,17 @@ async fn list_offsets_partition_offset(
         ListOffsetsRequest::default()
             .isolation_level(Some(IsolationLevel::ReadUncommitted.into()))
             .replica_id(-1)
-            .topics(Some(
-                vec![
-                    ListOffsetsTopic::default()
-                        .name(topic.into())
-                        .partitions(Some(
-                            vec![
-                                ListOffsetsPartition::default()
-                                    .partition_index(partition)
-                                    .timestamp(timestamp)
-                                    .current_leader_epoch(Some(-1))
-                                    .max_num_offsets(Some(1)),
-                            ]
-                            .into(),
-                        )),
-                ]
-                .into(),
-            ))
+            .topics(Some(vec![
+                ListOffsetsTopic::default()
+                    .name(topic.into())
+                    .partitions(Some(vec![
+                        ListOffsetsPartition::default()
+                            .partition_index(partition)
+                            .timestamp(timestamp)
+                            .current_leader_epoch(Some(-1))
+                            .max_num_offsets(Some(1)),
+                    ])),
+            ]))
             .into(),
     )?;
 

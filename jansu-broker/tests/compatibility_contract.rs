@@ -294,10 +294,8 @@ fn section_bullets(contents: &str, heading: &str) -> Vec<String> {
         if in_section && trimmed.starts_with("## ") {
             break;
         }
-        if in_section {
-            if let Some(item) = trimmed.strip_prefix("- ") {
-                bullets.push(item.to_string());
-            }
+        if in_section && let Some(item) = trimmed.strip_prefix("- ") {
+            bullets.push(item.to_string());
         }
     }
 
@@ -495,7 +493,7 @@ fn assert_structured_phase_log(path: &Path) {
     );
 }
 
-fn ledger_by_key<'a>(ledger: &'a Ledger) -> BTreeMap<i16, &'a ApiRow> {
+fn ledger_by_key(ledger: &Ledger) -> BTreeMap<i16, &ApiRow> {
     let mut rows = BTreeMap::new();
 
     for row in &ledger.apis {
