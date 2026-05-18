@@ -71,7 +71,31 @@ impl Storage for DynoStore {
         topition: &Topition,
         deflated: deflated::Batch,
     ) -> Result<i64> {
-        self.produce_inner(transaction_id, topition, deflated).await
+        let outcome = self.produce_inner(transaction_id, topition, deflated).await;
+
+        // Wake any `fetch_wait` callers blocked on this topition. Only signal
+        // on a successful produce — transactional or idempotent failures
+        // (`UnknownProducerId`, `ProducerFenced`, `OutOfOrderSequenceNumber`,
+        // `DuplicateSequenceNumber`) leave the log untouched and would cause
+        // a waiter to spuriously re-poll for nothing.
+        if outcome.is_ok() {
+            self.produce_notifier(topition).notify_waiters();
+        }
+
+        outcome
+    }
+
+    async fn fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation_level: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        self.fetch_wait_inner(topition, offset, min_bytes, max_bytes, isolation_level, max_wait)
+            .await
     }
 
     async fn list_offsets(

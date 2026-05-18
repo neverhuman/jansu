@@ -187,6 +187,38 @@ impl StorageContainer {
         .await
     }
 
+    pub(super) async fn dispatch_fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        match self {
+            #[cfg(feature = "dynostore")]
+            Self::DynoStore(engine) => {
+                engine.fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            }
+
+            #[cfg(feature = "redlinedb")]
+            Self::RedlineDb(engine) => {
+                engine.fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            }
+
+            Self::Null(engine) => {
+                engine.fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            }
+
+            #[cfg(feature = "slatedb")]
+            Self::Slate(engine) => {
+                engine.fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            }
+        }
+        .await
+    }
+
     pub(super) async fn dispatch_offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
         match self {
             #[cfg(feature = "dynostore")]

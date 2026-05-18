@@ -93,6 +93,66 @@ pub trait Storage: Debug + Send + Sync + 'static {
         isolation: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>>;
 
+    /// Long-poll fetch: block until at least one record is available at or
+    /// after `offset`, or `max_wait` elapses. Returns whatever is available
+    /// when the wait ends (which may be an empty `Vec` on timeout).
+    ///
+    /// This implements Kafka's `fetch.max.wait.ms` semantics: the broker
+    /// holds the request open for up to `max_wait` so a slow producer does
+    /// not force the client to busy-poll. `min_bytes` is honoured the same
+    /// way `fetch` honours it — the wait is satisfied as soon as the
+    /// underlying storage can return at least `min_bytes` worth of records
+    /// (or `1` byte for the default `min_bytes=0` behaviour, matching
+    /// Kafka's `fetch.min.bytes=1` default).
+    ///
+    /// The default implementation falls back to polling `fetch` on a
+    /// bounded interval (50 ms by default) so every existing `Storage`
+    /// engine gains long-poll behaviour for free. Engines that can wake
+    /// on produce (e.g. `memory://` via `tokio::sync::Notify`,
+    /// `redlinedb://` via `LISTEN`/`NOTIFY`) should override this for a
+    /// genuine notify-based wait.
+    async fn fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        // 50 ms polling cadence: 5x cheaper than the embedded crate's 25 ms
+        // busy-poll, low enough that the worst-case extra latency on top of
+        // a produce is bounded at ~50 ms even when no engine override is
+        // available.
+        const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+        let deadline = tokio::time::Instant::now() + max_wait;
+
+        loop {
+            let batches = self
+                .fetch(topition, offset, min_bytes, max_bytes, isolation)
+                .await?;
+
+            if !batches.is_empty() {
+                return Ok(batches);
+            }
+
+            let now = tokio::time::Instant::now();
+            if now >= deadline {
+                return Ok(batches);
+            }
+
+            let remaining = deadline - now;
+            let sleep_for = if remaining < POLL_INTERVAL {
+                remaining
+            } else {
+                POLL_INTERVAL
+            };
+
+            tokio::time::sleep(sleep_for).await;
+        }
+    }
+
     /// Query the offset stage for a topic partition.
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage>;
 

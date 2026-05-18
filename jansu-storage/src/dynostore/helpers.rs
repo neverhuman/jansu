@@ -32,7 +32,20 @@ impl DynoStore {
                 Metron::new(object_store, cluster),
                 Duration::from_millis(5_000),
             )),
+            produce_notify: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+
+    /// Get-or-create the produce notifier for a given topic-partition. Cheap
+    /// (one mutex acquire, one `BTreeMap` lookup); the result is shared so
+    /// every waiter receives every `notify_waiters` wake.
+    pub(super) fn produce_notifier(&self, topition: &Topition) -> Arc<Notify> {
+        self.produce_notify
+            .lock()
+            .expect("produce_notify mutex poisoned")
+            .entry(topition.to_owned())
+            .or_insert_with(|| Arc::new(Notify::new()))
+            .clone()
     }
 
     pub fn advertised_listener(self, advertised_listener: Url) -> Self {

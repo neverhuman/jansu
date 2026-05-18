@@ -67,6 +67,7 @@ use opentelemetry::{
 use opticon::OptiCon;
 use rand::{prelude::*, rng};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use tokio::sync::Notify;
 use tracing::{debug, error, instrument, warn};
 use url::Url;
 use uuid::Uuid;
@@ -110,6 +111,12 @@ pub struct DynoStore {
     meta: OptiCon<Meta>,
 
     object_store: Arc<DynObjectStore>,
+
+    /// Per-`Topition` notification handles so `fetch_wait` can block until a
+    /// concurrent `produce` lands new records, rather than busy-polling.
+    /// Notifiers are created lazily on first observe; cleared once the
+    /// engine is dropped along with the rest of the `Arc`-shared state.
+    produce_notify: Arc<Mutex<BTreeMap<Topition, Arc<Notify>>>>,
 }
 
 type Group = String;
