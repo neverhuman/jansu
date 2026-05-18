@@ -56,8 +56,7 @@ use jansu_sans_io::{
     list_groups_response::ListedGroup,
     metadata_response::{MetadataResponseBroker, MetadataResponsePartition, MetadataResponseTopic},
     record::{Header, Record, deflated, inflated},
-    to_system_time,
-    to_timestamp,
+    to_system_time, to_timestamp,
     txn_offset_commit_response::{TxnOffsetCommitResponsePartition, TxnOffsetCommitResponseTopic},
 };
 use jansu_schema::{
