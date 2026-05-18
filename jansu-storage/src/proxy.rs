@@ -39,11 +39,11 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    BrokerRegistrationRequest, GroupDetail, LeaderEpochRecord, ListOffsetResponse, METER,
-    MetadataResponse, NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord, OffsetStage,
-    ProducerIdResponse, Result, ScramCredential, Storage, StorageCapabilities, TopicId, Topition,
-    TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, UpdateError,
-    Version,
+    AbortedTransactionRange, BrokerRegistrationRequest, GroupDetail, LeaderEpochRecord,
+    ListOffsetResponse, METER, MetadataResponse, NamedGroupDetail, OffsetCommitRequest,
+    OffsetFetchRecord, OffsetStage, ProducerIdResponse, Result, ScramCredential, Storage,
+    StorageCapabilities, TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse,
+    TxnOffsetCommitRequest, UpdateError, Version,
 };
 
 static SEMAPHORE_ACQUIRE_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
@@ -200,6 +200,13 @@ where
         self.storage
             .fetch(topition, offset, min_bytes, max_bytes, isolation)
             .await
+    }
+
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        self.storage.aborted_transaction_ranges(topition).await
     }
 
     async fn fetch_wait(

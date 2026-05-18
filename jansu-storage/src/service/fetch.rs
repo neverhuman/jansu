@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use jansu_sans_io::{
     ApiKey, ErrorCode, FetchRequest, FetchResponse, IsolationLevel,
     fetch_request::{FetchPartition, FetchTopic},
+    fetch_response::AbortedTransaction,
     fetch_response::{
         EpochEndOffset, FetchableTopicResponse, LeaderIdAndEpoch, PartitionData, SnapshotId,
     },
@@ -29,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, instrument};
 
 use super::leader_epoch::{current_leader_epoch, leader_epoch_history};
-use crate::{Error, Result, Storage, Topition};
+use crate::{AbortedTransactionRange, Error, Result, Storage, Topition};
 
 /// A [`Service`] using [`Storage`] as [`Context`] taking [`FetchRequest`] returning [`FetchResponse`].
 /// ```
@@ -131,6 +132,40 @@ impl FetchService {
         ctx.get::<CancellationToken>().cloned()
     }
 
+    fn aborted_transactions(
+        aborted_transaction_ranges: &[AbortedTransactionRange],
+    ) -> Vec<AbortedTransaction> {
+        let mut aborted_transactions = aborted_transaction_ranges
+            .iter()
+            .map(Into::into)
+            .collect::<Vec<_>>();
+
+        aborted_transactions.sort_unstable();
+        aborted_transactions.dedup();
+        aborted_transactions
+    }
+
+    fn retain_visible_batches(batches: &mut Vec<Batch>) {
+        batches.retain(|batch| !batch.is_control());
+    }
+
+    fn retain_visible_read_committed_batches(
+        batches: &mut Vec<Batch>,
+        aborted_transaction_ranges: &[AbortedTransactionRange],
+    ) {
+        batches.retain(|batch| {
+            if !batch.is_transactional() {
+                return true;
+            }
+
+            !aborted_transaction_ranges.iter().any(|range| {
+                batch.producer_id == range.producer_id
+                    && batch.base_offset >= range.offset_start
+                    && batch.base_offset < range.offset_end
+            })
+        });
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[instrument(skip(self, ctx, _max_wait_ms, min_bytes, max_bytes, isolation, fetch_partition), fields(partition = fetch_partition.partition))]
     async fn fetch_partition<G>(
@@ -196,6 +231,11 @@ impl FetchService {
         }
 
         let cancellation = Self::cancellation_token(ctx);
+        let aborted_transaction_ranges = if isolation == IsolationLevel::ReadCommitted {
+            ctx.state().aborted_transaction_ranges(&tp).await?
+        } else {
+            vec![]
+        };
 
         let mut batches = Vec::new();
 
@@ -231,28 +271,48 @@ impl FetchService {
                     .inspect(|r| debug!(?tp, ?offset, ?r))
                     .inspect_err(|error| error!(?tp, ?error))?
             };
+            let raw_latest = fetched
+                .iter()
+                .map(|batch| batch.base_offset + batch.record_count as i64)
+                .max();
+
+            Self::retain_visible_batches(&mut fetched);
+
+            if isolation == IsolationLevel::ReadCommitted {
+                Self::retain_visible_read_committed_batches(
+                    &mut fetched,
+                    &aborted_transaction_ranges,
+                );
+            }
 
             let fetched_bytes =
                 Self::retain_batches_within_max_bytes(&mut fetched, fetch_max_bytes)?;
             *max_bytes = max_bytes.saturating_sub(fetched_bytes);
             partition_max_bytes = partition_max_bytes.saturating_sub(fetched_bytes);
 
-            debug!(?offset, ?fetched);
-
-            if fetched.is_empty() || fetched.first().is_some_and(|batch| batch.record_count == 0) {
-                break;
-            }
-
-            if let Some(latest) = fetched
-                .iter()
-                .map(|batch| batch.base_offset + batch.record_count as i64)
-                .max()
-                .inspect(|latest| debug!(latest))
-            {
+            if let Some(latest) = raw_latest {
                 offset = latest;
             }
 
+            debug!(?offset, ?fetched);
+
+            if fetched.is_empty() {
+                if raw_latest.is_some() {
+                    continue;
+                }
+
+                break;
+            }
+
+            if fetched.first().is_some_and(|batch| batch.record_count == 0) {
+                break;
+            }
+
             batches.append(&mut fetched);
+
+            if batches.byte_size() < u64::from(min_bytes) && raw_latest.is_some() {
+                continue;
+            }
         }
 
         let offset_stage = ctx
@@ -279,7 +339,9 @@ impl FetchService {
             .diverging_epoch(None)
             .current_leader(Some(current_leader))
             .snapshot_id(None)
-            .aborted_transactions(Some([].into()))
+            .aborted_transactions(Some(Self::aborted_transactions(
+                &aborted_transaction_ranges,
+            )))
             .preferred_read_replica(Some(-1))
             .records(if batches.is_empty() {
                 None

@@ -47,9 +47,9 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    BrokerRegistrationRequest, Error, GroupDetail, ListOffsetResponse, METER, MetadataResponse,
-    NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse,
-    Result, ScramCredential, Storage, StorageCapabilities, TopicId, Topition,
+    AbortedTransactionRange, BrokerRegistrationRequest, Error, GroupDetail, ListOffsetResponse,
+    METER, MetadataResponse, NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord, OffsetStage,
+    ProducerIdResponse, Result, ScramCredential, Storage, StorageCapabilities, TopicId, Topition,
     TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, UpdateError,
     Version,
 };
@@ -446,6 +446,13 @@ where
         self.storage
             .fetch(topition, offset, min_bytes, max_bytes, isolation)
             .await
+    }
+
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        self.storage.aborted_transaction_ranges(topition).await
     }
 
     async fn fetch_wait(

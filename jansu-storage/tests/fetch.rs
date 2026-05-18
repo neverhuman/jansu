@@ -18,7 +18,7 @@ mod common;
 mod phase08 {
     use bytes::Bytes;
     use jansu_sans_io::{
-        FetchRequest, FetchResponse, IsolationLevel, NULL_TOPIC_ID,
+        BatchAttribute, FetchRequest, FetchResponse, IsolationLevel, NULL_TOPIC_ID,
         fetch_request::{FetchPartition, FetchTopic},
         record::{Record, inflated},
     };
@@ -283,13 +283,12 @@ mod phase08 {
                     .min_bytes(1)
                     .max_bytes(Some(partition_max_bytes))
                     .isolation_level(Some(IsolationLevel::ReadUncommitted.into()))
-                    .topics(Some(
-                        vec![FetchTopic::default()
+                    .topics(Some(vec![
+                        FetchTopic::default()
                             .topic(Some(topic.to_owned()))
                             .topic_id(Some(NULL_TOPIC_ID))
-                            .partitions(Some(vec![partition(0), partition(1)]))]
-                        .into(),
-                    )),
+                            .partitions(Some(vec![partition(0), partition(1)])),
+                    ])),
             )
             .await?;
 
@@ -335,6 +334,52 @@ mod phase08 {
                     .sum::<i64>()
             })
             .sum::<i64>()
+    }
+
+    async fn produce_transactional_value<S>(
+        storage: &S,
+        transaction_id: &str,
+        topic: &str,
+        partition: i32,
+        value: Vec<u8>,
+    ) -> Result<jansu_storage::ProducerIdResponse, Error>
+    where
+        S: Storage + ?Sized,
+    {
+        let producer = storage
+            .init_producer(Some(transaction_id), 10_000, Some(-1), Some(-1))
+            .await?;
+
+        _ = storage
+            .txn_add_partitions(jansu_storage::TxnAddPartitionsRequest::VersionZeroToThree {
+                transaction_id: transaction_id.to_owned(),
+                producer_id: producer.id,
+                producer_epoch: producer.epoch,
+                topics: [
+                    jansu_sans_io::add_partitions_to_txn_request::AddPartitionsToTxnTopic::default(
+                    )
+                    .name(topic.to_owned())
+                    .partitions(Some([partition].into())),
+                ]
+                .into(),
+            })
+            .await?;
+
+        let topition = Topition::new(topic, partition);
+        let batch = inflated::Batch::builder()
+            .record(Record::builder().value(Some(Bytes::from(value))))
+            .attributes(BatchAttribute::default().transaction(true).into())
+            .producer_id(producer.id)
+            .producer_epoch(producer.epoch)
+            .base_sequence(0)
+            .build()
+            .and_then(TryInto::try_into)?;
+
+        _ = storage
+            .produce(Some(transaction_id), &topition, batch)
+            .await?;
+
+        Ok(producer)
     }
 
     #[tokio::test]
@@ -401,6 +446,90 @@ mod phase08 {
             pu.last_stable_offset,
             "non-transactional log: last stable offset should equal high watermark"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fetch_read_committed_hides_aborted_transactions() -> Result<(), Error> {
+        let cluster_id = "phase08-fetch-aborted";
+        let node_id = 8;
+        let topic = "phase08_fetch_aborted";
+        let partition = 0;
+        let storage = memory_storage(cluster_id, node_id).await?;
+        common::register_broker(storage.as_ref(), cluster_id, node_id).await?;
+        _ = common::create_topic(storage.as_ref(), topic, 1).await?;
+        let topition = Topition::new(topic, partition);
+        let transaction_id = "phase08-transaction-abort";
+
+        let producer = produce_transactional_value(
+            storage.as_ref(),
+            transaction_id,
+            topic,
+            partition,
+            vec![b't'; 64],
+        )
+        .await?;
+
+        _ = storage
+            .txn_end(transaction_id, producer.id, producer.epoch, false)
+            .await?;
+
+        produce_value(storage.as_ref(), &topition, vec![b'c'; 64]).await?;
+
+        let aborted_ranges = storage.aborted_transaction_ranges(&topition).await?;
+        assert_eq!(1, aborted_ranges.len());
+        assert_eq!(producer.id, aborted_ranges[0].producer_id);
+        assert_eq!(0, aborted_ranges[0].offset_start);
+
+        let fetch_uncommitted = FetchService
+            .serve(
+                Context::with_state(storage.clone()),
+                request(
+                    topic,
+                    partition,
+                    500,
+                    50 * 1024,
+                    IsolationLevel::ReadUncommitted,
+                ),
+            )
+            .await?;
+
+        let fetch_committed = FetchService
+            .serve(
+                Context::with_state(storage),
+                request(
+                    topic,
+                    partition,
+                    500,
+                    50 * 1024,
+                    IsolationLevel::ReadCommitted,
+                ),
+            )
+            .await?;
+
+        assert_eq!(2, record_count(&fetch_uncommitted));
+        assert_eq!(1, record_count(&fetch_committed));
+
+        let committed_partition = &fetch_committed.responses.as_deref().unwrap_or_default()[0]
+            .partitions
+            .as_deref()
+            .unwrap_or_default()[0];
+        let aborted_transactions = committed_partition
+            .aborted_transactions
+            .as_deref()
+            .unwrap_or_default();
+
+        assert_eq!(1, aborted_transactions.len());
+        assert_eq!(producer.id, aborted_transactions[0].producer_id);
+        assert_eq!(0, aborted_transactions[0].first_offset);
+
+        let committed_records = committed_partition
+            .records
+            .as_ref()
+            .expect("committed records");
+        assert_eq!(1, committed_records.batches.len());
+        assert_eq!(2, committed_records.batches[0].base_offset);
 
         Ok(())
     }

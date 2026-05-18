@@ -83,3 +83,9 @@ With **Phase 04**, **Phase 07**, and **Phase 10** marked complete in `MASTER_PLA
 - `ListOffsetsService` now uses `leader_epoch_for_offset` for successful responses, so the response `leader_epoch` reflects the epoch active at the returned offset instead of always reporting the current partition epoch.
 - `jansu-storage/tests/list_offsets.rs::response_frame_round_trips_for_produced_leader_epoch` now asserts both sides of the epoch boundary after producing epoch 0 and epoch 1 batches: `Latest` returns offset `2` with leader epoch `1`, while `Earliest` returns offset `0` with leader epoch `0`.
 - This tightens API key **2** unit proof without changing ApiVersions advertisement; ListOffsets remains unadvertised until read_committed/LSO, truncation/recovery, and broader client/differential proof satisfy the acceptance gate.
+
+## Supplement 2026-05-18 — Fetch control batch visibility proof
+
+- `jansu-storage/tests/fetch.rs::phase08::fetch_read_committed_hides_aborted_transactions` now proves Fetch hides transaction control batches from all isolation levels and still hides aborted transactional records under `ReadCommitted`.
+- The visible committed record in the regression is the later non-transactional batch at offset `2`, which keeps the fetch parity proof aligned with Kafka consumer output.
+- This clarifies the remaining Phase 08 backlog: API 23 advertisement, truncation/recovery, incremental fetch sessions, Java/librdkafka matrix work, seek/timestamp workloads, and ListOffsets/LSO integration details that still need separate proof.

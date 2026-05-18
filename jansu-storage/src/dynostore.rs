@@ -76,11 +76,11 @@ mod metadata;
 mod opticon;
 
 use crate::{
-    BrokerRegistrationRequest, DEFAULT_OFFSET_RETENTION, Error, GroupDetail, LeaderEpochRecord,
-    ListOffsetResponse, METER, MetadataResponse, NamedGroupDetail, OffsetCommitRequest,
-    OffsetFetchRecord, OffsetStage, ProducerIdResponse, Result, ScramCredential, Storage, TopicId,
-    Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, TxnState,
-    UpdateError, Version,
+    AbortedTransactionRange, BrokerRegistrationRequest, DEFAULT_OFFSET_RETENTION, Error,
+    GroupDetail, LeaderEpochRecord, ListOffsetResponse, METER, MetadataResponse, NamedGroupDetail,
+    OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse, Result,
+    ScramCredential, Storage, TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse,
+    TxnOffsetCommitRequest, TxnState, UpdateError, Version,
 };
 
 const APPLICATION_JSON: &str = "application/json";
@@ -120,6 +120,9 @@ struct Meta {
     /// Leader epoch history: topition → sorted list of (epoch, start_offset).
     #[serde(default)]
     leader_epoch_history: BTreeMap<String, Vec<(i32, i64)>>,
+    /// Aborted transactional ranges: topition → sorted list of aborted ranges.
+    #[serde(default)]
+    aborted_transaction_ranges: BTreeMap<String, Vec<AbortedTransactionRange>>,
 }
 
 impl OptiCon<Meta> {
@@ -139,6 +142,19 @@ impl Meta {
             history.sort_unstable();
             history.dedup_by_key(|(epoch, _)| *epoch);
         }
+    }
+
+    fn aborted_transaction_ranges(&self, topition: &Topition) -> Vec<AbortedTransactionRange> {
+        let key = format!("{}:{}", topition.topic(), topition.partition());
+        let mut ranges = self
+            .aborted_transaction_ranges
+            .get(&key)
+            .cloned()
+            .unwrap_or_default();
+
+        ranges.sort_unstable();
+        ranges.dedup();
+        ranges
     }
 
     fn produced(
@@ -1237,6 +1253,17 @@ impl Storage for DynoStore {
         }
 
         Ok(batches)
+    }
+
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        self.meta
+            .with(&self.object_store, |meta| {
+                Ok(meta.aborted_transaction_ranges(topition))
+            })
+            .await
     }
 
     async fn fetch_wait(
@@ -2763,6 +2790,9 @@ impl Storage for DynoStore {
                 })?;
         }
 
+        let aborted_transaction_ranges: Mutex<Vec<(Topition, AbortedTransactionRange)>> =
+            Mutex::new(Vec::new());
+
         let offsets_to_commit = self
             .meta
             .with_mut(&self.object_store, |meta| {
@@ -2824,6 +2854,26 @@ impl Storage for DynoStore {
 
                                 Some(TxnState::PrepareAbort) => {
                                     _ = txn_detail.state.replace(TxnState::Aborted);
+
+                                    for (topic, partitions) in &txn_detail.produces {
+                                        for (partition, offset_range) in partitions {
+                                            let Some(offset_range) = offset_range else {
+                                                continue;
+                                            };
+
+                                            aborted_transaction_ranges
+                                                .lock()
+                                                .expect("aborted_transaction_ranges mutex poisoned")
+                                                .push((
+                                                    Topition::new(topic.to_owned(), *partition),
+                                                    AbortedTransactionRange {
+                                                        producer_id: txn.producer,
+                                                        offset_start: offset_range.offset_start,
+                                                        offset_end: offset_range.offset_end,
+                                                    },
+                                                ));
+                                        }
+                                    }
                                 }
 
                                 otherwise => {
@@ -2865,6 +2915,29 @@ impl Storage for DynoStore {
             .await
             .inspect(|outcome| debug!(?outcome))
             .inspect_err(|err| error!(?err))?;
+
+        if !aborted_transaction_ranges
+            .lock()
+            .expect("aborted_transaction_ranges mutex poisoned")
+            .is_empty()
+        {
+            self.meta
+                .with_mut(&self.object_store, |meta| {
+                    for (topition, range) in aborted_transaction_ranges
+                        .lock()
+                        .expect("aborted_transaction_ranges mutex poisoned")
+                        .drain(..)
+                    {
+                        meta.aborted_transaction_ranges
+                            .entry(format!("{}:{}", topition.topic(), topition.partition()))
+                            .or_default()
+                            .push(range);
+                    }
+
+                    Ok(())
+                })
+                .await?;
+        }
 
         debug!(?offsets_to_commit);
 

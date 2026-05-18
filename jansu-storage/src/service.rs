@@ -101,10 +101,11 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    BrokerRegistrationRequest, Error, GroupDetail, ListOffsetResponse, METER, MetadataResponse,
-    NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord, OffsetStage, ProducerIdResponse,
-    Result, ScramCredential, Storage, TopicId, Topition, TxnAddPartitionsRequest,
-    TxnAddPartitionsResponse, TxnOffsetCommitRequest, UpdateError, Version,
+    AbortedTransactionRange, BrokerRegistrationRequest, Error, GroupDetail, ListOffsetResponse,
+    METER, MetadataResponse, NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord, OffsetStage,
+    ProducerIdResponse, Result, ScramCredential, Storage, TopicId, Topition,
+    TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest, UpdateError,
+    Version,
 };
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -130,6 +131,7 @@ pub enum Request {
         max_bytes: u32,
         isolation: IsolationLevel,
     },
+    AbortedTransactionRanges(Topition),
     OffsetStage(Topition),
     ListOffsets {
         isolation_level: IsolationLevel,
@@ -226,6 +228,7 @@ impl Display for Request {
             Self::DescribeConfig { .. } => f.write_str("DescribeConfig"),
             Self::DescribeGroups { .. } => f.write_str("DescribeGroups"),
             Self::DescribeTopicPartitions { .. } => f.write_str("DescribeTopicPartitions"),
+            Self::AbortedTransactionRanges(_) => f.write_str("AbortedTransactionRanges"),
             Self::Fetch { .. } => f.write_str("Fetch"),
             Self::IncrementalAlterResource(_) => f.write_str("IncrementalAlterResource"),
             Self::InitProducer { .. } => f.write_str("InitProducer"),
@@ -268,6 +271,7 @@ pub enum Response {
     DescribeGroups(Result<Vec<NamedGroupDetail>>),
     DescribeTopicPartitions(Result<Vec<DescribeTopicPartitionsResponseTopic>>),
     Fetch(Result<Vec<deflated::Batch>>),
+    AbortedTransactionRanges(Result<Vec<AbortedTransactionRange>>),
     IncrementalAlterResponse(Result<AlterConfigsResourceResponse>),
     InitProducer(Result<ProducerIdResponse>),
     ListGroups(Result<Vec<ListedGroup>>),
@@ -644,6 +648,28 @@ impl Storage for RequestChannelService {
         .await
         .and_then(|response| {
             if let Response::Fetch(inner) = response {
+                inner.map_err(Into::into)
+            } else {
+                Err(Error::UnexpectedServiceResponse(Box::new(response)).into())
+            }
+        })
+        .map_err(Into::into)
+    }
+
+    #[instrument(skip_all)]
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        let topition = topition.to_owned();
+
+        self.serve(
+            Context::default(),
+            Request::AbortedTransactionRanges(topition),
+        )
+        .await
+        .and_then(|response| {
+            if let Response::AbortedTransactionRanges(inner) = response {
                 inner.map_err(Into::into)
             } else {
                 Err(Error::UnexpectedServiceResponse(Box::new(response)).into())
@@ -1396,6 +1422,9 @@ where
 
                 Ok(Response::Fetch(response))
             }
+            Request::AbortedTransactionRanges(topition) => Ok(Response::AbortedTransactionRanges(
+                self.storage.aborted_transaction_ranges(&topition).await,
+            )),
             Request::OffsetStage(topition) => Ok(Response::OffsetStage(
                 self.storage.offset_stage(&topition).await,
             )),
@@ -1584,6 +1613,7 @@ mod tests {
     #[derive(Clone, Debug, Default)]
     struct BlockingFetchStorage {
         gate: Arc<Notify>,
+        aborted_transaction_ranges: Vec<AbortedTransactionRange>,
     }
 
     #[async_trait]
@@ -1640,6 +1670,13 @@ mod tests {
         ) -> Result<Vec<deflated::Batch>> {
             self.gate.notified().await;
             Ok(vec![])
+        }
+
+        async fn aborted_transaction_ranges(
+            &self,
+            _topition: &Topition,
+        ) -> Result<Vec<AbortedTransactionRange>> {
+            Ok(self.aborted_transaction_ranges.clone())
         }
 
         async fn offset_stage(&self, _topition: &Topition) -> Result<OffsetStage> {
@@ -1859,5 +1896,40 @@ mod tests {
             .expect("join should succeed");
 
         assert!(matches!(result, Err(Error::Cancelled)));
+    }
+
+    #[tokio::test]
+    async fn aborted_transaction_ranges_request_is_forwarded() {
+        let storage = BlockingFetchStorage {
+            gate: Arc::new(Notify::new()),
+            aborted_transaction_ranges: vec![
+                AbortedTransactionRange {
+                    producer_id: 11,
+                    offset_start: 7,
+                    offset_end: 13,
+                },
+                AbortedTransactionRange {
+                    producer_id: 12,
+                    offset_start: 21,
+                    offset_end: 29,
+                },
+            ],
+        };
+        let service = RequestStorageService::new(storage.clone());
+
+        let response = service
+            .serve(
+                Context::default(),
+                Request::AbortedTransactionRanges(Topition::new("topic", 0)),
+            )
+            .await
+            .expect("request should succeed");
+
+        let forwarded = match response {
+            Response::AbortedTransactionRanges(result) => result.expect("storage result"),
+            other => panic!("unexpected response: {other:?}"),
+        };
+
+        assert_eq!(storage.aborted_transaction_ranges, forwarded);
     }
 }

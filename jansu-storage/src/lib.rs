@@ -157,6 +157,7 @@ use jansu_sans_io::{
     describe_topic_partitions_request::{Cursor, TopicRequest},
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
     fetch_request::FetchTopic,
+    fetch_response::AbortedTransaction,
     incremental_alter_configs_request::AlterConfigsResource,
     incremental_alter_configs_response::AlterConfigsResourceResponse,
     join_group_response::JoinGroupResponseMember,
@@ -523,6 +524,24 @@ pub struct LeaderEpochRecord {
     pub start_offset: i64,
 }
 
+/// An aborted transactional offset range for a topic partition.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+)]
+pub struct AbortedTransactionRange {
+    pub producer_id: i64,
+    pub offset_start: i64,
+    pub offset_end: i64,
+}
+
+impl From<&AbortedTransactionRange> for AbortedTransaction {
+    fn from(value: &AbortedTransactionRange) -> Self {
+        AbortedTransaction::default()
+            .producer_id(value.producer_id)
+            .first_offset(value.offset_start)
+    }
+}
+
 impl From<Cursor> for Topition {
     fn from(value: Cursor) -> Self {
         Self {
@@ -820,10 +839,10 @@ impl From<&TopicId> for [u8; 16] {
 
 impl From<&FetchTopic> for TopicId {
     fn from(value: &FetchTopic) -> Self {
-        if let Some(ref id) = value.topic_id {
-            if id != &NULL_TOPIC_ID {
-                return Self::Id(Uuid::from_bytes(*id));
-            }
+        if let Some(ref id) = value.topic_id
+            && id != &NULL_TOPIC_ID
+        {
+            return Self::Id(Uuid::from_bytes(*id));
         }
 
         if let Some(ref name) = value.topic {
@@ -1683,6 +1702,15 @@ pub trait Storage: Debug + Send + Sync + 'static {
         isolation: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>>;
 
+    /// Query aborted transactional offset ranges for a topic partition.
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        let _ = topition;
+        Ok(vec![])
+    }
+
     /// Long-poll fetch: block until at least one record is available at or
     /// after `offset`, or `max_wait` elapses. Returns whatever is available
     /// when the wait ends (which may be an empty `Vec` on timeout).
@@ -1983,6 +2011,13 @@ where
             .await
     }
 
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        self.as_ref().aborted_transaction_ranges(topition).await
+    }
+
     async fn fetch_wait(
         &self,
         topition: &'_ Topition,
@@ -2278,6 +2313,13 @@ where
         self.as_ref()
             .fetch(topition, offset, min_bytes, max_bytes, isolation)
             .await
+    }
+
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        self.as_ref().aborted_transaction_ranges(topition).await
     }
 
     async fn fetch_wait(
@@ -3380,6 +3422,40 @@ impl Storage for StorageContainer {
 
             #[cfg(feature = "turso")]
             Self::Turso(engine) => engine.fetch(topition, offset, min_bytes, max_bytes, isolation),
+        }
+        .await
+        .inspect(|_| {
+            STORAGE_CONTAINER_REQUESTS.add(1, &attributes);
+        })
+        .inspect_err(|_| {
+            STORAGE_CONTAINER_ERRORS.add(1, &attributes);
+        })
+    }
+
+    #[instrument(skip_all)]
+    async fn aborted_transaction_ranges(
+        &self,
+        topition: &Topition,
+    ) -> Result<Vec<AbortedTransactionRange>> {
+        let attributes = [KeyValue::new("method", "aborted_transaction_ranges")];
+
+        match self {
+            #[cfg(feature = "dynostore")]
+            Self::DynoStore(engine) => engine.aborted_transaction_ranges(topition),
+
+            #[cfg(feature = "libsql")]
+            Self::Lite(engine) => engine.aborted_transaction_ranges(topition),
+
+            Self::Null(engine) => engine.aborted_transaction_ranges(topition),
+
+            #[cfg(feature = "postgres")]
+            Self::Postgres(engine) => engine.aborted_transaction_ranges(topition),
+
+            #[cfg(feature = "slatedb")]
+            Self::Slate(engine) => engine.aborted_transaction_ranges(topition),
+
+            #[cfg(feature = "turso")]
+            Self::Turso(engine) => engine.aborted_transaction_ranges(topition),
         }
         .await
         .inspect(|_| {
