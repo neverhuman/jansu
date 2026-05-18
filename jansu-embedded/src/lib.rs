@@ -211,6 +211,24 @@ impl EmbeddedBroker {
         }
     }
 
+    /// Fetch one record at exactly `offset` from `(topic, partition)`.
+    ///
+    /// This is a deterministic hydration helper for callers that already
+    /// persisted a concrete Jansu location. It does not advance any shared
+    /// cursor state.
+    pub async fn fetch_one(
+        &self,
+        topic: &str,
+        partition: i32,
+        offset: i64,
+    ) -> Result<Option<EmbeddedRecord>> {
+        let mut consumer = self.consumer(topic, partition, offset);
+        match consumer.next().await? {
+            Some(record) if record.offset == offset => Ok(Some(record)),
+            _ => Ok(None),
+        }
+    }
+
     /// Borrow the underlying Storage (escape hatch for advanced Kafka API
     /// calls not covered by the embedded surface).
     #[must_use]
