@@ -67,6 +67,7 @@ use opentelemetry::{
 use opticon::OptiCon;
 use rand::{prelude::*, rng};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use tokio::sync::Notify;
 use tracing::{debug, error, instrument, warn};
 use url::Url;
 use uuid::Uuid;
@@ -95,6 +96,12 @@ pub struct DynoStore {
     meta: OptiCon<Meta>,
 
     object_store: Arc<DynObjectStore>,
+
+    /// Per-`Topition` notification handles so `fetch_wait` can block until a
+    /// concurrent `produce` lands new records, rather than busy-polling.
+    /// Notifiers are created lazily on first observe; cleared once the
+    /// engine is dropped along with the rest of the `Arc`-shared state.
+    produce_notify: Arc<Mutex<BTreeMap<Topition, Arc<Notify>>>>,
 }
 
 type Group = String;
@@ -378,6 +385,104 @@ impl DynoStore {
                 Metron::new(object_store, cluster),
                 Duration::from_millis(5_000),
             )),
+            produce_notify: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+
+    /// Get-or-create the produce notifier for a given topic-partition. Cheap
+    /// (one mutex acquire, one `BTreeMap` lookup); the result is shared so
+    /// every waiter receives every `notify_waiters` wake.
+    fn produce_notifier(&self, topition: &Topition) -> Arc<Notify> {
+        self.produce_notify
+            .lock()
+            .expect("produce_notify mutex poisoned")
+            .entry(topition.to_owned())
+            .or_insert_with(|| Arc::new(Notify::new()))
+            .clone()
+    }
+
+    /// Notify-driven long-poll fetch used by `Storage::fetch_wait`. Returns
+    /// as soon as new data lands at or after `offset`, or `max_wait`
+    /// elapses — whichever comes first. Falls back to a single immediate
+    /// `fetch` if `max_wait.is_zero()`.
+    ///
+    /// Implements Kafka's `fetch.max.wait.ms` semantics by subscribing to
+    /// the per-topition `tokio::sync::Notify` *before* the initial fetch
+    /// (so a produce that races between the fetch and the notified wait
+    /// still wakes us), then awaiting either the notification or the
+    /// deadline. On wake we re-fetch and return whatever is available.
+    async fn fetch_wait_notify(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation_level: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        if max_wait.is_zero() {
+            return <Self as Storage>::fetch(
+                self,
+                topition,
+                offset,
+                min_bytes,
+                max_bytes,
+                isolation_level,
+            )
+            .await;
+        }
+
+        let deadline = tokio::time::Instant::now() + max_wait;
+        let notifier = self.produce_notifier(topition);
+
+        loop {
+            // Subscribe to the next notify *before* we sample the log, so a
+            // concurrent produce that lands between the fetch and the await
+            // is still observed (the `Notified` future is armed at the
+            // point we call `notified()`).
+            let notified = notifier.notified();
+            tokio::pin!(notified);
+
+            let batches = <Self as Storage>::fetch(
+                self,
+                topition,
+                offset,
+                min_bytes,
+                max_bytes,
+                isolation_level,
+            )
+            .await?;
+
+            if !batches.is_empty() {
+                return Ok(batches);
+            }
+
+            let now = tokio::time::Instant::now();
+            if now >= deadline {
+                return Ok(batches);
+            }
+
+            let remaining = deadline - now;
+
+            tokio::select! {
+                () = &mut notified => {
+                    // produce woke us — loop and try fetching again.
+                    continue;
+                }
+                () = tokio::time::sleep(remaining) => {
+                    // deadline expired without a produce. Return whatever
+                    // is currently in the log (likely empty).
+                    return <Self as Storage>::fetch(
+                        self,
+                        topition,
+                        offset,
+                        min_bytes,
+                        max_bytes,
+                        isolation_level,
+                    )
+                    .await;
+                }
+            }
         }
     }
 
@@ -843,6 +948,8 @@ impl Storage for DynoStore {
                 }
             }
 
+            // Wake `fetch_wait` waiters on this topition; see `fetch_wait`.
+            self.produce_notifier(topition).notify_waiters();
             Ok(offset)
         } else {
             if deflated.is_idempotent() {
@@ -1037,6 +1144,8 @@ impl Storage for DynoStore {
                 .inspect(|outcome| debug!(?outcome, transaction_id, ?topition))
                 .inspect_err(|error| error!(?error, transaction_id, ?topition))?;
 
+            // Wake `fetch_wait` waiters on this topition; see `fetch_wait`.
+            self.produce_notifier(topition).notify_waiters();
             Ok(offset)
         }
     }
@@ -1128,6 +1237,26 @@ impl Storage for DynoStore {
         }
 
         Ok(batches)
+    }
+
+    async fn fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation_level: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        self.fetch_wait_notify(
+            topition,
+            offset,
+            min_bytes,
+            max_bytes,
+            isolation_level,
+            max_wait,
+        )
+        .await
     }
 
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {

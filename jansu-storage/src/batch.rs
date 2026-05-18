@@ -448,6 +448,20 @@ where
             .await
     }
 
+    async fn fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        self.storage
+            .fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            .await
+    }
+
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
         self.storage.offset_stage(topition).await
     }

@@ -202,6 +202,30 @@ where
             .await
     }
 
+    async fn fetch_wait(
+        &self,
+        topition: &'_ Topition,
+        offset: i64,
+        min_bytes: u32,
+        max_bytes: u32,
+        isolation: IsolationLevel,
+        max_wait: Duration,
+    ) -> Result<Vec<deflated::Batch>> {
+        // Hold a single permit for the whole long-poll window — `fetch_wait`
+        // is logically one client request, even if the inner engine wakes
+        // multiple times via `Notify`.
+        let start = SystemTime::now();
+        let _permit = self.semaphore.acquire().await.inspect(|_| {
+            SEMAPHORE_ACQUIRE_DURATION.record(
+                elapsed_millis(start),
+                &[KeyValue::new("operation", "fetch_wait")],
+            )
+        })?;
+        self.storage
+            .fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            .await
+    }
+
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
         let start = SystemTime::now();
         let _permit = self.semaphore.acquire().await.inspect(|_| {
