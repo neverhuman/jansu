@@ -175,9 +175,13 @@ mod jp_m1 {
         let producer_topition = topition.clone();
         let producer = tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(100)).await;
-            produce_value(producer_storage.as_ref(), &producer_topition, vec![b'b'; 64])
-                .await
-                .expect("produce");
+            produce_value(
+                producer_storage.as_ref(),
+                &producer_topition,
+                vec![b'b'; 64],
+            )
+            .await
+            .expect("produce");
         });
 
         let started = Instant::now();

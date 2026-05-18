@@ -94,8 +94,15 @@ impl Storage for DynoStore {
         isolation_level: IsolationLevel,
         max_wait: Duration,
     ) -> Result<Vec<deflated::Batch>> {
-        self.fetch_wait_inner(topition, offset, min_bytes, max_bytes, isolation_level, max_wait)
-            .await
+        self.fetch_wait_inner(
+            topition,
+            offset,
+            min_bytes,
+            max_bytes,
+            isolation_level,
+            max_wait,
+        )
+        .await
     }
 
     async fn list_offsets(
