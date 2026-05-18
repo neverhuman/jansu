@@ -255,6 +255,7 @@ impl Consumer {
     /// the current offset.
     pub async fn next(&mut self) -> Result<Option<EmbeddedRecord>> {
         if let Some(record) = self.buffer.pop() {
+            self.offset = record.offset + 1;
             return Ok(Some(record));
         }
         let batches = self

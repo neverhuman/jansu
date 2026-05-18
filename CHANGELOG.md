@@ -20,6 +20,13 @@ embedding.
 - Workspace `version` bumped 0.6.0 → 0.6.1 (along with all sibling crate
   version pins under `[workspace.dependencies]`).
 
+### Fixed
+
+- Consumer::next now advances `self.offset` on every pop, not just the
+  post-fetch path — closes the batch-tail redelivery loop flagged by
+  downstream jeryu integration (J-4). Consumers no longer see duplicate
+  records as the buffer drains.
+
 ### Notes for downstream consumers
 
 - `jansu-embedded` is additive; existing `jansu-broker` (TCP) consumers
