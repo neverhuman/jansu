@@ -183,10 +183,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        let resources = match req.resources {
-            Some(resources) => resources,
-            None => Vec::new(),
-        };
+        let resources = req.resources.unwrap_or_default();
 
         for resource in resources {
             responses.push(ctx.state().incremental_alter_resource(resource).await?);

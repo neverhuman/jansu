@@ -90,14 +90,8 @@ where
         ctx: Context<G>,
         req: DescribeConfigsRequest,
     ) -> Result<Self::Response, Self::Error> {
-        let include_synonyms = match req.include_synonyms {
-            Some(include_synonyms) => include_synonyms,
-            None => false,
-        };
-        let resources = match req.resources {
-            Some(resources) => resources,
-            None => Vec::new(),
-        };
+        let include_synonyms = req.include_synonyms.unwrap_or_default();
+        let resources = req.resources.unwrap_or_default();
         let mut results = vec![];
 
         for resource in resources {

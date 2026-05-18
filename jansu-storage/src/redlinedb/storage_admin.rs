@@ -66,7 +66,7 @@ impl Delegate {
             Some(port) => port.into(),
             None => {
                 tracing::warn!(listener = %self.advertised_listener, "missing broker port; using kafka default");
-                9092.into()
+                9092
             }
         };
         let rack = None;

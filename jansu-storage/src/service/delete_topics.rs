@@ -85,10 +85,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        let topics = match req.topics {
-            Some(topics) => topics,
-            None => Vec::new(),
-        };
+        let topics = req.topics.unwrap_or_default();
 
         for topic in topics {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
@@ -101,10 +98,7 @@ where
             );
         }
 
-        let topic_names = match req.topic_names {
-            Some(topic_names) => topic_names,
-            None => Vec::new(),
-        };
+        let topic_names = req.topic_names.unwrap_or_default();
 
         for topic in topic_names {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;

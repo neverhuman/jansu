@@ -62,7 +62,7 @@ impl Engine {
             },
             port: match self.advertised_listener.port() {
                 Some(port) => port.into(),
-                None => 9092.into(),
+                None => 9092,
             },
             rack: broker_registration.rack,
         };
@@ -96,7 +96,7 @@ impl Engine {
             };
             let port = match self.advertised_listener.port() {
                 Some(port) => port.into(),
-                None => 9092.into(),
+                None => 9092,
             };
 
             Ok(vec![

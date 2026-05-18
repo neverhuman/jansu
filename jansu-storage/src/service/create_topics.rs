@@ -99,17 +99,11 @@ where
             ..
         } = req;
 
-        let validate_only = match validate_only {
-            Some(validate_only) => validate_only,
-            None => false,
-        };
+        let validate_only = validate_only.unwrap_or_default();
 
         let mut topics = vec![];
 
-        let requested_topics = match requested_topics {
-            Some(topics) => topics,
-            None => Vec::new(),
-        };
+        let requested_topics = requested_topics.unwrap_or_default();
 
         for mut topic in requested_topics {
             let name = topic.name.clone();

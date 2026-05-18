@@ -39,10 +39,7 @@ where
         ctx: Context<G>,
         req: jansu_sans_io::TxnOffsetCommitRequest,
     ) -> Result<Self::Response, Self::Error> {
-        let topics = match req.topics {
-            Some(topics) => topics,
-            None => Vec::new(),
-        };
+        let topics = req.topics.unwrap_or_default();
 
         let responses = ctx
             .state()
