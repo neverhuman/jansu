@@ -16,10 +16,8 @@ use super::*;
 
 fn row_to_list_offset_response(row: &::redlinedb::Row<'_>) -> Result<ListOffsetResponse> {
     let offset = row.get::<i64>(0).map_err(Error::from).map(Some)?;
-    let timestamp_val = row.get::<Value>(1).map_err(Error::from)?;
-    let timestamp = SystemTime::try_from(&timestamp_val)
-        .map(Some)
-        .map_err(Error::from)?;
+    let millis = row.get::<i64>(1).map_err(Error::from)?;
+    let timestamp = to_system_time(millis).map(Some).map_err(Error::from)?;
     Ok(ListOffsetResponse {
         timestamp,
         offset,
@@ -84,7 +82,7 @@ impl Delegate {
                                 self.cluster.as_str(),
                                 topition.topic(),
                                 topition.partition(),
-                                Value::from(*timestamp),
+                                Value::Integer(to_timestamp(timestamp).map_err(Error::from)?),
                             ),
                         )
                         .map_err(Error::from)

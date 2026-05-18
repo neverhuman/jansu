@@ -149,13 +149,7 @@ impl Delegate {
                         .map_err(Error::from)
                         .map(|a| a.unwrap_or(0))
                         .inspect_err(|err| error!(?err))? as i16,
-                    base_timestamp: {
-                        let v = row.get::<Value>(2).map_err(Error::from)?;
-                        let st = SystemTime::try_from(&v).map_err(Error::from)?;
-                        to_timestamp(&st)
-                            .map_err(Error::from)
-                            .inspect_err(|err| error!(?err))?
-                    },
+                    base_timestamp: row.get::<i64>(2).map_err(Error::from)?,
                     key: row
                         .get::<Option<Vec<u8>>>(3)
                         .map_err(Error::from)
