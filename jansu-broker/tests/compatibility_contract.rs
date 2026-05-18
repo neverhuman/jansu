@@ -457,7 +457,11 @@ fn assert_structured_phase_log(path: &Path) {
 
     let root = repo_root();
     for file in files_touched {
-        let touched = root.join(&file);
+        // Phase log bullets often wrap paths in markdown code-spans
+        // (`tips/phases/...`). Strip surrounding backticks before treating
+        // the bullet as a filesystem path.
+        let cleaned = file.trim().trim_matches('`');
+        let touched = root.join(cleaned);
         assert!(
             touched.exists(),
             "structured phase log {} references missing file {}",
