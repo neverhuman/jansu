@@ -296,7 +296,7 @@ fn section_bullets(contents: &str, heading: &str) -> Vec<String> {
         }
         if in_section {
             if let Some(item) = trimmed.strip_prefix("- ") {
-                bullets.push(item.to_string());
+                bullets.push(item.trim_matches('`').to_string());
             }
         }
     }

@@ -53,6 +53,12 @@ CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-differential \
 cargo test -p jansu-broker --test differential_lab --all-features -- --nocapture
 ```
 
+When the harness auto-starts Kafka, each test gets an isolated Docker Compose
+project, container name, and free localhost port so Rust's default parallel test
+execution does not collide on Docker resources. If an auto-start attempt fails,
+the retry allocates a fresh sandbox. A forced `JANSU_DIFF_KAFKA_PORT` is reused
+only because the caller explicitly requested that fixed port.
+
 ### Use an already-running Kafka broker
 
 ```sh
@@ -92,7 +98,8 @@ Every artifact contains:
 |----------|---------|---------|
 | `JANSU_DIFFERENTIAL` | unset | Set to `1` to enable external differential tests |
 | `JANSU_DIFF_KAFKA_BOOTSTRAP` | auto-start via Docker | Skip Docker; connect to existing Kafka |
-| `JANSU_DIFF_KAFKA_PORT` | `19092` | Port for Docker-managed Kafka |
+| `JANSU_DIFF_KAFKA_PORT` | free localhost port | Optional fixed port for a Docker-managed Kafka instance; use serial test execution when forcing one port |
+| `JANSU_DIFF_KAFKA_CONTAINER` | generated per test | Docker container name for a Docker-managed Kafka instance |
 | `JANSU_DIFF_ARTIFACT_DIR` | `target/differential` | Output directory for JSON artifacts |
 
 ## Completion Rule

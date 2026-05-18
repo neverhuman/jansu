@@ -97,3 +97,40 @@ Align `differential_produce_round_trip_for_advertised_api` with the compatibilit
 ### Residual Risks
 
 - `differential_librdkafka_full_lifecycle` remains ignored placeholder.
+
+---
+
+## Supplement 2026-05-18 — Parallel Docker sandbox retry hardening
+
+### Intent
+
+Keep the Docker-managed Kafka 4.2 differential lab safe under Rust's default
+parallel test execution, including retry behavior after a failed auto-port
+startup.
+
+### Files Touched
+
+- `jansu-broker/tests/differential_lab.rs`
+- `jansu-broker/tests/compatibility_contract.rs`
+- `etc/differential/compose.kafka-4.2.yaml`
+- `docs/compatibility/differential-lab.md`
+- `phase-logs/attempts/04-differential-kafka-lab/20260518-092348-codex.md`
+
+### Outcomes
+
+- Docker-managed Kafka uses a per-test Compose project, container name, and
+  localhost port.
+- Auto-port startup retry now allocates a fresh Compose sandbox instead of
+  reusing the failed project/container/port.
+- Explicit `JANSU_DIFF_KAFKA_PORT` remains a fixed-port escape hatch and is
+  intentionally reused on retry.
+- Produce workloads create the Jansu topic through the broker CreateTopics
+  route before handing the topic to librdkafka, matching Kafka's explicit
+  AdminClient setup and avoiding client-side auto-create timing.
+- The phase-log contract parser now accepts documented file bullets with
+  Markdown code ticks, matching the existing structured log format.
+
+### Residual Risks
+
+- Manually forcing `JANSU_DIFF_KAFKA_PORT` still requires the caller to avoid
+  parallel fixed-port collisions.

@@ -2,7 +2,7 @@
 services:
   kafka42:
     image: apache/kafka:4.2.0
-    container_name: jansu-differential-kafka42
+    container_name: "${JANSU_DIFF_KAFKA_CONTAINER:-jansu-differential-kafka42}"
     ports:
       - "${JANSU_DIFF_KAFKA_PORT:-19092}:9092"
     environment:
