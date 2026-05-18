@@ -515,7 +515,7 @@ mod tests {
                 .build()
                 .and_then(deflated::Batch::try_from)
                 .map(|batch| {
-                    ProduceRequest::default().topic_data(Some(
+                    ProduceRequest::default().acks(-1).topic_data(Some(
                         [TopicProduceData::default()
                             .name(topic.into())
                             .partition_data(Some(

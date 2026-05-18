@@ -502,7 +502,8 @@ impl Delegate {
                 )?;
 
                 if txn.status == TxnState::PrepareCommit {
-                    let expires_at = SystemTime::now().checked_add(DEFAULT_OFFSET_RETENTION);
+                    let now = SystemTime::now();
+                    let expires_at = now.checked_add(DEFAULT_OFFSET_RETENTION);
                     let s = sql("consumer_offset_insert_from_txn.sql").map_err(Error::from)?;
                     let _ = connection
                         .execute(
@@ -512,6 +513,7 @@ impl Delegate {
                                 txn.name.as_str(),
                                 txn.producer_id,
                                 txn.producer_epoch,
+                                Value::from(now),
                                 expires_at.map(Value::from),
                             ),
                         )

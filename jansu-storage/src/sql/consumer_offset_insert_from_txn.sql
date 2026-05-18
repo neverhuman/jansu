@@ -28,9 +28,9 @@ cg.id,
 tp.id,
 txn_oc_tp.committed_offset,
 txn_oc_tp.leader_epoch,
-txn_oc_tp.created_at,
+$5,
 txn_oc_tp.metadata,
-$5
+$6
 
 from
 
