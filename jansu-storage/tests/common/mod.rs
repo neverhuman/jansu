@@ -58,6 +58,7 @@ impl From<ParseError> for Error {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn init_tracing() -> Result<DefaultGuard, Error> {
     use std::{fs::File, sync::Arc, thread};
 
