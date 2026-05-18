@@ -177,7 +177,8 @@ impl Delegate {
                         .get::<Option<i32>>(7)
                         .map_err(Error::from)
                         .map(|p| p.unwrap_or(-1))
-                        .inspect_err(|err| error!(?err))? as i16,
+                        .inspect_err(|err| error!(?err))?
+                        as i16,
                 });
             }
             out

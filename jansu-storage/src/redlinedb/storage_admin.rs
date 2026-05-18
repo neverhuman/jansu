@@ -37,7 +37,8 @@ impl Delegate {
         let mut pc = self.connection().await?;
 
         let s = sql("register_broker.sql").map_err(Error::from)?;
-        let _ = pc.execute(&s, (broker_registration.cluster_id.as_str(),))
+        let _ = pc
+            .execute(&s, (broker_registration.cluster_id.as_str(),))
             .map_err(Error::from)?;
 
         Ok(()).inspect(|_| {
@@ -138,12 +139,14 @@ impl Delegate {
             let params = (self.cluster.as_str(), topic.name.as_str(), partition);
 
             let s = sql("topition_insert.sql").map_err(Error::from)?;
-            let _ = pc.execute(&s, params)
+            let _ = pc
+                .execute(&s, params)
                 .inspect(|topition| debug!(?topition))
                 .map_err(Error::from)?;
 
             let s = sql("watermark_insert.sql").map_err(Error::from)?;
-            let _ = pc.execute(&s, params)
+            let _ = pc
+                .execute(&s, params)
                 .inspect(|watermark| debug!(?watermark))
                 .map_err(Error::from)?;
         }
@@ -160,7 +163,8 @@ impl Delegate {
                 );
 
                 let s = sql("topic_configuration_upsert.sql").map_err(Error::from)?;
-                let _ = pc.execute(&s, params)
+                let _ = pc
+                    .execute(&s, params)
                     .inspect_err(|err| error!(?err, ?config))
                     .inspect(|id| debug!(?id, ?config))
                     .map_err(Error::from)?;
@@ -171,12 +175,13 @@ impl Delegate {
 
         for partition in 0..topic.num_partitions {
             let s = sql("leader_epoch_history_insert.sql").map_err(Error::from)?;
-            let _ = pc.execute(
-                &s,
-                (self.cluster.as_str(), topic.name.as_str(), partition, 0, 0),
-            )
-            .inspect_err(|err| error!(?err, ?topic, ?partition))
-            .map_err(Error::from)?;
+            let _ = pc
+                .execute(
+                    &s,
+                    (self.cluster.as_str(), topic.name.as_str(), partition, 0, 0),
+                )
+                .inspect_err(|err| error!(?err, ?topic, ?partition))
+                .map_err(Error::from)?;
         }
 
         Ok(uuid).inspect(|_| {
@@ -238,13 +243,18 @@ impl Delegate {
                 };
 
                 let s = sql("record_delete_by_offset.sql").map_err(Error::from)?;
-                let _ = pc.execute(&s, (self.cluster.as_str(), topic_name, partition_index, offset))
+                let _ = pc
+                    .execute(
+                        &s,
+                        (self.cluster.as_str(), topic_name, partition_index, offset),
+                    )
                     .inspect_err(|err| error!(?err))
                     .map_err(Error::from)?;
 
                 let s = sql("redlinedb/watermark_update_low_by_topition_id.sql")
                     .map_err(Error::from)?;
-                let _ = pc.execute(&s, (topition_id, offset))
+                let _ = pc
+                    .execute(&s, (topition_id, offset))
                     .inspect_err(|err| error!(?err))
                     .map_err(Error::from)?;
 
@@ -426,8 +436,8 @@ impl Delegate {
                             let mut c = self.connection().await?;
 
                             let current_value = {
-                                let s = sql("topic_configuration_select.sql")
-                                    .map_err(Error::from)?;
+                                let s =
+                                    sql("topic_configuration_select.sql").map_err(Error::from)?;
                                 let mut rows = c
                                     .query(
                                         &s,
@@ -439,13 +449,12 @@ impl Delegate {
                                     )
                                     .map_err(Error::from)?;
                                 match rows.step().map_err(Error::from)? {
-                                    Step::Row(row) => {
-                                        row.get::<Value>(0)
-                                            .map_err(Error::from)?
-                                            .as_text()
-                                            .ok()
-                                            .map(|s| s.to_string())
-                                    }
+                                    Step::Row(row) => row
+                                        .get::<Value>(0)
+                                        .map_err(Error::from)?
+                                        .as_text()
+                                        .ok()
+                                        .map(|s| s.to_string()),
                                     Step::Done => None,
                                 }
                             };
@@ -464,8 +473,8 @@ impl Delegate {
                                 }
                                 let new_str = list.join(",");
 
-                                let s = sql("topic_configuration_upsert.sql")
-                                    .map_err(Error::from)?;
+                                let s =
+                                    sql("topic_configuration_upsert.sql").map_err(Error::from)?;
                                 if c.execute(
                                     &s,
                                     (
@@ -488,8 +497,8 @@ impl Delegate {
                             let mut c = self.connection().await?;
 
                             let current_value = {
-                                let s = sql("topic_configuration_select.sql")
-                                    .map_err(Error::from)?;
+                                let s =
+                                    sql("topic_configuration_select.sql").map_err(Error::from)?;
                                 let mut rows = c
                                     .query(
                                         &s,
@@ -501,13 +510,12 @@ impl Delegate {
                                     )
                                     .map_err(Error::from)?;
                                 match rows.step().map_err(Error::from)? {
-                                    Step::Row(row) => {
-                                        row.get::<Value>(0)
-                                            .map_err(Error::from)?
-                                            .as_text()
-                                            .ok()
-                                            .map(|s| s.to_string())
-                                    }
+                                    Step::Row(row) => row
+                                        .get::<Value>(0)
+                                        .map_err(Error::from)?
+                                        .as_text()
+                                        .ok()
+                                        .map(|s| s.to_string()),
                                     Step::Done => None,
                                 }
                             };

@@ -97,7 +97,9 @@ impl Delegate {
         let mut pc = self.connection().await?;
         let s = sql("redlinedb/policy_compact_topitions.sql").map_err(Error::from)?;
 
-        let mut rows = pc.query(&s, (self.cluster.as_str(),)).map_err(Error::from)?;
+        let mut rows = pc
+            .query(&s, (self.cluster.as_str(),))
+            .map_err(Error::from)?;
 
         let mut topitions = BTreeSet::new();
 
@@ -183,9 +185,7 @@ impl Delegate {
                         db.backup_physical_to_path(staging_clone, PhysicalBackupOptions::default())
                     })
                     .await
-                    .map_err(|e| {
-                        RedlineError::new(RedlineErrorCode::Internal, e.to_string())
-                    })
+                    .map_err(|e| RedlineError::new(RedlineErrorCode::Internal, e.to_string()))
                     .map_err(Error::from)?
                     .map_err(Error::from)?;
 
@@ -208,7 +208,9 @@ impl Delegate {
         let candidates: Vec<(i64, i64, i64, i64)> = {
             let mut pc = self.connection().await?;
             let s = sql("redlinedb/policy_delete_candidates.sql").map_err(Error::from)?;
-            let mut rows = pc.query(&s, (self.cluster.as_str(),)).map_err(Error::from)?;
+            let mut rows = pc
+                .query(&s, (self.cluster.as_str(),))
+                .map_err(Error::from)?;
             let mut out = vec![];
             while let Step::Row(row) = rows.step().map_err(Error::from)? {
                 let topition = row.get::<i64>(0).map_err(Error::from)?;
@@ -288,15 +290,16 @@ impl Delegate {
         let mut c = self.connection().await.inspect_err(|err| error!(?err))?;
 
         let s = sql("virtual_topic_upsert.sql").map_err(Error::from)?;
-        let mut rows = c.query(
-            &s,
-            (self.cluster.as_str(), topic, key, uuid.to_string()),
-        ).map_err(Error::from)?;
+        let mut rows = c
+            .query(&s, (self.cluster.as_str(), topic, key, uuid.to_string()))
+            .map_err(Error::from)?;
 
         match rows.step().map_err(Error::from)? {
             Step::Row(row) => {
                 let str_val = row.get::<String>(0).map_err(Error::from)?;
-                Uuid::parse_str(&str_val).map_err(Into::into).inspect(|vt| debug!(%vt))
+                Uuid::parse_str(&str_val)
+                    .map_err(Into::into)
+                    .inspect(|vt| debug!(%vt))
             }
             Step::Done => Err(Error::Api(ErrorCode::UnknownTopicOrPartition)),
         }

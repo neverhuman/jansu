@@ -22,7 +22,10 @@ fn query_topic_row(
     params: impl ::redlinedb::Params,
 ) -> Result<Option<TopicRowData>> {
     let s = sql(key).map_err(Error::from)?;
-    let mut rows = c.query(&s, params).map_err(Error::from).inspect_err(|err| error!(?err))?;
+    let mut rows = c
+        .query(&s, params)
+        .map_err(Error::from)
+        .inspect_err(|err| error!(?err))?;
     match rows.step().map_err(Error::from)? {
         Step::Row(row) => {
             let uuid_str = row.get::<String>(0).map_err(Error::from)?;
@@ -30,7 +33,13 @@ fn query_topic_row(
             let is_internal = row.get::<bool>(2).map_err(Error::from)?;
             let partitions = row.get::<i32>(3).map_err(Error::from)?;
             let replication_factor = row.get::<i32>(4).map_err(Error::from)?;
-            Ok(Some((uuid_str, name, is_internal, partitions, replication_factor)))
+            Ok(Some((
+                uuid_str,
+                name,
+                is_internal,
+                partitions,
+                replication_factor,
+            )))
         }
         Step::Done => Ok(None),
     }
@@ -95,9 +104,20 @@ impl Delegate {
                         "topic_select_name.sql",
                         (self.cluster.as_str(), name.as_str()),
                     ) {
-                        Ok(Some((uuid_str, topic_name, is_internal, partitions, replication_factor))) => {
-                            build_topic_response(self.node, &uuid_str, topic_name, is_internal, partitions, replication_factor)?
-                        }
+                        Ok(Some((
+                            uuid_str,
+                            topic_name,
+                            is_internal,
+                            partitions,
+                            replication_factor,
+                        ))) => build_topic_response(
+                            self.node,
+                            &uuid_str,
+                            topic_name,
+                            is_internal,
+                            partitions,
+                            replication_factor,
+                        )?,
                         Ok(None) => DescribeTopicPartitionsResponseTopic::default()
                             .error_code(ErrorCode::UnknownTopicOrPartition.into())
                             .name(Some(name.into()))
@@ -124,9 +144,20 @@ impl Delegate {
                         "redlinedb/topic_select_uuid.sql",
                         (self.cluster.as_str(), id.to_string().as_str()),
                     ) {
-                        Ok(Some((uuid_str, topic_name, is_internal, partitions, replication_factor))) => {
-                            build_topic_response(self.node, &uuid_str, topic_name, is_internal, partitions, replication_factor)?
-                        }
+                        Ok(Some((
+                            uuid_str,
+                            topic_name,
+                            is_internal,
+                            partitions,
+                            replication_factor,
+                        ))) => build_topic_response(
+                            self.node,
+                            &uuid_str,
+                            topic_name,
+                            is_internal,
+                            partitions,
+                            replication_factor,
+                        )?,
                         Ok(None) | Err(_) => DescribeTopicPartitionsResponseTopic::default()
                             .error_code(ErrorCode::UnknownTopicOrPartition.into())
                             .name(None)
@@ -175,11 +206,10 @@ impl Delegate {
                 };
 
                 if let Some(detail_str) = detail_str {
-                    let current =
-                        serde_json::from_str::<GroupDetail>(detail_str.as_str())
-                            .map_err(Error::from)
-                            .inspect(|current| debug!(?current))
-                            .inspect_err(|err| error!(?err, group_id))?;
+                    let current = serde_json::from_str::<GroupDetail>(detail_str.as_str())
+                        .map_err(Error::from)
+                        .inspect(|current| debug!(?current))
+                        .inspect_err(|err| error!(?err, group_id))?;
                     results.push(NamedGroupDetail::found(group_id.into(), current));
                 } else {
                     results.push(NamedGroupDetail::found(

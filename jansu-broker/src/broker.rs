@@ -421,7 +421,10 @@ where
             Some(ls)
         };
 
-        let _acceptor = self.tls_server_config.as_ref().map(|cfg| TlsAcceptor::from(Arc::clone(cfg)));
+        let _acceptor = self
+            .tls_server_config
+            .as_ref()
+            .map(|cfg| TlsAcceptor::from(Arc::clone(cfg)));
 
         let mut connections = 0;
 

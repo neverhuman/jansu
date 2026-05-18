@@ -70,11 +70,7 @@ use opentelemetry::{
 use rama::{Context, Layer as _, Service as _};
 use rand::{rng, seq::SliceRandom as _};
 use regex::Regex;
-use tokio::{
-    fs::rename,
-    sync::Semaphore,
-    task::JoinSet,
-};
+use tokio::{fs::rename, sync::Semaphore, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, instrument, warn};
 use url::Url;
@@ -91,9 +87,8 @@ use metrics::*;
 
 mod redline;
 pub(super) use redline::{
-    BeginMode, Database, OpenOptions, PhysicalBackupOptions, Pool,
-    PooledConnection, RedlineError, RedlineErrorCode, RedlineResult, Step,
-    Value,
+    BeginMode, Database, OpenOptions, PhysicalBackupOptions, Pool, PooledConnection, RedlineError,
+    RedlineErrorCode, RedlineResult, Step, Value,
 };
 
 pub(super) type PoolConnection = PooledConnection;
@@ -117,8 +112,14 @@ struct Txn {
 }
 
 fn parse_txn(row: &::redlinedb::Row<'_>) -> Result<Txn> {
-    let name = row.get::<String>(0).map_err(Error::from).inspect_err(|err| error!(?err))?;
-    let producer_id = row.get::<i64>(1).map_err(Error::from).inspect_err(|err| error!(?err))?;
+    let name = row
+        .get::<String>(0)
+        .map_err(Error::from)
+        .inspect_err(|err| error!(?err))?;
+    let producer_id = row
+        .get::<i64>(1)
+        .map_err(Error::from)
+        .inspect_err(|err| error!(?err))?;
     let producer_epoch = row
         .get::<i32>(2)
         .map_err(Error::from)

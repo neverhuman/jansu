@@ -232,4 +232,3 @@ async fn slatedb_offset_commit_maintain_clears_expired_records() -> Result<(), E
 
     offset_retention_cleanup_round_trip(storage, &cluster_id, node_id).await
 }
-

@@ -744,11 +744,6 @@ tool-adoption-evidence: proofbind-evidence proofmark-rust-evidence ci-bad-behavi
 # <<< ws-i:tool-adoption
 
 # >>> ws-j:fast-lanes
-# build acceleration markers found
-# targeted test/build commands found
-# CI cache hint found
-# explicit cache marker plus narrow per-package target found
-export RUSTC_WRAPPER := "sccache"
 fast-unit:
     cargo nextest run --locked --lib --workspace --no-fail-fast --exclude fuzz
 

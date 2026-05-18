@@ -13,8 +13,8 @@ contract artefact.
 
 ## Launch Cadence
 
-Jansu launchs on a weekly cadence by default, pushed from `main` on
-Wednesdays. Out-of-band launchs are permitted for security advisories
+Jansu launches on a weekly cadence by default, pushed from `main` on
+Wednesdays. Out-of-band launches are permitted for security advisories
 and for incident remediation; they follow the same gate, with the
 quarterly review reconciliation skipped if it would block a critical
 fix.

@@ -71,14 +71,12 @@ impl Delegate {
                                 Ok(Step::Row(row)) => {
                                     let error_code = ErrorCode::None.into();
 
-                                    let topic_id = vtid.or(
-                                        Uuid::parse_str(
-                                            row.get::<String>(0).map_err(Error::from)?.as_str(),
-                                        )
-                                        .map_err(Error::from)
-                                        .map(|uuid| uuid.into_bytes())
-                                        .map(Some)?,
-                                    );
+                                    let topic_id = vtid.or(Uuid::parse_str(
+                                        row.get::<String>(0).map_err(Error::from)?.as_str(),
+                                    )
+                                    .map_err(Error::from)
+                                    .map(|uuid| uuid.into_bytes())
+                                    .map(Some)?);
 
                                     let is_internal =
                                         row.get::<bool>(2).map_err(Error::from).map(Some)?;
@@ -266,12 +264,11 @@ impl Delegate {
 
                 while let Step::Row(row) = rows.step().map_err(Error::from)? {
                     let error_code = ErrorCode::None.into();
-                    let topic_id = Uuid::parse_str(
-                        row.get::<String>(0).map_err(Error::from)?.as_str(),
-                    )
-                    .map_err(Error::from)
-                    .map(|uuid| uuid.into_bytes())
-                    .map(Some)?;
+                    let topic_id =
+                        Uuid::parse_str(row.get::<String>(0).map_err(Error::from)?.as_str())
+                            .map_err(Error::from)
+                            .map(|uuid| uuid.into_bytes())
+                            .map(Some)?;
                     let name = row.get::<String>(1).map_err(Error::from).map(Some)?;
                     let is_internal = row.get::<bool>(2).map_err(Error::from).map(Some)?;
                     let partitions = row.get::<i32>(3).map_err(Error::from)?;

@@ -52,8 +52,7 @@ pub(crate) fn encode_octets(bytes: &Option<Bytes>) -> Result<Bytes> {
     match bytes {
         None => VarInt::from(-1).encode(),
         Some(data) => {
-            let mut encoded =
-                octets_size_in_bytes(bytes).map(BytesMut::with_capacity)?;
+            let mut encoded = octets_size_in_bytes(bytes).map(BytesMut::with_capacity)?;
 
             let length = VarInt::try_from(data.len())?;
             encoded.put(length.encode()?);
@@ -286,8 +285,7 @@ pub(crate) fn encode_varint_sequence<T>(items: &[T]) -> Result<Bytes>
 where
     T: Encode + ByteSize,
 {
-    let mut encoded =
-        varint_sequence_size_in_bytes(items).map(BytesMut::with_capacity)?;
+    let mut encoded = varint_sequence_size_in_bytes(items).map(BytesMut::with_capacity)?;
 
     let length = VarInt::try_from(items.len())?;
     encoded.put(length.encode()?);
@@ -390,9 +388,9 @@ where
                     None => return Err(de::Error::custom("length")),
                 };
                 debug!("length: {length}");
-                let capacity = length.try_into().map_err(|e| {
-                    de::Error::custom(format!("length: {length}, caused: {e:?}"))
-                })?;
+                let capacity = length
+                    .try_into()
+                    .map_err(|e| de::Error::custom(format!("length: {length}, caused: {e:?}")))?;
                 (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
                     match seq.next_element::<T>()? {
                         Some(t) => {
@@ -492,9 +490,9 @@ impl<T> Sequence<T> {
                     None => return Err(de::Error::custom("length")),
                 };
                 debug!("length: {length}");
-                let capacity = length.try_into().map_err(|e| {
-                    de::Error::custom(format!("length: {length}, caused: {e:?}"))
-                })?;
+                let capacity = length
+                    .try_into()
+                    .map_err(|e| de::Error::custom(format!("length: {length}, caused: {e:?}")))?;
                 (0..length).try_fold(Vec::with_capacity(capacity), |mut acc, _| {
                     match seq.next_element::<T>()? {
                         Some(t) => {

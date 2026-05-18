@@ -347,11 +347,7 @@ impl Builder<i32, String, Url, Url> {
             .map(|storage| Box::new(StorageContainer::Null(storage)) as Box<dyn Storage>)
             .map(Arc::new),
 
-            #[cfg(not(any(
-                feature = "dynostore",
-                feature = "redlinedb",
-                feature = "slatedb",
-            )))]
+            #[cfg(not(any(feature = "dynostore", feature = "redlinedb", feature = "slatedb",)))]
             _storage => Ok(null::Engine::new(
                 self.cluster_id,
                 self.node_id,
@@ -360,11 +356,7 @@ impl Builder<i32, String, Url, Url> {
             .map(|storage| Box::new(StorageContainer::Null(storage)) as Box<dyn Storage>)
             .map(Arc::new),
 
-            #[cfg(any(
-                feature = "dynostore",
-                feature = "redlinedb",
-                feature = "slatedb",
-            ))]
+            #[cfg(any(feature = "dynostore", feature = "redlinedb", feature = "slatedb",))]
             _unsupported => Err(Error::UnsupportedStorageUrl(self.storage.clone())),
         }?;
 

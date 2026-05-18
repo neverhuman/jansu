@@ -101,10 +101,7 @@ impl Delegate {
             let topition_exists = {
                 let s = sql("topition_select.sql").map_err(Error::from)?;
                 let mut rows = c
-                    .query(
-                        &s,
-                        (self.cluster.as_str(), base, topition.partition()),
-                    )
+                    .query(&s, (self.cluster.as_str(), base, topition.partition()))
                     .map_err(Error::from)
                     .inspect_err(|err| error!(?err))?;
                 matches!(rows.step().map_err(Error::from)?, Step::Row(_))
@@ -155,7 +152,10 @@ impl Delegate {
             }
         }
 
-        let _ = c.commit().map_err(Error::from).inspect_err(|err| error!(?err))?;
+        let _ = c
+            .commit()
+            .map_err(Error::from)
+            .inspect_err(|err| error!(?err))?;
 
         Ok(responses).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
@@ -240,12 +240,7 @@ impl Delegate {
             let mut rows = c
                 .query(
                     &s,
-                    (
-                        self.cluster.as_str(),
-                        group_id,
-                        base,
-                        topic.partition(),
-                    ),
+                    (self.cluster.as_str(), group_id, base, topic.partition()),
                 )
                 .map_err(Error::from)
                 .inspect_err(|err| {
@@ -265,7 +260,8 @@ impl Delegate {
                     let commit_timestamp =
                         value_to_system_time(row.get::<Value>(2).map_err(Error::from)?)?;
                     let metadata = row.get::<Option<String>>(3)?;
-                    let expires_at = value_to_system_time(row.get::<Value>(4).map_err(Error::from)?)?;
+                    let expires_at =
+                        value_to_system_time(row.get::<Value>(4).map_err(Error::from)?)?;
 
                     let record = OffsetFetchRecord::from_parts(
                         offset,

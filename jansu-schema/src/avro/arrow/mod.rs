@@ -502,8 +502,7 @@ impl AsArrow for Schema {
                                     (
                                         "timestamp",
                                         Value::Long(
-                                            (batch.base_timestamp + record.timestamp_delta)
-                                                * 1_000,
+                                            (batch.base_timestamp + record.timestamp_delta) * 1_000,
                                         ),
                                     ),
                                     ("year", Value::Int(0)),
@@ -525,10 +524,7 @@ impl AsArrow for Schema {
                                             "month",
                                             Value::Int(date_time.date_naive().month() as i32),
                                         ),
-                                        (
-                                            "day",
-                                            Value::Int(date_time.date_naive().day() as i32),
-                                        ),
+                                        ("day", Value::Int(date_time.date_naive().day() as i32)),
                                     ]
                                 },
                             ),

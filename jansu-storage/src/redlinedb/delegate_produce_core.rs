@@ -38,7 +38,10 @@ impl Delegate {
         let ds = sql(delete_sql).map_err(Error::from)?;
         let mut deleted = 0_usize;
         for id in ids {
-            deleted += connection.execute(&ds, (id,)).map_err(Error::from)?.rows_affected as usize;
+            deleted += connection
+                .execute(&ds, (id,))
+                .map_err(Error::from)?
+                .rows_affected as usize;
         }
 
         Ok(deleted)
@@ -54,15 +57,17 @@ impl Delegate {
     ) -> Result<usize> {
         let ids: Vec<i64> = {
             let s = sql("redlinedb/txn_status_select_ids.sql").map_err(Error::from)?;
-            let mut rows = connection.query(
-                &s,
-                (
-                    self.cluster.as_str(),
-                    transaction_id,
-                    producer_id,
-                    producer_epoch,
-                ),
-            ).map_err(Error::from)?;
+            let mut rows = connection
+                .query(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        transaction_id,
+                        producer_id,
+                        producer_epoch,
+                    ),
+                )
+                .map_err(Error::from)?;
             let mut ids = vec![];
             while let Step::Row(row) = rows.step().map_err(Error::from)? {
                 ids.push(row.get::<i64>(0).map_err(Error::from)?);
@@ -275,14 +280,17 @@ impl Delegate {
 
         let topition_id = {
             let tid_sql = sql("topition_select_id.sql").map_err(Error::from)?;
-            let mut tid_rows = connection.query(
-                &tid_sql,
-                (self.cluster.as_str(), topic, partition),
-            ).map_err(Error::from).inspect_err(|err| error!(?err, ?topic, ?partition))?;
+            let mut tid_rows = connection
+                .query(&tid_sql, (self.cluster.as_str(), topic, partition))
+                .map_err(Error::from)
+                .inspect_err(|err| error!(?err, ?topic, ?partition))?;
             let Step::Row(tid_row) = tid_rows.step().map_err(Error::from)? else {
                 return Err(Error::Api(ErrorCode::UnknownTopicOrPartition));
             };
-            tid_row.get::<i64>(0).map_err(Error::from).inspect_err(|err| error!(?err, ?topic, ?partition))?
+            tid_row
+                .get::<i64>(0)
+                .map_err(Error::from)
+                .inspect_err(|err| error!(?err, ?topic, ?partition))?
         }; // tid_rows and tid_row dropped here, before any .await
 
         let wm_sql = sql("redlinedb/watermark_update_by_topition_id.sql").map_err(Error::from)?;
@@ -422,7 +430,8 @@ impl Delegate {
                 drop(row);
                 drop(rows2);
 
-                let s3 = sql("redlinedb/txn_produce_offset_select_overlapping_txn.sql").map_err(Error::from)?;
+                let s3 = sql("redlinedb/txn_produce_offset_select_overlapping_txn.sql")
+                    .map_err(Error::from)?;
                 let mut rows3 = connection
                     .query(
                         &s3,
@@ -559,19 +568,20 @@ impl Delegate {
                 String::from(TxnState::PrepareAbort)
             };
 
-            let _ = self.update_txn_status(
-                connection,
-                transaction_id,
-                producer_id,
-                producer_epoch,
-                outcome.as_str(),
-            )
-            .inspect(|n| {
-                debug!(
-                    cluster = self.cluster,
-                    transaction_id, producer_id, producer_epoch, outcome, n
+            let _ = self
+                .update_txn_status(
+                    connection,
+                    transaction_id,
+                    producer_id,
+                    producer_epoch,
+                    outcome.as_str(),
                 )
-            })?;
+                .inspect(|n| {
+                    debug!(
+                        cluster = self.cluster,
+                        transaction_id, producer_id, producer_epoch, outcome, n
+                    )
+                })?;
         }
 
         Ok(ErrorCode::None)

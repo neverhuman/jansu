@@ -26,10 +26,7 @@ use jansu_sans_io::{
     produce_request::{PartitionProduceData, TopicProduceData},
     record::{Record, deflated, inflated},
 };
-use opentelemetry::{
-    KeyValue,
-    metrics::Counter,
-};
+use opentelemetry::{KeyValue, metrics::Counter};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, instrument};
 
@@ -133,15 +130,12 @@ impl Producer {
         if let Some(ref rate_limiter) = self.rate_limiter {
             let rate_limit_start = SystemTime::now();
 
-            let cells = self
-                .throughput
-                .and(
-                    frame
-                        .size_in_bytes()
-                        .ok()
-                        .and_then(|bytes| NonZeroU32::new(u32::try_from(bytes).unwrap_or(u32::MAX))),
-                )
-                .unwrap_or(self.batch_size);
+            let cells =
+                self.throughput
+                    .and(frame.size_in_bytes().ok().and_then(|bytes| {
+                        NonZeroU32::new(u32::try_from(bytes).unwrap_or(u32::MAX))
+                    }))
+                    .unwrap_or(self.batch_size);
 
             tokio::select! {
                 cancelled = self.token.cancelled() => {

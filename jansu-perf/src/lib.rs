@@ -32,10 +32,7 @@ use jansu_sans_io::ErrorCode;
 use nonzero_ext::nonzero;
 use opentelemetry::{InstrumentationScope, global, metrics::Meter};
 use opentelemetry_otlp::ExporterBuildError;
-use opentelemetry_sdk::{
-    error::OTelSdkError,
-    metrics::SdkMeterProvider,
-};
+use opentelemetry_sdk::{error::OTelSdkError, metrics::SdkMeterProvider};
 use opentelemetry_semantic_conventions::SCHEMA_URL;
 use tokio::{
     signal::unix::{SignalKind, signal},

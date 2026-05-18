@@ -69,9 +69,7 @@ impl Delegate {
                 .map_err(Error::from)
                 .inspect_err(|err| error!(?err))?;
             match rows.step().map_err(Error::from)? {
-                Step::Row(row) => {
-                    Some(row.get::<String>(2).map_err(Error::from)?)
-                }
+                Step::Row(row) => Some(row.get::<String>(2).map_err(Error::from)?),
                 Step::Done => None,
             }
         };

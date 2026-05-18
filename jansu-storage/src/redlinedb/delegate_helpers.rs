@@ -35,14 +35,16 @@ impl Delegate {
     ) -> Result<()> {
         let topition_exists = {
             let s = sql("topition_select_id.sql").map_err(Error::from)?;
-            let mut rows = connection.query(
-                &s,
-                (
-                    self.cluster.as_str(),
-                    topition.topic(),
-                    topition.partition(),
-                ),
-            ).map_err(Error::from)?;
+            let mut rows = connection
+                .query(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        topition.topic(),
+                        topition.partition(),
+                    ),
+                )
+                .map_err(Error::from)?;
             matches!(rows.step().map_err(Error::from)?, Step::Row(_))
         };
 
@@ -52,26 +54,27 @@ impl Delegate {
 
         let topic_exists = {
             let s = sql("topic_select_name.sql").map_err(Error::from)?;
-            let mut rows = connection.query(
-                &s,
-                (self.cluster.as_str(), topition.topic()),
-            ).map_err(Error::from)?;
+            let mut rows = connection
+                .query(&s, (self.cluster.as_str(), topition.topic()))
+                .map_err(Error::from)?;
             matches!(rows.step().map_err(Error::from)?, Step::Row(_))
         };
 
         if !topic_exists {
             let partitions = topition.partition() + 1;
             let s = sql("topic_insert.sql").map_err(Error::from)?;
-            let _ = connection.execute(
-                &s,
-                (
-                    self.cluster.as_str(),
-                    topition.topic(),
-                    Uuid::new_v4().to_string(),
-                    partitions,
-                    1_i32,
-                ),
-            ).map_err(Error::from)?;
+            let _ = connection
+                .execute(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        topition.topic(),
+                        Uuid::new_v4().to_string(),
+                        partitions,
+                        1_i32,
+                    ),
+                )
+                .map_err(Error::from)?;
         }
 
         for partition in 0..=topition.partition() {
@@ -89,10 +92,12 @@ impl Delegate {
                 let s = sql("watermark_insert.sql").map_err(Error::from)?;
                 let _ = connection.execute(&s, params).map_err(Error::from)?;
                 let s = sql("leader_epoch_history_insert.sql").map_err(Error::from)?;
-                let _ = connection.execute(
-                    &s,
-                    (self.cluster.as_str(), topition.topic(), partition, 0, 0),
-                ).map_err(Error::from)?;
+                let _ = connection
+                    .execute(
+                        &s,
+                        (self.cluster.as_str(), topition.topic(), partition, 0, 0),
+                    )
+                    .map_err(Error::from)?;
             }
         }
 
@@ -108,12 +113,15 @@ impl Delegate {
         connection: &mut PoolConnection,
     ) -> Result<()> {
         let s = sql("producer_epoch_current_for_producer.sql").map_err(Error::from)?;
-        let mut rows = connection.query(
-            &s,
-            (self.cluster.as_str(), deflated.producer_id),
-        ).map_err(Error::from)?;
+        let mut rows = connection
+            .query(&s, (self.cluster.as_str(), deflated.producer_id))
+            .map_err(Error::from)?;
 
-        match rows.step().map_err(Error::from).inspect_err(|err| error!(?err))? {
+        match rows
+            .step()
+            .map_err(Error::from)
+            .inspect_err(|err| error!(?err))?
+        {
             Step::Row(row) => {
                 let current_epoch = row
                     .get::<i32>(0)
@@ -124,30 +132,36 @@ impl Delegate {
                 drop(rows);
 
                 let s = sql("producer_select_for_update.sql").map_err(Error::from)?;
-                let mut prows = connection.query(
-                    &s,
-                    (
-                        self.cluster.as_str(),
-                        topition.topic(),
-                        topition.partition(),
-                        deflated.producer_id,
-                        deflated.producer_epoch,
-                    ),
-                ).map_err(Error::from).inspect_err(|err| {
-                    error!(
-                        self.cluster,
-                        ?topition,
-                        deflated.producer_id,
-                        deflated.producer_epoch,
-                        ?err
+                let mut prows = connection
+                    .query(
+                        &s,
+                        (
+                            self.cluster.as_str(),
+                            topition.topic(),
+                            topition.partition(),
+                            deflated.producer_id,
+                            deflated.producer_epoch,
+                        ),
                     )
-                })?;
+                    .map_err(Error::from)
+                    .inspect_err(|err| {
+                        error!(
+                            self.cluster,
+                            ?topition,
+                            deflated.producer_id,
+                            deflated.producer_epoch,
+                            ?err
+                        )
+                    })?;
 
                 let Step::Row(prow) = prows.step().map_err(Error::from)? else {
                     return Err(Error::Api(ErrorCode::UnknownProducerId));
                 };
 
-                let sequence = prow.get::<i32>(0).map_err(Error::from).inspect_err(|err| error!(?err))?;
+                let sequence = prow
+                    .get::<i32>(0)
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?;
 
                 debug!(
                     self.cluster,
@@ -165,17 +179,19 @@ impl Delegate {
                 drop(prows);
 
                 let s = sql("producer_detail_insert.sql").map_err(Error::from)?;
-                let summary = connection.execute(
-                    &s,
-                    (
-                        self.cluster.as_str(),
-                        topition.topic(),
-                        topition.partition(),
-                        deflated.producer_id,
-                        deflated.producer_epoch,
-                        increment,
-                    ),
-                ).map_err(Error::from)?;
+                let summary = connection
+                    .execute(
+                        &s,
+                        (
+                            self.cluster.as_str(),
+                            topition.topic(),
+                            topition.partition(),
+                            deflated.producer_id,
+                            deflated.producer_epoch,
+                            increment,
+                        ),
+                    )
+                    .map_err(Error::from)?;
                 assert_eq!(1, summary.rows_affected);
 
                 Ok(())
@@ -193,14 +209,16 @@ impl Delegate {
         debug!(?topition);
 
         let s = sql("watermark_select_no_update.sql").map_err(Error::from)?;
-        let mut rows = connection.query(
-            &s,
-            (
-                self.cluster.as_str(),
-                topition.topic(),
-                topition.partition(),
-            ),
-        ).map_err(Error::from)?;
+        let mut rows = connection
+            .query(
+                &s,
+                (
+                    self.cluster.as_str(),
+                    topition.topic(),
+                    topition.partition(),
+                ),
+            )
+            .map_err(Error::from)?;
 
         match rows
             .step()
@@ -208,8 +226,12 @@ impl Delegate {
             .inspect_err(|err| error!(?err, cluster = ?self.cluster, ?topition))?
         {
             Step::Row(row) => Ok((
-                row.get::<Option<i64>>(0).map_err(Error::from).inspect_err(|err| error!(?err))?,
-                row.get::<Option<i64>>(1).map_err(Error::from).inspect_err(|err| error!(?err))?,
+                row.get::<Option<i64>>(0)
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?,
+                row.get::<Option<i64>>(1)
+                    .map_err(Error::from)
+                    .inspect_err(|err| error!(?err))?,
             )),
             Step::Done => Err(Error::Api(ErrorCode::UnknownTopicOrPartition)),
         }
@@ -224,35 +246,41 @@ impl Delegate {
         connection: &mut PoolConnection,
     ) -> Result<()> {
         let s = sql("leader_epoch_history.sql").map_err(Error::from)?;
-        let mut rows = connection.query(
-            &s,
-            (
-                self.cluster.as_str(),
-                topition.topic(),
-                topition.partition(),
-            ),
-        ).map_err(Error::from)?;
-
-        let mut current_epoch: Option<i32> = None;
-        while let Step::Row(row) = rows.step().map_err(Error::from)? {
-            let row_epoch = row.get::<i32>(0).map_err(Error::from).inspect_err(|err| error!(?err))?;
-            current_epoch = Some(current_epoch.map_or(row_epoch, |current| current.max(row_epoch)));
-        }
-
-        if current_epoch.is_none_or(|current| epoch > current) {
-            let s = sql("leader_epoch_history_insert.sql").map_err(Error::from)?;
-            let _ = connection.execute(
+        let mut rows = connection
+            .query(
                 &s,
                 (
                     self.cluster.as_str(),
                     topition.topic(),
                     topition.partition(),
-                    epoch,
-                    start_offset,
                 ),
             )
-            .map_err(Error::from)
-            .inspect_err(|err| error!(?err, ?topition, epoch, start_offset))?;
+            .map_err(Error::from)?;
+
+        let mut current_epoch: Option<i32> = None;
+        while let Step::Row(row) = rows.step().map_err(Error::from)? {
+            let row_epoch = row
+                .get::<i32>(0)
+                .map_err(Error::from)
+                .inspect_err(|err| error!(?err))?;
+            current_epoch = Some(current_epoch.map_or(row_epoch, |current| current.max(row_epoch)));
+        }
+
+        if current_epoch.is_none_or(|current| epoch > current) {
+            let s = sql("leader_epoch_history_insert.sql").map_err(Error::from)?;
+            let _ = connection
+                .execute(
+                    &s,
+                    (
+                        self.cluster.as_str(),
+                        topition.topic(),
+                        topition.partition(),
+                        epoch,
+                        start_offset,
+                    ),
+                )
+                .map_err(Error::from)
+                .inspect_err(|err| error!(?err, ?topition, epoch, start_offset))?;
         }
 
         Ok(())

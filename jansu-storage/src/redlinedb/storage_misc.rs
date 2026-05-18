@@ -84,7 +84,8 @@ impl Delegate {
         let mut pc = self.connection().await?;
 
         let s = sql("scram_credential_delete.sql").map_err(Error::from)?;
-        let _ = pc.execute(&s, (self.cluster.as_str(), user, i32::from(mechanism)))
+        let _ = pc
+            .execute(&s, (self.cluster.as_str(), user, i32::from(mechanism)))
             .inspect_err(|err| error!(?err))
             .map_err(Error::from)?;
 
@@ -107,20 +108,21 @@ impl Delegate {
         let mut pc = self.connection().await?;
 
         let s = sql("scram_credential_insert.sql").map_err(Error::from)?;
-        let _ = pc.execute(
-            &s,
-            (
-                self.cluster.as_str(),
-                user,
-                i32::from(mechanism),
-                &credential.salt[..],
-                credential.iterations,
-                &credential.stored_key[..],
-                &credential.server_key[..],
-            ),
-        )
-        .inspect_err(|err| error!(?err))
-        .map_err(Error::from)?;
+        let _ = pc
+            .execute(
+                &s,
+                (
+                    self.cluster.as_str(),
+                    user,
+                    i32::from(mechanism),
+                    &credential.salt[..],
+                    credential.iterations,
+                    &credential.stored_key[..],
+                    &credential.server_key[..],
+                ),
+            )
+            .inspect_err(|err| error!(?err))
+            .map_err(Error::from)?;
 
         Ok(()).inspect(|_| {
             DELEGATE_REQUEST_DURATION.record(
@@ -147,10 +149,19 @@ impl Delegate {
 
         match rows.step().map_err(Error::from)? {
             Step::Row(row) => {
-                let salt = row.get::<Vec<u8>>(0).map_err(Error::from).map(Bytes::from)?;
+                let salt = row
+                    .get::<Vec<u8>>(0)
+                    .map_err(Error::from)
+                    .map(Bytes::from)?;
                 let iterations = row.get::<i32>(1).map_err(Error::from)?;
-                let stored_key = row.get::<Vec<u8>>(2).map_err(Error::from).map(Bytes::from)?;
-                let server_key = row.get::<Vec<u8>>(3).map_err(Error::from).map(Bytes::from)?;
+                let stored_key = row
+                    .get::<Vec<u8>>(2)
+                    .map_err(Error::from)
+                    .map(Bytes::from)?;
+                let server_key = row
+                    .get::<Vec<u8>>(3)
+                    .map_err(Error::from)
+                    .map(Bytes::from)?;
 
                 Ok(Some(ScramCredential {
                     salt,

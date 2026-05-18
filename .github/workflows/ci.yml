@@ -141,7 +141,6 @@ jobs:
         storage:
           - dynostore
           - redlinedb
-          - postgres
           - slatedb
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -163,7 +162,6 @@ jobs:
         storage:
           - dynostore
           - redlinedb
-          - postgres
           - slatedb
         lake:
           - delta
@@ -194,8 +192,6 @@ jobs:
         with:
           cache: false
       - run: sudo apt-get install -y libclang-dev libkrb5-dev
-      - run: cargo package --workspace
-      - run: find target/package -name "*.crate" -exec sha256sum {} \; | tee target/package/checksums.sha256
       - run: cargo publish --dry-run --workspace
   typos:
     runs-on: ubuntu-latest

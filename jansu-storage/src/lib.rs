@@ -215,11 +215,7 @@ impl<T> From<serde_json::Error> for UpdateError<T> {
 /// Storage Container
 #[derive(Clone)]
 #[cfg_attr(
-    not(any(
-        feature = "dynostore",
-        feature = "redlinedb",
-        feature = "slatedb",
-    )),
+    not(any(feature = "dynostore", feature = "redlinedb", feature = "slatedb",)),
     allow(missing_copy_implementations)
 )]
 pub enum StorageContainer {

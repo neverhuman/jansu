@@ -102,7 +102,13 @@ impl Metrics for JansuMetrics {
         }
     }
 
-    fn on_execute(&self, _sql: &str, duration: Duration, _rows_affected: u64, result: MetricResult) {
+    fn on_execute(
+        &self,
+        _sql: &str,
+        duration: Duration,
+        _rows_affected: u64,
+        result: MetricResult,
+    ) {
         SQL_DURATION.record(duration.as_millis() as u64, &[]);
         SQL_REQUESTS.add(1, &[]);
         if result == MetricResult::Err {
