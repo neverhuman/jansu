@@ -7045,6 +7045,7 @@ dependencies = [
 [[package]]
 name = "redlinedb"
 version = "1.1.0"
+source = "git+https://github.com/neverhuman/redlineDB.git?rev=8f252e05777b470ef4cf245e6b1e44de2a5a4dcd#8f252e05777b470ef4cf245e6b1e44de2a5a4dcd"
 dependencies = [
  "chrono",
  "libc",
@@ -7060,10 +7061,12 @@ dependencies = [
 [[package]]
 name = "redlinedb-domain"
 version = "1.1.0"
+source = "git+https://github.com/neverhuman/redlineDB.git?rev=8f252e05777b470ef4cf245e6b1e44de2a5a4dcd#8f252e05777b470ef4cf245e6b1e44de2a5a4dcd"
 
 [[package]]
 name = "redlinedb-kernel"
 version = "1.1.0"
+source = "git+https://github.com/neverhuman/redlineDB.git?rev=8f252e05777b470ef4cf245e6b1e44de2a5a4dcd#8f252e05777b470ef4cf245e6b1e44de2a5a4dcd"
 dependencies = [
  "arc-swap",
  "crc32fast",
@@ -7078,6 +7081,7 @@ dependencies = [
 [[package]]
 name = "redlinedb-sql"
 version = "1.1.0"
+source = "git+https://github.com/neverhuman/redlineDB.git?rev=8f252e05777b470ef4cf245e6b1e44de2a5a4dcd#8f252e05777b470ef4cf245e6b1e44de2a5a4dcd"
 dependencies = [
  "arc-swap",
  "parking_lot",
@@ -9961,8 +9965,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "redlinedb"
-version = "1.0.1"
-source = "git+https://github.com/neverhuman/redlineDB.git?rev=0fee9976cd3274df2e23cb8886c51286d008e8cd#0fee9976cd3274df2e23cb8886c51286d008e8cd"
