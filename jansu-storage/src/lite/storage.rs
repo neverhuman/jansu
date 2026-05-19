@@ -337,7 +337,11 @@ impl Storage for Delegate {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_else(Vec::new) {
+                let configs = match resource.configs {
+                    Some(configs) => configs,
+                    None => Vec::new(),
+                };
+                for config in configs {
                     let operation = OpType::try_from(config.config_operation)?;
                     match operation {
                         OpType::Set => {
@@ -1660,7 +1664,10 @@ impl Storage for Delegate {
                 let name = row.get_str(0).inspect_err(|err| error!(?err))?;
                 let value = row
                     .get::<Option<String>>(1)
-                    .map(|value| value.unwrap_or_else(String::new))
+                    .map(|value| match value {
+                        Some(value) => value,
+                        None => String::new(),
+                    })
                     .map(Some)
                     .inspect_err(|err| error!(?err))?;
 
@@ -2541,19 +2548,24 @@ impl Storage for Delegate {
                     transactions
                         .into_iter()
                         .map(|transaction| {
+                            let topics_in = match transaction.topics {
+                                Some(topics) => topics,
+                                None => Vec::new(),
+                            };
                             AddPartitionsToTxnResult::default()
                                 .transactional_id(transaction.transactional_id)
                                 .topic_results(Some(
-                                    transaction
-                                        .topics
-                                        .unwrap_or_else(Vec::new)
+                                    topics_in
                                         .into_iter()
                                         .map(|topic| {
+                                            let partitions_in = match topic.partitions {
+                                                Some(partitions) => partitions,
+                                                None => Vec::new(),
+                                            };
                                             AddPartitionsToTxnTopicResult::default()
                                                 .name(topic.name)
                                                 .results_by_partition(Some(
-                                                    topic.partitions
-                                                        .unwrap_or_else(Vec::new)
+                                                    partitions_in
                                                         .into_iter()
                                                         .map(|partition_index| {
                                                             AddPartitionsToTxnPartitionResult::default()
