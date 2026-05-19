@@ -40,6 +40,10 @@ require_score_shape() {
 require_tool jankurai
 require_tool jq
 
+# AUDIT-019 anti-masking guard: refuse to score if any authored .rs file has
+# been hidden from the audit via excluded_paths or generated-zones.
+bash "$REPO_ROOT/tools/checks/no-mask.sh"
+
 if [ ! -f "$BASELINE_FILE" ]; then
     echo "JANKURAI GATE FAILED - missing baseline: $BASELINE_FILE" >&2
     exit 1

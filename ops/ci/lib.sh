@@ -41,7 +41,9 @@ ci_fast() {
     ci_fmt
     bash -n scripts/ci-local.sh
     bash -n tools/checks/jankurai-gate.sh
+    bash -n tools/checks/no-mask.sh
     bash -n tools/security-lane.sh
+    bash tools/checks/no-mask.sh
     if command -v actionlint >/dev/null 2>&1; then
         actionlint .github/workflows/*.yml
     else
