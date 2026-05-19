@@ -69,6 +69,10 @@
       "command": "just release-check",
       "purpose": "verify release notes are covered by release evidence"
     },
+    "Cargo.lock": {
+      "command": "just check",
+      "purpose": "verify workspace lockfile churn keeps the dependency graph buildable"
+    },
     "Cargo.toml": {
       "command": "just check",
       "purpose": "verify workspace manifest changes"

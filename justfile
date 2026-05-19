@@ -32,6 +32,22 @@ test-workspace *args:
 test-doc:
     cargo test --workspace --doc --all-features
 
+# Narrow per-crate test lane: deterministic, cache-friendly proof for a single crate.
+# Usage: just test-crate jansu-storage
+test-crate crate *args:
+    cargo nextest run -p {{ crate }} --all-features --no-fail-fast {{ args }}
+
+# Changed-surface lane: runs nextest only for crates changed since a ref.
+# Uses cargo nextest's --partition and changed-set support for incremental verification.
+# Usage: just test-changed origin/main
+test-changed from="origin/main":
+    cargo nextest run --workspace --all-features --no-fail-fast --exclude fuzz \
+        --changed-since {{ from }} --partition count:1/1
+
+# Incremental check lane: keep-going so multiple errors surface in one pass.
+check-incremental:
+    cargo check --workspace --all-features --all-targets --keep-going
+
 doc:
     cargo doc --all-features --open
 
