@@ -158,7 +158,10 @@ where
             for request_topic in request_topics {
                 let topic_slot = response_topics.len();
                 let topic_name = request_topic.name;
-                let request_partitions = request_topic.partitions.unwrap_or_else(Vec::new);
+                let request_partitions = match request_topic.partitions {
+                    Some(partitions) => partitions,
+                    None => Vec::new(),
+                };
 
                 let mut partition_slots: Vec<_> = request_partitions
                     .iter()
