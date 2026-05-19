@@ -130,19 +130,12 @@ where
         let topics = if let Some(topics) = topics {
             let topics: Vec<Topition> = topics
                 .iter()
-                .flat_map(|topic| {
-                    topic
-                        .partition_indexes
-                        .as_ref()
-                        .map(|partition_indexes| {
-                            partition_indexes
-                                .iter()
-                                .map(|partition_index| {
-                                    Topition::new(topic.name.clone(), *partition_index)
-                                })
-                                .collect::<Vec<_>>()
-                        })
-                        .unwrap_or_default()
+                .flat_map(|topic| match topic.partition_indexes.as_ref() {
+                    Some(partition_indexes) => partition_indexes
+                        .iter()
+                        .map(|partition_index| Topition::new(topic.name.clone(), *partition_index))
+                        .collect::<Vec<_>>(),
+                    None => Vec::new(),
                 })
                 .collect();
 
@@ -200,19 +193,14 @@ where
                 let response = if let Some(topics) = group.topics.as_ref().map(|topics| {
                     topics
                         .iter()
-                        .flat_map(|topic| {
-                            topic
-                                .partition_indexes
-                                .as_ref()
-                                .map(|partition_indexes| {
-                                    partition_indexes
-                                        .iter()
-                                        .map(|partition_index| {
-                                            Topition::new(topic.name.clone(), *partition_index)
-                                        })
-                                        .collect::<Vec<_>>()
+                        .flat_map(|topic| match topic.partition_indexes.as_ref() {
+                            Some(partition_indexes) => partition_indexes
+                                .iter()
+                                .map(|partition_index| {
+                                    Topition::new(topic.name.clone(), *partition_index)
                                 })
-                                .unwrap_or_default()
+                                .collect::<Vec<_>>(),
+                            None => Vec::new(),
                         })
                         .collect::<Vec<_>>()
                 }) {

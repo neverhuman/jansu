@@ -100,7 +100,10 @@ impl Arg {
                 .await
                 .map_err(Into::into),
 
-            Command::Consume => todo!(),
+            Command::Consume => Err(crate::Error::Box(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "perf consume is not supported",
+            )))),
         }
     }
 }

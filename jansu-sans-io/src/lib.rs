@@ -1169,7 +1169,7 @@ impl Display for ErrorCode {
                 f.write_str("The broker received a duplicate sequence number.")
             }
             ErrorCode::InvalidProducerEpoch => {
-                f.write_str("Producer attempted to produce with an old epoch.")
+                f.write_str("Producer attempted to produce with an earlier epoch.")
             }
             ErrorCode::InvalidTxnState => {
                 f.write_str("The producer attempted a transactional operation in an invalid state.")
@@ -1369,7 +1369,7 @@ impl Display for ErrorCode {
                 "The assignor or its version range is not supported by the consumer group.",
             ),
             ErrorCode::StaleMemberEpoch => f.write_str(
-                "The member epoch is stale. The member must retry after receiving its updated \
+                "The member epoch is no longer current. The member must retry after receiving its updated \
                  member epoch via the ConsumerGroupHeartbeat API.",
             ),
             ErrorCode::MismatchedEndpointType => {

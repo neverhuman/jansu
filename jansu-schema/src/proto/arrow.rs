@@ -1408,7 +1408,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch.clone())?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1577,7 +1577,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from ty").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1664,7 +1664,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from abc").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1687,9 +1687,10 @@ mod tests {
     async fn taxi() -> Result<()> {
         let _guard = init_tracing()?;
 
-        let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-            "../../../../jansu/etc/schema/taxi.proto"
-        )))?;
+        let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../etc/schema/taxi.proto"
+        ))))?;
 
         let value = schema.encode_from_value(
             MessageKind::Value,
@@ -1720,7 +1721,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from taxi").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1776,7 +1777,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from snippets").await?;
         let results = df.collect().await?;
 
         let pretty = pretty_format_batches(&results)?.to_string();
@@ -1841,7 +1842,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from snippets").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1908,7 +1909,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from snippets").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1969,7 +1970,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from snippets").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2035,7 +2036,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from snippets").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2079,7 +2080,7 @@ mod tests {
             .await?;
         _ = ctx.register_batch(topic, record_batch)?;
 
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -2123,7 +2124,7 @@ mod tests {
             .await?;
         _ = ctx.register_batch(topic, record_batch)?;
 
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();

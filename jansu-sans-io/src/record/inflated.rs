@@ -269,7 +269,7 @@ pub struct Builder {
 
 impl Default for Builder {
     fn default() -> Self {
-        let base_timestamp = to_timestamp(&SystemTime::now()).unwrap_or_default();
+        let base_timestamp = to_timestamp(&SystemTime::now()).unwrap_or(0);
 
         Self {
             base_offset: 0,

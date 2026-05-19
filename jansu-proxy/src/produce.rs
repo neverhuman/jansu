@@ -431,10 +431,18 @@ impl From<&[BatchRequest]> for Owner {
         for request in requests {
             debug!(?request);
 
-            for topic in request.request.topic_data.as_deref().unwrap_or_default() {
+            let Some(topics) = request.request.topic_data.as_deref() else {
+                continue;
+            };
+
+            for topic in topics {
                 debug!(?topic);
 
-                for partition in topic.partition_data.as_deref().unwrap_or_default() {
+                let Some(partitions) = topic.partition_data.as_deref() else {
+                    continue;
+                };
+
+                for partition in partitions {
                     debug!(?partition);
 
                     _ = topition
@@ -456,10 +464,18 @@ impl Owner {
     fn split(&self, produce_response: ProduceResponse) -> BTreeMap<Uuid, ProduceResponse> {
         let mut responses = BTreeMap::<Uuid, BatchTopicProduceResponse>::new();
 
-        for topic in produce_response.responses.unwrap_or_default() {
+        let Some(topics) = produce_response.responses else {
+            return BTreeMap::new();
+        };
+
+        for topic in topics {
             debug!(?topic);
 
-            for partition in topic.partition_responses.unwrap_or_default() {
+            let Some(partitions) = topic.partition_responses else {
+                continue;
+            };
+
+            for partition in partitions {
                 let topition = Topition {
                     topic: topic.name.clone(),
                     partition: partition.index,
@@ -467,11 +483,15 @@ impl Owner {
 
                 debug!(?topition);
 
-                for owner in self.topition.get(&topition).cloned().unwrap_or_default() {
+                let Some(owners) = self.topition.get(&topition) else {
+                    continue;
+                };
+
+                for owner in owners {
                     debug!(?owner);
 
                     _ = responses
-                        .entry(owner)
+                        .entry(*owner)
                         .or_default()
                         .0
                         .entry(topic.name.clone())
@@ -553,10 +573,18 @@ fn produce_request(requests: Vec<BatchRequest>) -> ProduceRequest {
     for request in requests {
         debug!(?request);
 
-        for topic in request.request.topic_data.unwrap_or_default() {
+        let Some(topics) = request.request.topic_data else {
+            continue;
+        };
+
+        for topic in topics {
             debug!(?topic);
 
-            for partition in topic.partition_data.unwrap_or_default() {
+            let Some(partitions) = topic.partition_data else {
+                continue;
+            };
+
+            for partition in partitions {
                 debug!(?partition);
 
                 if let Some(mut records) = partition.records {
@@ -612,11 +640,17 @@ impl IntoIterator for PartitionBatch {
         self.partitions
             .into_iter()
             .map(|(index, batches)| {
+                let batches = match combine(batches) {
+                    Ok(batches) => batches,
+                    Err(err) => {
+                        debug!(?err, "failed to combine produce batches");
+                        Vec::new()
+                    }
+                };
+
                 PartitionProduceData::default()
                     .index(index)
-                    .records(Some(Frame {
-                        batches: combine(batches).unwrap_or_default(),
-                    }))
+                    .records(Some(Frame { batches }))
             })
             .collect::<Vec<_>>()
             .into_iter()
@@ -656,7 +690,7 @@ fn combine(batches: Vec<deflated::Batch>) -> Result<Vec<deflated::Batch>, Error>
                 .map(|batch| vec![batch])
                 .map_err(Into::into)
         } else {
-            unreachable!()
+            Ok(vec![])
         }
     } else {
         Ok(batches)

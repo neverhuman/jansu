@@ -444,7 +444,11 @@ fn message_struct(
                 let f = field.ident();
                 let k = tag_kind(
                     parent,
-                    &syn::parse_str::<syn::Path>(&format!("crate::mezzanine::{}",module.to_token_stream())).unwrap(),
+                    &syn::parse_str::<syn::Path>(&format!(
+                        "crate::mezzanine::{}",
+                        module.to_token_stream()
+                    ))
+                    .unwrap(),
                     field,
                     &dependencies,
                 );
@@ -453,7 +457,14 @@ fn message_struct(
 
                 if field.kind().is_primitive() {
                     quote! {
-                        let #f = value.tag_buffer.as_ref().and_then(|tag_buffer| tag_buffer.decode::<#k>(&#tag).ok().unwrap_or(None))
+                        let #f = match value
+                            .tag_buffer
+                            .as_ref()
+                            .map(|tag_buffer| tag_buffer.decode::<#k>(&#tag))
+                        {
+                            Some(Ok(decoded)) => decoded,
+                            _ => None,
+                        }
                     }
                 } else if field.kind().is_sequence() {
                     quote! {
@@ -483,7 +494,6 @@ fn message_struct(
                         }
                     }
                 }
-
             })
             .collect();
 
@@ -1216,13 +1226,13 @@ fn each_field_meta(
         },
     );
 
-    let default_token = field.kafka_default().map_or_else(
-        || quote! { None },
-        |s| {
+    let default_token = match field.kafka_default() {
+        Some(s) => {
             let lit = LitStr::new(s, Span::call_site());
             quote! { Some(#lit) }
-        },
-    );
+        }
+        None => quote! { None },
+    };
 
     quote! {
         (#name,

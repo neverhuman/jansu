@@ -104,14 +104,13 @@ impl Authentication {
     }
 
     pub fn is_authenticated(&self) -> bool {
-        self.stage
-            .lock()
-            .map(|guard| matches!(guard.as_ref(), Some(Stage::Finished(_))))
-            .ok()
-            .unwrap_or_default()
+        match self.stage.lock() {
+            Ok(guard) => matches!(guard.as_ref(), Some(Stage::Finished(_))),
+            Err(_) => false,
+        }
     }
 
-    /// Build a fresh `Stage::Server` from the stored config. Used by
+    /// Build a replacement `Stage::Server` from the stored config. Used by
     /// the SASL handshake handler to support re-authentication
     /// (KIP-368): a client periodically issues a new SaslHandshake on
     /// an existing connection, and the broker must be willing to

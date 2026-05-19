@@ -1,0 +1,293 @@
+{
+  "workspace": "jansu",
+  "tests": {
+    ".agent/": {
+      "command": "just score",
+      "purpose": "verify agent rule routing"
+    },
+    ".cursor/": {
+      "command": "just score",
+      "purpose": "verify editor rule routing"
+    },
+    ".devcontainer/": {
+      "command": "just fast",
+      "purpose": "verify development container metadata"
+    },
+    ".dockerignore": {
+      "command": "just fast",
+      "purpose": "verify Docker metadata routing"
+    },
+    ".gitattributes": {
+      "command": "just fast",
+      "purpose": "verify Git metadata routing"
+    },
+    ".github/": {
+      "command": "just fast",
+      "purpose": "verify workflow syntax, shell syntax, and local parity helpers"
+    },
+    ".gitignore": {
+      "command": "just fast",
+      "purpose": "verify ignored/generated artifact routing"
+    },
+    ".gitleaks.toml": {
+      "command": "just security",
+      "purpose": "verify secret-scan configuration"
+    },
+    "AGENT.md": {
+      "command": "just score",
+      "purpose": "verify legacy agent pointer routing"
+    },
+    "AGENTS.md": {
+      "command": "just score",
+      "purpose": "verify agent contract and Jankurai audit routing remain visible"
+    },
+    "AUDIT.md": {
+      "command": "just score",
+      "purpose": "verify audit backlog remains machine-readable"
+    },
+    "CLAUDE.md": {
+      "command": "just score",
+      "purpose": "verify Claude agent pointer routing"
+    },
+    "GEMINI.md": {
+      "command": "just score",
+      "purpose": "verify Gemini agent pointer routing"
+    },
+    "LICENSE": {
+      "command": "just fast",
+      "purpose": "verify license file routing"
+    },
+    "MASTER_PLAN.md": {
+      "command": "just score",
+      "purpose": "verify phase execution map routing"
+    },
+    "README.md": {
+      "command": "just fast",
+      "purpose": "verify primary documentation routing"
+    },
+    "CHANGELOG.md": {
+      "command": "just release-check",
+      "purpose": "verify release notes are covered by release evidence"
+    },
+    "Cargo.toml": {
+      "command": "just check",
+      "purpose": "verify workspace manifest changes"
+    },
+    "Dockerfile": {
+      "command": "just fast",
+      "purpose": "verify container metadata changes"
+    },
+    "about.hbs": {
+      "command": "just fast",
+      "purpose": "verify license report template routing"
+    },
+    "about.toml": {
+      "command": "just fast",
+      "purpose": "verify license report policy routing"
+    },
+    "assets/": {
+      "command": "just fast",
+      "purpose": "verify documentation asset routing"
+    },
+    "codebook.toml": {
+      "command": "just fast",
+      "purpose": "verify codebook metadata routing"
+    },
+    "command-plain.properties": {
+      "command": "just fast",
+      "purpose": "verify Kafka command config routing"
+    },
+    "command-scram-256.properties": {
+      "command": "just fast",
+      "purpose": "verify Kafka SCRAM command config routing"
+    },
+    "command-scram-512.properties": {
+      "command": "just fast",
+      "purpose": "verify Kafka SCRAM command config routing"
+    },
+    "command.properties": {
+      "command": "just fast",
+      "purpose": "verify Kafka command config routing"
+    },
+    "compose.yaml": {
+      "command": "just fast",
+      "purpose": "verify Docker Compose routing"
+    },
+    "contracts/": {
+      "command": "just compatibility-contract",
+      "purpose": "verify contract routing and compatibility ledger proof"
+    },
+    "data/": {
+      "command": "just score",
+      "purpose": "verify generated or sample data remains mapped to an owner and proof lane"
+    },
+    "db/": {
+      "command": "just db-doctor",
+      "purpose": "verify database documentation, constraints, and migration evidence remain routed"
+    },
+    "db/constraints/": {
+      "command": "just db-doctor",
+      "purpose": "verify database constraint documentation remains routed to the database proof lane"
+    },
+    "db/migrations/": {
+      "command": "just db-doctor",
+      "purpose": "verify database migration documentation remains routed to the database proof lane"
+    },
+    "demo/": {
+      "command": "just fast",
+      "purpose": "verify demo assets remain parseable through the local syntax and workflow lane"
+    },
+    "duckdb-init.sql": {
+      "command": "just db-doctor",
+      "purpose": "verify DuckDB setup SQL remains covered by database audit evidence"
+    },
+    "example.env": {
+      "command": "just fast",
+      "purpose": "verify local environment template routing"
+    },
+    "etc/": {
+      "command": "just fast",
+      "purpose": "verify operational fixtures and local environment metadata remain routed"
+    },
+    "etc/certs/": {
+      "command": "just security",
+      "purpose": "verify certificate fixture metadata remains covered by the security lane"
+    },
+    "etc/data/": {
+      "command": "just score",
+      "purpose": "verify sample data fixtures remain mapped for audit repair routing"
+    },
+    "fuzz/": {
+      "command": "cargo +nightly fuzz run fuzz_request_decode -- -max_total_time=60",
+      "purpose": "verify fuzz harnesses remain routed to protocol decoding proof"
+    },
+    "jaas-plain.conf": {
+      "command": "just security",
+      "purpose": "verify Kafka JAAS fixture routing through the security lane"
+    },
+    "jaas-scram.conf": {
+      "command": "just security",
+      "purpose": "verify Kafka SCRAM JAAS fixture routing through the security lane"
+    },
+    "jansu-cat/": {
+      "command": "cargo test -p jansu-cat --all-features",
+      "purpose": "verify command-line produce and consume helpers"
+    },
+    "jansu-client/": {
+      "command": "cargo test -p jansu-client --all-features",
+      "purpose": "verify client request and response helpers"
+    },
+    "jansu-cli/": {
+      "command": "cargo test -p jansu-cli --all-features",
+      "purpose": "verify primary CLI behavior"
+    },
+    "jansu-embedded/": {
+      "command": "cargo test -p jansu-embedded --all-features",
+      "purpose": "verify embedded broker library behavior"
+    },
+    "jansu-generator/": {
+      "command": "cargo test -p jansu-generator --all-features",
+      "purpose": "verify generated protocol and schema artifacts"
+    },
+    "jansu-model/": {
+      "command": "cargo test -p jansu-model --all-features",
+      "purpose": "verify shared protocol model types"
+    },
+    "jansu-otel/": {
+      "command": "cargo test -p jansu-otel --all-features",
+      "purpose": "verify observability helpers"
+    },
+    "jansu-perf/": {
+      "command": "cargo test -p jansu-perf --all-features",
+      "purpose": "verify performance harness helpers"
+    },
+    "jansu-proxy/": {
+      "command": "cargo test -p jansu-proxy --all-features",
+      "purpose": "verify proxy command helpers"
+    },
+    "jansu-service/": {
+      "command": "cargo test -p jansu-service --all-features",
+      "purpose": "verify service routing and request handling"
+    },
+    "jansu-topic/": {
+      "command": "cargo test -p jansu-topic --all-features",
+      "purpose": "verify topic command helpers"
+    },
+    "jansu/": {
+      "command": "cargo test -p jansu --all-features",
+      "purpose": "verify primary binary crate behavior"
+    },
+    "agent/": {
+      "command": "just score",
+      "purpose": "verify policy, ownership, proof-lane, and generated-zone metadata"
+    },
+    "docs/": {
+      "command": "just score",
+      "purpose": "verify agent-readable documentation coverage"
+    },
+    "docs/compatibility/": {
+      "command": "just compatibility-contract",
+      "purpose": "verify Kafka compatibility claims are ledger-backed"
+    },
+    "jansu-auth/": {
+      "command": "cargo test -p jansu-auth --all-features",
+      "purpose": "verify authentication primitives"
+    },
+    "jansu-broker/": {
+      "command": "cargo test -p jansu-broker --all-features",
+      "purpose": "verify broker request routing and compatibility behavior"
+    },
+    "jansu-sans-io/": {
+      "command": "cargo test -p jansu-sans-io --all-features",
+      "purpose": "verify protocol encoding and decoding"
+    },
+    "jansu-schema/": {
+      "command": "cargo test -p jansu-schema --all-features",
+      "purpose": "verify schema parsing and data conversion"
+    },
+    "jansu-storage/": {
+      "command": "cargo test -p jansu-storage --all-features",
+      "purpose": "verify storage contracts across enabled backends"
+    },
+    "justfile": {
+      "command": "just --list",
+      "purpose": "verify local command surface is parseable"
+    },
+    "logs/": {
+      "command": "just fast",
+      "purpose": "verify checked-in log directories stay limited to ignored runtime-output placeholders"
+    },
+    "ops/": {
+      "command": "just fast",
+      "purpose": "verify local CI helper scripts and workflow linting"
+    },
+    "phase-logs/": {
+      "command": "cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture",
+      "purpose": "verify phase-log manifest contract"
+    },
+    "rust-toolchain.toml": {
+      "command": "just fast",
+      "purpose": "verify Rust toolchain metadata routing"
+    },
+    "rustfmt.toml": {
+      "command": "just fmt",
+      "purpose": "verify Rust formatting policy"
+    },
+    "schema-diff-0.5.0-0.6.0.txt": {
+      "command": "just score",
+      "purpose": "verify schema migration diff evidence remains routed"
+    },
+    "scripts/": {
+      "command": "just fast",
+      "purpose": "verify local dispatcher syntax and parity"
+    },
+    "tools/": {
+      "command": "just fast",
+      "purpose": "verify audit and security helper syntax"
+    },
+    "typos.toml": {
+      "command": "just fast",
+      "purpose": "verify typo-check policy routing"
+    }
+  }
+}

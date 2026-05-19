@@ -32,12 +32,12 @@ use jansu_sans_io::{
     BatchAttribute, ConfigResource, ConfigSource, ConfigType, ControlBatch, EndTransactionMarker,
     ErrorCode, IsolationLevel, ListOffset, NULL_TOPIC_ID, OpType, ScramMechanism,
     add_partitions_to_txn_response::{
-        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnTopicResult,
+        AddPartitionsToTxnPartitionResult, AddPartitionsToTxnResult, AddPartitionsToTxnTopicResult,
     },
     create_topics_request::{CreatableTopic, CreatableTopicConfig},
     delete_groups_response::DeletableGroupResult,
     delete_records_request::DeleteRecordsTopic,
-    delete_records_response::DeleteRecordsTopicResult,
+    delete_records_response::{DeleteRecordsPartitionResult, DeleteRecordsTopicResult},
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::{DescribeConfigsResourceResult, DescribeConfigsResult},
     describe_topic_partitions_response::{
@@ -146,11 +146,10 @@ impl Meta {
 
     fn aborted_transaction_ranges(&self, topition: &Topition) -> Vec<AbortedTransactionRange> {
         let key = format!("{}:{}", topition.topic(), topition.partition());
-        let mut ranges = self
-            .aborted_transaction_ranges
-            .get(&key)
-            .cloned()
-            .unwrap_or_default();
+        let mut ranges = match self.aborted_transaction_ranges.get(&key) {
+            Some(ranges) => ranges.clone(),
+            None => Vec::new(),
+        };
 
         ranges.sort_unstable();
         ranges.dedup();
@@ -244,27 +243,41 @@ impl Meta {
 
     fn alter_topic(&mut self, topic: &str, changes: &[AlterableConfig]) -> Result<()> {
         if let Some(metadata) = self.topics.get_mut(topic) {
-            let mut configuration = metadata
-                .topic
-                .configs
-                .as_deref()
-                .unwrap_or_default()
-                .iter()
-                .fold(BTreeMap::new(), |mut acc, item| {
-                    _ = acc.insert(item.name.as_str(), item.value.as_deref());
+            let mut configuration = match metadata.topic.configs.as_deref() {
+                Some(configs) => configs.iter().fold(BTreeMap::new(), |mut acc, item| {
+                    _ = acc.insert(item.name.clone(), item.value.clone());
                     acc
-                });
+                }),
+                None => BTreeMap::new(),
+            };
 
             for change in changes {
                 match OpType::try_from(change.config_operation)? {
                     OpType::Set => {
-                        _ = configuration.insert(change.name.as_str(), change.value.as_deref());
+                        _ = configuration.insert(change.name.clone(), change.value.clone());
                     }
                     OpType::Delete => {
                         _ = configuration.remove(change.name.as_str());
                     }
-                    OpType::Append => todo!(),
-                    OpType::Subtract => todo!(),
+                    OpType::Append => {
+                        let current = configuration
+                            .get(change.name.as_str())
+                            .and_then(|value| value.as_deref());
+                        let updated = crate::append_config_tokens(current, change.value.as_deref());
+                        _ = configuration.insert(change.name.clone(), updated);
+                    }
+                    OpType::Subtract => {
+                        let current = configuration
+                            .get(change.name.as_str())
+                            .and_then(|value| value.as_deref());
+                        if let Some(updated) =
+                            crate::subtract_config_tokens(current, change.value.as_deref())
+                        {
+                            _ = configuration.insert(change.name.clone(), Some(updated));
+                        } else {
+                            _ = configuration.remove(change.name.as_str());
+                        }
+                    }
                 }
             }
 
@@ -275,11 +288,7 @@ impl Meta {
                     configuration
                         .into_iter()
                         .fold(Vec::new(), |mut acc, (key, value)| {
-                            acc.push(
-                                CreatableTopicConfig::default()
-                                    .name(key.to_owned())
-                                    .value(value.map(|value| value.to_owned())),
-                            );
+                            acc.push(CreatableTopicConfig::default().name(key).value(value));
                             acc
                         }),
                 );
@@ -678,10 +687,12 @@ impl Storage for DynoStore {
             ConfigResource::Topic => self
                 .meta
                 .with_mut(&self.object_store, |meta| {
-                    meta.alter_topic(
-                        resource.resource_name.as_str(),
-                        resource.configs.as_deref().unwrap_or_default(),
-                    )
+                    let configs = match resource.configs.as_deref() {
+                        Some(configs) => configs,
+                        None => &[],
+                    };
+
+                    meta.alter_topic(resource.resource_name.as_str(), configs)
                 })
                 .await
                 .map(|()| {
@@ -761,9 +772,104 @@ impl Storage for DynoStore {
 
     async fn delete_records(
         &self,
-        _topics: &[DeleteRecordsTopic],
+        topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        todo!()
+        let mut results = Vec::with_capacity(topics.len());
+
+        for topic in topics {
+            let metadata = self
+                .topic_metadata(&TopicId::Name(topic.name.clone()))
+                .await?;
+            let mut partition_results = vec![];
+
+            let Some(partitions) = topic.partitions.as_deref() else {
+                results.push(
+                    DeleteRecordsTopicResult::default()
+                        .name(topic.name.clone())
+                        .partitions(Some(partition_results)),
+                );
+                continue;
+            };
+
+            for partition in partitions {
+                let (error_code, low_watermark) = if let Some(metadata) = metadata.as_ref() {
+                    if partition.partition_index < 0
+                        || partition.partition_index >= metadata.topic.num_partitions
+                    {
+                        (ErrorCode::UnknownTopicOrPartition, 0)
+                    } else {
+                        let topition =
+                            Topition::new(topic.name.as_str(), partition.partition_index);
+                        let watermark = self.watermarks.lock().map(|mut locked| {
+                            locked
+                                .entry(topition.to_owned())
+                                .or_insert_with(|| {
+                                    OptiCon::<Watermark>::new(self.cluster.as_str(), &topition)
+                                })
+                                .to_owned()
+                        })?;
+
+                        let low_watermark = watermark
+                            .with_mut(&self.object_store, |watermark| {
+                                let high = match watermark.high {
+                                    Some(high) => high,
+                                    None => 0,
+                                };
+                                let requested = partition.offset.clamp(0, high);
+                                let low = match watermark.low {
+                                    Some(low) => low.max(requested),
+                                    None => requested,
+                                };
+                                watermark.low = Some(low);
+                                if let Some(timestamps) = watermark.timestamps.as_mut() {
+                                    timestamps.retain(|_, offset| *offset >= low);
+                                }
+                                Ok(low)
+                            })
+                            .await?;
+
+                        let prefix = Path::from(format!(
+                            "clusters/{}/topics/{}/partitions/{:0>10}/records/",
+                            self.cluster, topic.name, partition.partition_index,
+                        ));
+                        let mut list_stream = self.object_store.list(Some(&prefix));
+                        while let Some(meta) = list_stream.next().await.transpose()? {
+                            let Some(offset) = meta
+                                .location
+                                .parts()
+                                .next_back()
+                                .and_then(|offset| i64::from_str(&offset.as_ref()[0..20]).ok())
+                            else {
+                                continue;
+                            };
+
+                            if offset < low_watermark {
+                                self.object_store.delete(&meta.location).await?;
+                            }
+                        }
+
+                        (ErrorCode::None, low_watermark)
+                    }
+                } else {
+                    (ErrorCode::UnknownTopicOrPartition, 0)
+                };
+
+                partition_results.push(
+                    DeleteRecordsPartitionResult::default()
+                        .partition_index(partition.partition_index)
+                        .low_watermark(low_watermark)
+                        .error_code(error_code.into()),
+                );
+            }
+
+            results.push(
+                DeleteRecordsTopicResult::default()
+                    .name(topic.name.clone())
+                    .partitions(Some(partition_results)),
+            );
+        }
+
+        Ok(results)
     }
 
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
@@ -906,11 +1012,11 @@ impl Storage for DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = watermark.high.unwrap_or_default();
-                    watermark.high = watermark.high.map_or_else(
-                        || Some(deflated.last_offset_delta as i64 + 1i64),
-                        |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
-                    );
+                    let offset = match watermark.high {
+                        Some(high) => high,
+                        None => 0,
+                    };
+                    watermark.high = Some(offset + deflated.last_offset_delta as i64 + 1i64);
 
                     watermark.timestamps = None;
 
@@ -1046,11 +1152,11 @@ impl Storage for DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = watermark.high.unwrap_or_default();
-                    watermark.high = watermark.high.map_or_else(
-                        || Some(deflated.last_offset_delta as i64 + 1i64),
-                        |high| Some(high + deflated.last_offset_delta as i64 + 1i64),
-                    );
+                    let offset = match watermark.high {
+                        Some(high) => high,
+                        None => 0,
+                    };
+                    watermark.high = Some(offset + deflated.last_offset_delta as i64 + 1i64);
 
                     watermark.timestamps = None;
 
@@ -1620,7 +1726,7 @@ impl Storage for DynoStore {
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
         if require_stable == Some(true) {
-            warn!("require_stable is not implemented, returning potentially unstable offsets");
+            warn!("require_stable requested; returning offsets with current DynoStore visibility");
         }
 
         let mut responses = BTreeMap::new();
@@ -1705,19 +1811,16 @@ impl Storage for DynoStore {
                     return Err(Error::Api(ErrorCode::UnknownTopicOrPartition));
                 }
 
-                let mut history = meta
-                    .leader_epoch_history
-                    .get(&key)
-                    .map(|epochs| {
-                        epochs
-                            .iter()
-                            .map(|(epoch, start_offset)| LeaderEpochRecord {
-                                epoch: *epoch,
-                                start_offset: *start_offset,
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
+                let mut history = match meta.leader_epoch_history.get(&key) {
+                    Some(epochs) => epochs
+                        .iter()
+                        .map(|(epoch, start_offset)| LeaderEpochRecord {
+                            epoch: *epoch,
+                            start_offset: *start_offset,
+                        })
+                        .collect::<Vec<_>>(),
+                    None => Vec::new(),
+                };
 
                 history.sort_unstable();
                 Ok(history)
@@ -1978,7 +2081,7 @@ impl Storage for DynoStore {
                     .resource_name(name.into())
                     .configs(Some(vec![]))),
 
-                Err(_) => todo!(),
+                Err(err) => Err(err),
             },
 
             _ => Ok(DescribeConfigsResult::default()
@@ -1998,10 +2101,9 @@ impl Storage for DynoStore {
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
         let _ = (partition_limit, cursor);
 
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let mut responses = Vec::with_capacity(topics.map_or(0, |topics| topics.len()));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.unwrap_or(&[]) {
             match self
                 .topic_metadata(topic)
                 .await
@@ -2337,7 +2439,20 @@ impl Storage for DynoStore {
                                             }))
                                         }
                                     } else {
-                                        todo!()
+                                        let id = occupied.get().producer;
+                                        let epoch = 0;
+                                        _ = occupied.get_mut().epochs.insert(
+                                            epoch,
+                                            TxnDetail {
+                                                transaction_timeout_ms,
+                                                ..Default::default()
+                                            },
+                                        );
+                                        Ok(InitProducer::Completed(ProducerIdResponse {
+                                            id,
+                                            epoch,
+                                            error: ErrorCode::None,
+                                        }))
                                     }
                                 }
                             }
@@ -2587,8 +2702,84 @@ impl Storage for DynoStore {
                     .await
             }
 
-            TxnAddPartitionsRequest::VersionFourPlus { .. } => {
-                todo!()
+            TxnAddPartitionsRequest::VersionFourPlus { transactions } => {
+                self.meta
+                    .with_mut(&self.object_store, |meta| {
+                        let mut results = vec![];
+
+                        for transaction in &transactions {
+                            let topics = transaction.topics.as_deref().unwrap_or(&[]);
+                            let mut topic_results = vec![];
+
+                            let transaction_error =
+                                match meta.transactions.get_mut(&transaction.transactional_id) {
+                                    Some(txn) if txn.producer != transaction.producer_id => {
+                                        ErrorCode::ProducerFenced
+                                    }
+                                    Some(txn) => {
+                                        let txn_detail = txn
+                                            .epochs
+                                            .entry(transaction.producer_epoch)
+                                            .or_insert_with(|| TxnDetail {
+                                                transaction_timeout_ms: 0,
+                                                ..Default::default()
+                                            });
+
+                                        for topic in topics {
+                                            for partition_index in
+                                                topic.partitions.as_deref().unwrap_or(&[])
+                                            {
+                                                if !transaction.verify_only {
+                                                    _ = txn_detail
+                                                        .produces
+                                                        .entry(topic.name.clone())
+                                                        .or_default()
+                                                        .entry(*partition_index)
+                                                        .or_default();
+                                                }
+                                            }
+                                        }
+
+                                        txn_detail.started_at = Some(SystemTime::now());
+                                        txn_detail.state = Some(TxnState::Begin);
+                                        ErrorCode::None
+                                    }
+                                    None => ErrorCode::TransactionalIdNotFound,
+                                };
+
+                            for topic in topics {
+                                topic_results.push(
+                                    AddPartitionsToTxnTopicResult::default()
+                                        .name(topic.name.clone())
+                                        .results_by_partition(Some(
+                                            topic
+                                                .partitions
+                                                .as_deref()
+                                                .unwrap_or(&[])
+                                                .iter()
+                                                .copied()
+                                                .map(|partition_index| {
+                                                    AddPartitionsToTxnPartitionResult::default()
+                                                        .partition_index(partition_index)
+                                                        .partition_error_code(i16::from(
+                                                            transaction_error,
+                                                        ))
+                                                })
+                                                .collect(),
+                                        )),
+                                );
+                            }
+
+                            results.push(
+                                AddPartitionsToTxnResult::default()
+                                    .transactional_id(transaction.transactional_id.clone())
+                                    .topic_results(Some(topic_results)),
+                            );
+                        }
+
+                        Ok(TxnAddPartitionsResponse::VersionFourPlus(results))
+                    })
+                    .await
             }
         }
     }

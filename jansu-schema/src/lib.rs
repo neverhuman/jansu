@@ -23,6 +23,7 @@ use std::{
     fmt::{self, Display, Formatter},
     io,
     num::TryFromIntError,
+    path::PathBuf,
     result,
     str::FromStr,
     string::FromUtf8Error,
@@ -394,17 +395,19 @@ impl TryFrom<&Url> for Builder {
             }
 
             "file" => {
-                let mut path = env::current_dir().inspect(|current_dir| debug!(?current_dir))?;
-
-                if let Some(domain) = storage.domain() {
-                    path.push(domain);
-                }
-
-                if let Some(relative) = storage.path().strip_prefix("/") {
-                    path.push(relative);
+                let path = if storage.path().starts_with('/') {
+                    PathBuf::from(storage.path())
                 } else {
+                    let mut path =
+                        env::current_dir().inspect(|current_dir| debug!(?current_dir))?;
+
+                    if let Some(domain) = storage.domain() {
+                        path.push(domain);
+                    }
+
                     path.push(storage.path());
-                }
+                    path
+                };
 
                 debug!(?path);
 
@@ -495,10 +498,10 @@ impl Registry {
 
         if let Some(cached) = self.schemas.lock().map(|guard| guard.get(topic).cloned())? {
             if self.cache_expiry_after.is_some_and(|cache_expiry_after| {
-                SystemTime::now()
-                    .duration_since(cached.loaded_at)
-                    .unwrap_or_default()
-                    > cache_expiry_after
+                match SystemTime::now().duration_since(cached.loaded_at) {
+                    Ok(elapsed) => elapsed > cache_expiry_after,
+                    Err(_) => false,
+                }
             }) {
                 return Ok(Some(cached.schema));
             } else {

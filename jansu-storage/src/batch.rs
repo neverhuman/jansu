@@ -387,16 +387,12 @@ where
             let queued_bytes = self
                 .requests
                 .lock()
-                .map(|requests| {
-                    requests
-                        .get(&topition_producer_id)
-                        .map(|queue| {
-                            queue
-                                .iter()
-                                .map(|batch_request| batch_request.batch.record_data.len())
-                                .sum::<usize>()
-                        })
-                        .unwrap_or_default()
+                .map(|requests| match requests.get(&topition_producer_id) {
+                    Some(queue) => queue
+                        .iter()
+                        .map(|batch_request| batch_request.batch.record_data.len())
+                        .sum::<usize>(),
+                    None => 0,
                 })
                 .inspect(|queued_bytes| debug!(queued_bytes))?;
 
@@ -783,39 +779,43 @@ mod tests {
         }
     }
 
+    fn flight_recorder_error(operation: &str) -> Error {
+        Error::Message(format!("FlightRecorder cannot service {operation}"))
+    }
+
     #[async_trait]
     impl Storage for FlightRecorder {
         async fn register_broker(
             &self,
             _broker_registration: BrokerRegistrationRequest,
         ) -> Result<()> {
-            unimplemented!()
+            Err(flight_recorder_error("register_broker"))
         }
 
         async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-            unimplemented!()
+            Err(flight_recorder_error("brokers"))
         }
 
         async fn create_topic(&self, _topic: CreatableTopic, _validate_only: bool) -> Result<Uuid> {
-            unimplemented!()
+            Err(flight_recorder_error("create_topic"))
         }
 
         async fn delete_records(
             &self,
             _topics: &[DeleteRecordsTopic],
         ) -> Result<Vec<DeleteRecordsTopicResult>> {
-            unimplemented!()
+            Err(flight_recorder_error("delete_records"))
         }
 
         async fn delete_topic(&self, _topic: &TopicId) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(flight_recorder_error("delete_topic"))
         }
 
         async fn incremental_alter_resource(
             &self,
             _resource: AlterConfigsResource,
         ) -> Result<AlterConfigsResourceResponse> {
-            unimplemented!()
+            Err(flight_recorder_error("incremental_alter_resource"))
         }
 
         async fn produce(
@@ -845,11 +845,11 @@ mod tests {
             _max_bytes: u32,
             _isolation_level: IsolationLevel,
         ) -> Result<Vec<deflated::Batch>> {
-            unimplemented!()
+            Err(flight_recorder_error("fetch"))
         }
 
         async fn offset_stage(&self, _topition: &Topition) -> Result<OffsetStage> {
-            unimplemented!()
+            Err(flight_recorder_error("offset_stage"))
         }
 
         async fn offset_commit(
@@ -858,14 +858,14 @@ mod tests {
             _retention: Option<Duration>,
             _offsets: &[(Topition, OffsetCommitRequest)],
         ) -> Result<Vec<(Topition, ErrorCode)>> {
-            unimplemented!()
+            Err(flight_recorder_error("offset_commit"))
         }
 
         async fn committed_offset_topitions(
             &self,
             _group_id: &str,
         ) -> Result<BTreeMap<Topition, i64>> {
-            unimplemented!()
+            Err(flight_recorder_error("committed_offset_topitions"))
         }
 
         async fn offset_for_leader_epoch(
@@ -873,7 +873,7 @@ mod tests {
             _topition: &Topition,
             _leader_epoch: i32,
         ) -> Result<Option<(i32, i64)>> {
-            unimplemented!()
+            Err(flight_recorder_error("offset_for_leader_epoch"))
         }
 
         async fn offset_fetch(
@@ -882,7 +882,7 @@ mod tests {
             _topics: &[Topition],
             _require_stable: Option<bool>,
         ) -> Result<BTreeMap<Topition, i64>> {
-            unimplemented!()
+            Err(flight_recorder_error("offset_fetch"))
         }
 
         async fn list_offsets(
@@ -890,11 +890,11 @@ mod tests {
             _isolation_level: IsolationLevel,
             _offsets: &[(Topition, ListOffset)],
         ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
-            unimplemented!()
+            Err(flight_recorder_error("list_offsets"))
         }
 
         async fn metadata(&self, _topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
-            unimplemented!()
+            Err(flight_recorder_error("metadata"))
         }
 
         async fn describe_config(
@@ -903,7 +903,7 @@ mod tests {
             _resource: ConfigResource,
             _keys: Option<&[String]>,
         ) -> Result<DescribeConfigsResult> {
-            unimplemented!()
+            Err(flight_recorder_error("describe_config"))
         }
 
         async fn describe_topic_partitions(
@@ -912,18 +912,18 @@ mod tests {
             _partition_limit: i32,
             _cursor: Option<Topition>,
         ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-            unimplemented!()
+            Err(flight_recorder_error("describe_topic_partitions"))
         }
 
         async fn list_groups(&self, _states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-            unimplemented!()
+            Err(flight_recorder_error("list_groups"))
         }
 
         async fn delete_groups(
             &self,
             _group_ids: Option<&[String]>,
         ) -> Result<Vec<DeletableGroupResult>> {
-            unimplemented!()
+            Err(flight_recorder_error("delete_groups"))
         }
 
         async fn describe_groups(
@@ -931,7 +931,7 @@ mod tests {
             _group_ids: Option<&[String]>,
             _include_authorized_operations: bool,
         ) -> Result<Vec<NamedGroupDetail>> {
-            unimplemented!()
+            Err(flight_recorder_error("describe_groups"))
         }
 
         async fn update_group(
@@ -940,7 +940,7 @@ mod tests {
             _detail: GroupDetail,
             _version: Option<Version>,
         ) -> Result<Version, UpdateError<GroupDetail>> {
-            unimplemented!()
+            Err(UpdateError::Error(flight_recorder_error("update_group")))
         }
 
         async fn init_producer(
@@ -950,7 +950,7 @@ mod tests {
             _producer_id: Option<i64>,
             _producer_epoch: Option<i16>,
         ) -> Result<ProducerIdResponse> {
-            unimplemented!()
+            Err(flight_recorder_error("init_producer"))
         }
 
         async fn txn_add_offsets(
@@ -960,21 +960,21 @@ mod tests {
             _producer_epoch: i16,
             _group_id: &str,
         ) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(flight_recorder_error("txn_add_offsets"))
         }
 
         async fn txn_add_partitions(
             &self,
             _partitions: TxnAddPartitionsRequest,
         ) -> Result<TxnAddPartitionsResponse> {
-            unimplemented!()
+            Err(flight_recorder_error("txn_add_partitions"))
         }
 
         async fn txn_offset_commit(
             &self,
             _offsets: TxnOffsetCommitRequest,
         ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
-            unimplemented!()
+            Err(flight_recorder_error("txn_offset_commit"))
         }
 
         async fn txn_end(
@@ -984,27 +984,27 @@ mod tests {
             _producer_epoch: i16,
             _committed: bool,
         ) -> Result<ErrorCode> {
-            unimplemented!()
+            Err(flight_recorder_error("txn_end"))
         }
 
         async fn maintain(&self, _now: SystemTime) -> Result<()> {
-            unimplemented!()
+            Err(flight_recorder_error("maintain"))
         }
 
         async fn cluster_id(&self) -> Result<String> {
-            unimplemented!()
+            Err(flight_recorder_error("cluster_id"))
         }
 
         async fn node(&self) -> Result<i32> {
-            unimplemented!()
+            Err(flight_recorder_error("node"))
         }
 
         async fn advertised_listener(&self) -> Result<Url> {
-            unimplemented!()
+            Err(flight_recorder_error("advertised_listener"))
         }
 
         async fn ping(&self) -> Result<()> {
-            unimplemented!()
+            Err(flight_recorder_error("ping"))
         }
 
         async fn delete_user_scram_credential(
@@ -1012,7 +1012,7 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<()> {
-            unimplemented!()
+            Err(flight_recorder_error("delete_user_scram_credential"))
         }
 
         async fn upsert_user_scram_credential(
@@ -1021,7 +1021,7 @@ mod tests {
             _mechanism: ScramMechanism,
             _credential: ScramCredential,
         ) -> Result<()> {
-            unimplemented!()
+            Err(flight_recorder_error("upsert_user_scram_credential"))
         }
 
         async fn user_scram_credential(
@@ -1029,7 +1029,7 @@ mod tests {
             _user: &str,
             _mechanism: ScramMechanism,
         ) -> Result<Option<ScramCredential>> {
-            unimplemented!()
+            Err(flight_recorder_error("user_scram_credential"))
         }
     }
 

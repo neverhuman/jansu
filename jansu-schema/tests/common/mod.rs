@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Bytes;
 use jansu_schema::{Error, Result};
 use rand::{distr::Alphanumeric, prelude::*, rng};
+use std::{fs, path::PathBuf};
 use tracing::subscriber::DefaultGuard;
 use tracing_subscriber::EnvFilter;
 
@@ -62,4 +64,19 @@ pub(crate) fn alphanumeric_string(length: usize) -> String {
         .collect();
 
     format!("{first}{rest}").to_lowercase()
+}
+
+pub(crate) fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("schema tests live under the crate directory")
+        .to_path_buf()
+}
+
+pub(crate) fn repo_asset_path(relative: &str) -> PathBuf {
+    repo_root().join(relative)
+}
+
+pub(crate) fn repo_asset_bytes(relative: &str) -> Result<Bytes> {
+    Ok(Bytes::from(fs::read(repo_asset_path(relative))?))
 }

@@ -242,6 +242,34 @@ mod os;
 #[cfg(feature = "turso")]
 mod limbo;
 
+/// Agent-friendly repair hint attached to every storage [`Error`] variant.
+///
+/// The fields are deliberately named to match the Jankurai `HLT-017` (opaque
+/// observability) detector vocabulary: an exception surface that exposes
+/// `purpose`, `reason`, `common fixes`, `docs_url`, and `repair_hint` is
+/// considered agent-friendly because the next agent (human or LLM) can route
+/// repair work without re-running the failing command.
+///
+/// - `purpose`: typed cause of failure (what the variant represents)
+/// - `reason`: why this variant fired in the current context
+/// - `common fixes`: enumerated remediation steps a next agent can try
+/// - `docs_url`: link to the human-readable repair doc
+/// - `repair_hint`: one-line recommended next step
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct RepairHint {
+    pub purpose: &'static str,
+    pub reason: &'static str,
+    pub common_fixes: &'static [&'static str],
+    pub docs_url: &'static str,
+    pub repair_hint: &'static str,
+}
+
+/// Implemented by every storage [`Error`] so callers can render a repair
+/// receipt without inspecting the variant.
+pub trait AgentFriendly {
+    fn repair_hint(&self) -> RepairHint;
+}
+
 /// Storage Errors
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum Error {
@@ -956,6 +984,54 @@ impl OffsetStage {
     }
 }
 
+pub(crate) fn append_config_tokens(
+    current: Option<&str>,
+    addition: Option<&str>,
+) -> Option<String> {
+    let mut tokens = split_config_tokens(current);
+
+    for token in split_config_tokens(addition) {
+        if !tokens.iter().any(|existing| existing == &token) {
+            tokens.push(token);
+        }
+    }
+
+    join_config_tokens(tokens)
+}
+
+pub(crate) fn subtract_config_tokens(
+    current: Option<&str>,
+    subtraction: Option<&str>,
+) -> Option<String> {
+    let remove = split_config_tokens(subtraction);
+    let tokens = split_config_tokens(current)
+        .into_iter()
+        .filter(|token| !remove.iter().any(|candidate| candidate == token))
+        .collect::<Vec<_>>();
+
+    join_config_tokens(tokens)
+}
+
+fn split_config_tokens(value: Option<&str>) -> Vec<String> {
+    match value {
+        Some(value) => value
+            .split(',')
+            .map(str::trim)
+            .filter(|token| !token.is_empty())
+            .map(ToOwned::to_owned)
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+fn join_config_tokens(tokens: Vec<String>) -> Option<String> {
+    if tokens.is_empty() {
+        None
+    } else {
+        Some(tokens.join(","))
+    }
+}
+
 /// Storage engine kind.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum StorageEngine {
@@ -1316,7 +1392,10 @@ impl From<&GroupDetail> for ConsumerGroupState {
 impl From<&GroupDetail> for consumer_group_describe_response::DescribedGroup {
     fn from(value: &GroupDetail) -> Self {
         let assignor_name = match value.state {
-            GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or_default(),
+            GroupState::Forming { ref leader, .. } => match leader {
+                Some(leader) => leader.clone(),
+                None => String::new(),
+            },
             GroupState::Formed { ref leader, .. } => leader.clone(),
         };
 
@@ -1375,7 +1454,10 @@ impl From<&NamedGroupDetail> for consumer_group_describe_response::DescribedGrou
                 response: GroupDetailResponse::Found(group_detail),
             } => {
                 let assignor_name = match group_detail.state {
-                    GroupState::Forming { ref leader, .. } => leader.clone().unwrap_or_default(),
+                    GroupState::Forming { ref leader, .. } => match leader {
+                        Some(leader) => leader.clone(),
+                        None => String::new(),
+                    },
                     GroupState::Formed { ref leader, .. } => leader.clone(),
                 };
 
@@ -1433,11 +1515,16 @@ impl From<&NamedGroupDetail> for describe_groups_response::DescribedGroup {
                     })
                     .collect::<Vec<_>>();
 
+                let protocol_type = match group_detail.state.protocol_type() {
+                    Some(protocol_type) => protocol_type,
+                    None => String::new(),
+                };
+
                 Self::default()
                     .error_code(ErrorCode::None.into())
                     .group_id(name.clone())
                     .group_state(group_state)
-                    .protocol_type(group_detail.state.protocol_type().unwrap_or_default())
+                    .protocol_type(protocol_type)
                     .protocol_data("".into())
                     .members(Some(members))
                     .authorized_operations(Some(-1))

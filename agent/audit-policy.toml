@@ -1,0 +1,19 @@
+minimum_score = 85
+fail_on = ["critical", "high"]
+advisory_on = ["medium", "low"]
+
+[history]
+dedupe = "consecutive-equivalent"
+max_bytes = 1048576
+max_rows = 500
+mirror_required = false
+
+[scan]
+excluded_paths = [
+    "target/",
+]
+
+[smart_scan]
+schema_version = "1.0.0"
+full_scan_interval_secs = 3600
+roulette_rate = 0.1

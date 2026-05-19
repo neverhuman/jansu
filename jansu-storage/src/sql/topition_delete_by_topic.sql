@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from topition
-where topition.topic in (
+delete from topition where topition.topic in (
     select t.id
     from cluster c
     join topic t on t.cluster = c.id

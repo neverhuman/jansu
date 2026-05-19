@@ -158,7 +158,7 @@ where
             for request_topic in request_topics {
                 let topic_slot = response_topics.len();
                 let topic_name = request_topic.name;
-                let request_partitions = request_topic.partitions.unwrap_or_default();
+                let request_partitions = request_topic.partitions.unwrap_or_else(Vec::new);
 
                 let mut partition_slots: Vec<_> = request_partitions
                     .iter()
@@ -242,7 +242,7 @@ where
                         let history = histories
                             .get(&pending.topition)
                             .map(Vec::as_slice)
-                            .unwrap_or_default();
+                            .unwrap_or(&[]);
 
                         let epoch = if offset.error_code() == ErrorCode::None {
                             offset.offset().map_or_else(

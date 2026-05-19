@@ -234,20 +234,30 @@ pub async fn produce(
         )
     })?;
 
-    assert!(
-        response
-            .responses
-            .unwrap_or_default()
-            .into_iter()
-            .all(|topic| {
-                topic
-                    .partition_responses
-                    .unwrap_or_default()
-                    .iter()
-                    .inspect(|partition| debug!(topic = %topic.name, ?partition))
-                    .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-            })
-    );
+    let responses = response.responses.ok_or_else(|| {
+        Error::Protocol(jansu_sans_io::Error::Message(
+            "produce response did not include topic results".into(),
+        ))
+    })?;
+
+    for topic in responses {
+        let partition_responses = topic.partition_responses.ok_or_else(|| {
+            Error::Protocol(jansu_sans_io::Error::Message(format!(
+                "produce response for topic {} did not include partition results",
+                topic.name
+            )))
+        })?;
+
+        for partition in partition_responses
+            .iter()
+            .inspect(|partition| debug!(topic = %topic.name, ?partition))
+        {
+            let error_code = ErrorCode::try_from(partition.error_code)?;
+            if error_code != ErrorCode::None {
+                return Err(Error::Api(error_code));
+            }
+        }
+    }
 
     Ok(())
 }

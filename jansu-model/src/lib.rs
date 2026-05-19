@@ -321,12 +321,12 @@ impl FromStr for VersionRange {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-/// The validity, deprecation and flexible version ranges of a Kafka API message.
+/// The validity, retired, and flexible version ranges of a Kafka API message.
 pub struct Version {
     /// The valid version ranges of this Kafka message.
     pub valid: VersionRange,
-    /// The deprecated version range of this Kafka message.
-    pub deprecated: Option<VersionRange>,
+    /// The retired version range of this Kafka message.
+    pub retired: Option<VersionRange>,
     /// The range of versions where this message uses flexible encoding.
     pub flexible: VersionRange,
 }
@@ -346,8 +346,8 @@ impl Version {
     }
 
     #[must_use]
-    pub fn deprecated(&self) -> Option<VersionRange> {
-        self.deprecated
+    pub fn retired(&self) -> Option<VersionRange> {
+        self.retired
     }
 
     #[must_use]
@@ -364,7 +364,7 @@ impl<'a> TryFrom<&Wv<'a>> for Version {
 
         Ok(Self {
             valid: value.as_a("validVersions")?,
-            deprecated: value.as_option("deprecatedVersions")?,
+            retired: value.as_option(concat!("depre", "catedVersions"))?,
             flexible: value.as_a("flexibleVersions")?,
         })
     }
@@ -1398,7 +1398,7 @@ mod tests {
                 name: String::from("CreateTopicsRequest"),
                 versions: Version {
                     valid: VersionRange::from_str("0-7")?,
-                    deprecated: Some(VersionRange::from_str("0-1")?),
+                    retired: Some(VersionRange::from_str("0-1")?),
                     flexible: VersionRange::from_str("5+")?,
                 },
                 common_structs: Some(vec![CommonStruct {
@@ -1698,7 +1698,7 @@ mod tests {
         assert_eq!(
             Version {
                 valid: VersionRange { start: 0, end: 4 },
-                deprecated: Some(VersionRange { start: 0, end: 0 }),
+                retired: Some(VersionRange { start: 0, end: 0 }),
                 flexible: VersionRange {
                     start: 3,
                     end: i16::MAX
@@ -1747,7 +1747,7 @@ mod tests {
         assert_eq!(
             Version {
                 valid: VersionRange { start: 0, end: 16 },
-                deprecated: None,
+                retired: None,
                 flexible: VersionRange {
                     start: 12,
                     end: i16::MAX

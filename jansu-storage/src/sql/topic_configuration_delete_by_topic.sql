@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from topic_configuration
-where topic_configuration.topic in (
+delete from topic_configuration where topic_configuration.topic in (
     select t.id
     from cluster c
     join topic t on t.cluster = c.id

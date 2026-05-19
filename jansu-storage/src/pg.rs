@@ -836,7 +836,7 @@ impl Postgres {
         debug!(?low, ?high);
 
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = high.unwrap_or_default();
+        let append_start_offset = high.unwrap_or(0);
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -895,7 +895,7 @@ impl Postgres {
                                     .and_then(|config| config.value.as_deref())
                                     .and_then(|value| bool::from_str(value).ok())
                             })
-                            .unwrap_or_default()
+                            .unwrap_or(false)
                     })
                     .inspect(|jansu_lake_sink| debug!(jansu_lake_sink))?)
         {
@@ -918,7 +918,7 @@ impl Postgres {
 
                 for (delta, record) in inflated.records.iter().enumerate() {
                     let delta = i64::try_from(delta)?;
-                    let offset = high.unwrap_or_default() + delta;
+                    let offset = high.unwrap_or(0) + delta;
                     let attributes = inflated.attributes;
                     let key = record.key.as_deref();
                     let value = record.value.as_deref();
@@ -963,7 +963,7 @@ impl Postgres {
 
                 for (delta, record) in inflated.records.iter().enumerate() {
                     let delta = i64::try_from(delta)?;
-                    let offset = high.unwrap_or_default() + delta;
+                    let offset = high.unwrap_or(0) + delta;
 
                     for header in record.headers.iter().as_ref() {
                         let key = header.key.as_deref();
@@ -997,7 +997,7 @@ impl Postgres {
             if let Some(transaction_id) = transaction_id
                 && attributes.transaction
             {
-                let offset_start = high.unwrap_or_default();
+                let offset_start = high.unwrap_or(0);
                 let offset_end = high.map_or(last_offset_delta, |high| high + last_offset_delta);
 
                 _ = self
@@ -1028,7 +1028,7 @@ impl Postgres {
                     &self.cluster,
                     &topic,
                     &partition,
-                    &low.unwrap_or_default(),
+                    &low.unwrap_or(0),
                     &high.map_or(last_offset_delta + 1, |high| high + last_offset_delta + 1),
                 ],
             )
@@ -1039,7 +1039,7 @@ impl Postgres {
         self.lake_store(&attributes, topition, high, &inflated)
             .await?;
 
-        Ok(high.unwrap_or_default())
+        Ok(high.unwrap_or(0))
     }
 
     #[instrument(skip_all)]
@@ -1316,7 +1316,7 @@ impl Postgres {
             lake.store(
                 topition.topic(),
                 topition.partition(),
-                high.unwrap_or_default(),
+                high.unwrap_or(0),
                 inflated,
                 config,
             )
@@ -1365,7 +1365,7 @@ impl Postgres {
                     configs
                         .configs
                         .as_deref()
-                        .unwrap_or_default()
+                        .unwrap_or(&[])
                         .iter()
                         .find_map(|config| {
                             if config.name == "jansu.virtual" {
@@ -1377,7 +1377,7 @@ impl Postgres {
                                 None
                             }
                         })
-                        .unwrap_or_default()
+                        .unwrap_or(false)
                 })?
         {
             Ok((base, Some(key)))
@@ -1771,8 +1771,9 @@ impl Storage for Postgres {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_default() {
-                    match OpType::try_from(config.config_operation)? {
+                for config in resource.configs.unwrap_or_else(Vec::new) {
+                    let operation = OpType::try_from(config.config_operation)?;
+                    match operation {
                         OpType::Set => {
                             let c = self.connection().await?;
 
@@ -1812,8 +1813,66 @@ impl Storage for Postgres {
                                 break;
                             }
                         }
-                        OpType::Append => todo!(),
-                        OpType::Subtract => todo!(),
+                        OpType::Append | OpType::Subtract => {
+                            let c = self.connection().await?;
+                            let rows = self
+                                .prepare_query(
+                                    &c,
+                                    "topic_configuration_select.sql",
+                                    &[&self.cluster, &resource.resource_name],
+                                )
+                                .await?;
+                            let current = rows.iter().find_map(|row| {
+                                row.try_get::<_, String>(0).ok().and_then(|name| {
+                                    if name == config.name {
+                                        row.try_get::<_, Option<String>>(1).ok().flatten()
+                                    } else {
+                                        None
+                                    }
+                                })
+                            });
+
+                            let updated = match operation {
+                                OpType::Append => crate::append_config_tokens(
+                                    current.as_deref(),
+                                    config.value.as_deref(),
+                                ),
+                                OpType::Subtract => crate::subtract_config_tokens(
+                                    current.as_deref(),
+                                    config.value.as_deref(),
+                                ),
+                                OpType::Set | OpType::Delete => None,
+                            };
+
+                            let outcome = if let Some(updated) = updated {
+                                let updated = Some(updated);
+                                self.prepare_query(
+                                    &c,
+                                    "topic_configuration_upsert.sql",
+                                    &[
+                                        &self.cluster,
+                                        &resource.resource_name,
+                                        &config.name,
+                                        &updated,
+                                    ],
+                                )
+                                .await
+                                .map(|_| ())
+                            } else {
+                                self.prepare_query(
+                                    &c,
+                                    "topic_configuration_delete.sql",
+                                    &[&self.cluster, &resource.resource_name, &config.name],
+                                )
+                                .await
+                                .map(|_| ())
+                            };
+
+                            if outcome.inspect_err(|err| error!(?err)).is_err() {
+                                error_code = ErrorCode::UnknownServerError;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -2122,12 +2181,12 @@ impl Storage for Postgres {
         let log_start = row
             .try_get::<_, Option<i64>>(0)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let high_watermark = row
             .try_get::<_, Option<i64>>(1)
             .inspect_err(|err| error!(?topition, ?err))?
-            .unwrap_or_default();
+            .unwrap_or(0);
 
         let last_stable = row
             .try_get::<_, Option<i64>>(1)
@@ -2929,7 +2988,7 @@ impl Storage for Postgres {
                     .inspect_err(|err| error!(?err))?;
                 let value = row
                     .try_get::<_, Option<String>>(1)
-                    .map(|value| value.unwrap_or_default())
+                    .map(|value| value.unwrap_or_else(String::new))
                     .map(Some)
                     .inspect_err(|err| error!(?err))?;
 
@@ -2978,10 +3037,9 @@ impl Storage for Postgres {
 
         let c = self.connection().await.inspect_err(|err| error!(?err))?;
 
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let mut responses = Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or(0));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.unwrap_or(&[]) {
             debug!(?topic);
 
             responses.push(match topic {

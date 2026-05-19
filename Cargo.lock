@@ -3736,7 +3736,7 @@ dependencies = [
 
 [[package]]
 name = "fuzz"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "jansu-sans-io",
@@ -4575,7 +4575,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "jansu"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dotenvy",
  "jansu-broker",
@@ -4594,7 +4594,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-auth"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "jansu-sans-io",
@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-broker"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4660,7 +4660,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-cat"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "futures",
@@ -4680,7 +4680,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-cli"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "clap",
@@ -4715,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-client"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "backoff",
  "bytes",
@@ -4737,7 +4737,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-embedded"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4756,7 +4756,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-generator"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "futures",
  "futures-core",
@@ -4783,7 +4783,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-model"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "convert_case 0.11.0",
  "lazy_static",
@@ -4798,7 +4798,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-otel"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
@@ -4811,7 +4811,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-perf"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "futures",
@@ -4840,7 +4840,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-proxy"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4865,7 +4865,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-sans-io"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytes",
  "clap",
@@ -4894,7 +4894,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-schema"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "apache-avro",
@@ -4941,7 +4941,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-service"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -4965,7 +4965,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-storage"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -5019,7 +5019,7 @@ dependencies = [
 
 [[package]]
 name = "jansu-topic"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "futures",
  "futures-core",

@@ -147,33 +147,37 @@ impl Schema {
             .inspect_err(|err| error!(?err, ?values))
     }
 
-    fn data_type_builder(&self, path: &[&str], data_type: &DataType) -> Box<dyn ArrayBuilder> {
+    fn data_type_builder(
+        &self,
+        path: &[&str],
+        data_type: &DataType,
+    ) -> Result<Box<dyn ArrayBuilder>> {
         debug!(path = path.join("."), ?data_type);
 
         match data_type {
-            DataType::Null => Box::new(NullBuilder::new()),
-            DataType::Boolean => Box::new(BooleanBuilder::new()),
-            DataType::UInt64 => Box::new(Int64Builder::new()),
-            DataType::Int64 => Box::new(Int64Builder::new()),
-            DataType::Float64 => Box::new(Float64Builder::new()),
-            DataType::Utf8 => Box::new(StringBuilder::new()),
+            DataType::Null => Ok(Box::new(NullBuilder::new())),
+            DataType::Boolean => Ok(Box::new(BooleanBuilder::new())),
+            DataType::UInt64 => Ok(Box::new(Int64Builder::new())),
+            DataType::Int64 => Ok(Box::new(Int64Builder::new())),
+            DataType::Float64 => Ok(Box::new(Float64Builder::new())),
+            DataType::Utf8 => Ok(Box::new(StringBuilder::new())),
 
             DataType::List(element) => {
                 debug!(?element);
 
-                Box::new(
+                Ok(Box::new(
                     ListBuilder::new(self.data_type_builder(
                         &append_path(path, ARROW_LIST_FIELD_NAME)[..],
                         element.data_type(),
-                    ))
+                    )?)
                     .with_field(self.new_list_field(path, element.data_type().to_owned())),
-                ) as Box<dyn ArrayBuilder>
+                ) as Box<dyn ArrayBuilder>)
             }
 
             DataType::Struct(fields) => {
                 debug!(?fields);
 
-                Box::new(StructBuilder::new(
+                Ok(Box::new(StructBuilder::new(
                     fields.to_owned(),
                     fields
                         .iter()
@@ -183,11 +187,13 @@ impl Schema {
                                 field.data_type(),
                             )
                         })
-                        .collect::<Vec<_>>(),
-                ))
+                        .collect::<Result<Vec<_>>>()?,
+                )))
             }
 
-            _ => unimplemented!("unexpected: {}", type_name_of_val(data_type)),
+            other => Err(Error::Message(format!(
+                "JSON Arrow builder cannot convert inferred type {other:?}"
+            ))),
         }
     }
 }
@@ -477,7 +483,7 @@ impl AsArrow for Schema {
             let data_type = self.common_data_type(&[MessageKind::Meta.as_ref()], &[meta][..])?;
 
             debug!(?data_type);
-            builders.push(self.data_type_builder(&[MessageKind::Meta.as_ref()], &data_type));
+            builders.push(self.data_type_builder(&[MessageKind::Meta.as_ref()], &data_type)?);
             fields.push(self.new_field(&[], MessageKind::Meta.as_ref(), data_type))
         }
 
@@ -503,7 +509,7 @@ impl AsArrow for Schema {
             })
             .inspect(|data_type| debug!(?data_type))?
         {
-            builders.push(self.data_type_builder(&[MessageKind::Key.as_ref()], &data_type));
+            builders.push(self.data_type_builder(&[MessageKind::Key.as_ref()], &data_type)?);
             fields.push(self.new_field(&[], MessageKind::Key.as_ref(), data_type))
         };
 
@@ -529,7 +535,7 @@ impl AsArrow for Schema {
             })
             .inspect(|data_type| debug!(?data_type))?
         {
-            builders.push(self.data_type_builder(&[MessageKind::Value.as_ref()], &data_type));
+            builders.push(self.data_type_builder(&[MessageKind::Value.as_ref()], &data_type)?);
             fields.push(self.new_field(&[], MessageKind::Value.as_ref(), data_type))
         };
 
@@ -779,7 +785,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -805,12 +811,13 @@ mod tests {
 
         let topic = "def";
 
-        let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-            "../../../../jansu/etc/schema/grade.json"
-        )))?;
+        let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../etc/schema/grade.json"
+        ))))?;
 
         let kv = if let Value::Array(values) = serde_json::from_slice::<Value>(include_bytes!(
-            "../../../../jansu/etc/data/grades.json"
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../etc/data/grades.json")
         ))? {
             values
                 .into_iter()
@@ -851,7 +858,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -928,7 +935,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -999,7 +1006,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1072,7 +1079,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1162,7 +1169,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();
@@ -1247,7 +1254,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from def").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results)?.to_string();

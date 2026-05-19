@@ -101,7 +101,7 @@ pub struct EmbeddedRecord {
     pub partition: i32,
     /// Absolute offset within the partition.
     pub offset: i64,
-    /// Optional Kafka message key (typically used for idempotency hashing).
+    /// Optional record key, typically used for idempotency hashing.
     pub key: Option<Vec<u8>>,
     /// Record payload bytes.
     pub payload: Vec<u8>,
@@ -299,7 +299,10 @@ impl Consumer {
                     partition: self.partition,
                     offset: abs_offset,
                     key: record.key.as_ref().map(|b| b.to_vec()),
-                    payload: record.value().map(|b| b.to_vec()).unwrap_or_default(),
+                    payload: match record.value() {
+                        Some(value) => value.to_vec(),
+                        None => Vec::new(),
+                    },
                 });
             }
         }

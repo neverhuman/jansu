@@ -237,7 +237,13 @@ impl MessageGenerator {
                     }
                 }
 
-                RuntimeFieldType::Map(key, value) => todo!("key={key:?} value={value:?}"),
+                RuntimeFieldType::Map(ref key, ref value) => {
+                    let mut map = field.mut_map(message_dyn.as_mut());
+                    map.insert(
+                        default_map_key(key)?,
+                        field_generator.singular_value(engine, value)?,
+                    );
+                }
             }
         }
 
@@ -362,33 +368,64 @@ impl<'a> FieldGenerator<'a> {
                 .map(ReflectValueBox::from)
                 .map_err(Into::into),
 
-            RuntimeType::VecU8 => todo!(),
-
-            RuntimeType::Enum(descriptor) => self
-                .configuration
-                .script()
-                .inspect(|script| debug!(script))
-                .map_or(Ok(ReflectValueBox::Enum(descriptor.clone(), 1)), |script| {
-                    engine
+            RuntimeType::VecU8 => {
+                let bytes = match self.configuration.script().inspect(|script| debug!(script)) {
+                    Some(script) => engine
                         .eval::<String>(script)
-                        .inspect(|name| debug!(name))
-                        .map(|name| {
-                            descriptor
-                                .value_by_name(&name[..])
-                                .inspect(|value_descriptor| debug!(?value_descriptor))
-                                .map(|value_descriptor| {
-                                    ReflectValueBox::Enum(
-                                        descriptor.clone(),
-                                        value_descriptor.value(),
-                                    )
-                                })
-                                .inspect(|value| debug!(?value))
-                                .unwrap()
-                        })
+                        .map(|value| value.into_bytes())
                         .inspect_err(|err| debug!(script, ?err))
-                })
-                .inspect(|result| debug!(?result))
-                .map_err(Into::into),
+                        .map_err(Error::from),
+                    None => Ok(Vec::new()),
+                }
+                .or_else(|_: Error| {
+                    if let FieldGeneratorConfiguration::Bytes(bytes) = &self.configuration {
+                        Ok::<Vec<u8>, Error>(bytes.to_vec())
+                    } else {
+                        Ok::<Vec<u8>, Error>(Vec::new())
+                    }
+                })?;
+
+                Ok(ReflectValueBox::from(bytes))
+            }
+
+            RuntimeType::Enum(descriptor) => {
+                let result = match self.configuration.script().inspect(|script| debug!(script)) {
+                    Some(script) => {
+                        let name = engine
+                            .eval::<String>(script)
+                            .inspect(|name| debug!(name))
+                            .inspect_err(|err| debug!(script, ?err))?;
+
+                        match descriptor
+                            .value_by_name(&name[..])
+                            .inspect(|value_descriptor| debug!(?value_descriptor))
+                        {
+                            Some(value_descriptor) => Ok(ReflectValueBox::Enum(
+                                descriptor.clone(),
+                                value_descriptor.value(),
+                            )),
+                            None => Err(Error::Message(format!(
+                                "enum {} has no value named {}",
+                                descriptor.full_name(),
+                                name
+                            ))),
+                        }
+                    }
+                    None => descriptor
+                        .values()
+                        .next()
+                        .map(|value| ReflectValueBox::Enum(descriptor.clone(), value.value()))
+                        .ok_or_else(|| {
+                            Error::Message(format!(
+                                "enum {} has no declared values",
+                                descriptor.full_name()
+                            ))
+                        }),
+                }?;
+
+                debug!(?result);
+                Ok(result)
+            }
 
             RuntimeType::Message(message_descriptor) => {
                 let generator = MessageGenerator {
@@ -415,6 +452,20 @@ impl<'a> FieldGenerator<'a> {
             .inspect(|i| debug!(i))
             .map(|_| self.singular_value(engine, runtime_type))
             .collect::<Result<Vec<_>>>()
+    }
+}
+
+fn default_map_key(runtime_type: &RuntimeType) -> Result<ReflectValueBox> {
+    match runtime_type {
+        RuntimeType::I32 => Ok(ReflectValueBox::from(0_i32)),
+        RuntimeType::I64 => Ok(ReflectValueBox::from(0_i64)),
+        RuntimeType::U32 => Ok(ReflectValueBox::from(0_u32)),
+        RuntimeType::U64 => Ok(ReflectValueBox::from(0_u64)),
+        RuntimeType::Bool => Ok(ReflectValueBox::from(false)),
+        RuntimeType::String => Ok(ReflectValueBox::from(String::new())),
+        other => Err(Error::Message(format!(
+            "unsupported protobuf map key type: {other:?}"
+        ))),
     }
 }
 
@@ -446,7 +497,7 @@ impl FieldGeneratorConfiguration {
     ) -> FieldGeneratorConfiguration {
         debug!(field = field.name(), generator = generator.full_name(),);
 
-        field
+        match field
             .options
             .special_fields
             .unknown_fields()
@@ -466,16 +517,20 @@ impl FieldGeneratorConfiguration {
                 } else {
                     None
                 }
-            })
-            .unwrap_or_default()
+            }) {
+            Some(configuration) => configuration,
+            None => Self::default(),
+        }
     }
 
     fn skip(&self) -> bool {
-        self.get("skip")
-            .cloned()
-            .and_then(|value| value.as_bool())
-            .inspect(|skip| debug!(?skip))
-            .unwrap_or_default()
+        match self.get("skip").cloned().and_then(|value| value.as_bool()) {
+            Some(skip) => {
+                debug!(?skip);
+                skip
+            }
+            None => false,
+        }
     }
 
     fn script(&self) -> Option<&str> {
@@ -555,8 +610,12 @@ impl FieldGeneratorConfiguration {
 }
 
 impl From<EnumDescriptor> for FieldGeneratorConfiguration {
-    fn from(_value: EnumDescriptor) -> Self {
-        todo!()
+    fn from(value: EnumDescriptor) -> Self {
+        value
+            .values()
+            .next()
+            .map(|value| Self::String(value.name().to_owned()))
+            .unwrap_or_else(|| Self::String(String::new()))
     }
 }
 
@@ -572,9 +631,31 @@ impl<'a> From<ReflectValueRef<'a>> for FieldGeneratorConfiguration {
             ReflectValueRef::Bool(value) => Self::Bool(value),
             ReflectValueRef::String(value) => Self::String(value.to_owned()),
             ReflectValueRef::Bytes(items) => Self::Bytes(Bytes::copy_from_slice(items)),
-            ReflectValueRef::Enum(enum_descriptor, _) => Self::from(enum_descriptor),
+            ReflectValueRef::Enum(enum_descriptor, value) => enum_descriptor
+                .value_by_number(value)
+                .map(|value| Self::String(value.name().to_owned()))
+                .unwrap_or_else(|| Self::from(enum_descriptor)),
             ReflectValueRef::Message(message_ref) => Self::from(message_ref.deref()),
         }
+    }
+}
+
+fn reflect_value_key(value: ReflectValueRef<'_>) -> String {
+    match value {
+        ReflectValueRef::U32(value) => value.to_string(),
+        ReflectValueRef::U64(value) => value.to_string(),
+        ReflectValueRef::I32(value) => value.to_string(),
+        ReflectValueRef::I64(value) => value.to_string(),
+        ReflectValueRef::F32(value) => value.to_string(),
+        ReflectValueRef::F64(value) => value.to_string(),
+        ReflectValueRef::Bool(value) => value.to_string(),
+        ReflectValueRef::String(value) => value.to_owned(),
+        ReflectValueRef::Bytes(items) => String::from_utf8_lossy(items).into(),
+        ReflectValueRef::Enum(enum_descriptor, value) => enum_descriptor
+            .value_by_number(value)
+            .map(|value| value.name().to_owned())
+            .unwrap_or_else(|| value.to_string()),
+        ReflectValueRef::Message(message_ref) => message_ref.to_string(),
     }
 }
 
@@ -611,7 +692,16 @@ impl From<&dyn MessageDyn> for FieldGeneratorConfiguration {
                         ))
                     }
 
-                    RuntimeFieldType::Map(key, value) => todo!("key={key:?} value={value:?}"),
+                    RuntimeFieldType::Map(_, _) => Some((
+                        field.name().to_owned(),
+                        Self::Message(
+                            field
+                                .get_map(message)
+                                .into_iter()
+                                .map(|(key, value)| (reflect_value_key(key), Self::from(value)))
+                                .collect::<BTreeMap<String, FieldGeneratorConfiguration>>(),
+                        ),
+                    )),
                 })
                 .inspect(|(field, value)| debug!(field, ?value))
                 .collect::<BTreeMap<String, FieldGeneratorConfiguration>>(),

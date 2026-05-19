@@ -24,9 +24,8 @@ use arrow::{
         ArrayBuilder, BooleanBuilder, Date32Builder, Decimal128Builder, Decimal256Builder,
         Float32Builder, Float64Builder, Int32Builder, Int64Builder, LargeBinaryBuilder,
         ListBuilder, MapBuilder, NullBuilder, StringBuilder, StructBuilder,
-        Time32MillisecondBuilder, Time64MicrosecondBuilder, Time64NanosecondBuilder,
-        TimestampMicrosecondBuilder, TimestampMillisecondBuilder, TimestampNanosecondBuilder,
-        UInt32Builder,
+        Time32MillisecondBuilder, Time64MicrosecondBuilder, TimestampMicrosecondBuilder,
+        TimestampMillisecondBuilder, TimestampNanosecondBuilder, UInt32Builder,
     },
     datatypes::{
         DataType, Field, FieldRef, Fields, Schema as ArrowSchema, TimeUnit, UnionFields, UnionMode,
@@ -217,7 +216,7 @@ impl Schema {
                 })
                 .map_err(Into::into),
 
-            AvroSchema::BigDecimal => todo!(),
+            AvroSchema::BigDecimal => Ok(DataType::Utf8),
 
             AvroSchema::Date => Ok(DataType::Date32),
 
@@ -247,10 +246,10 @@ impl Schema {
                 Field::new("milliseconds", DataType::UInt32, NULLABLE),
             ]))),
 
-            AvroSchema::Ref { name } => {
-                let _ = name;
-                todo!();
-            }
+            AvroSchema::Ref { name } => Err(Error::Message(format!(
+                "Avro Arrow schema conversion cannot resolve reference {}",
+                name.name
+            ))),
         }
     }
 
@@ -325,7 +324,9 @@ impl Schema {
                 if let Some(schema) = schema.nullable_variant() {
                     self.schema_array_builder(path, schema)
                 } else {
-                    todo!()
+                    Err(Error::Message(format!(
+                        "Avro Arrow builder conversion cannot encode non-null union {schema:?}"
+                    )))
                 }
             }
 
@@ -349,25 +350,35 @@ impl Schema {
             AvroSchema::Fixed(_schema) => Ok(Box::new(LargeBinaryBuilder::new())),
 
             AvroSchema::Decimal(schema) => u8::try_from(schema.precision)
-                .map(|precision| {
-                    if precision <= 16 {
-                        Box::new(Decimal128Builder::new()) as Box<dyn ArrayBuilder>
-                    } else {
-                        Box::new(Decimal256Builder::new()) as Box<dyn ArrayBuilder>
-                    }
+                .and_then(|precision| {
+                    i8::try_from(schema.scale).map(|scale| {
+                        let data_type = if precision <= 16 {
+                            DataType::Decimal128(precision, scale)
+                        } else {
+                            DataType::Decimal256(precision, scale)
+                        };
+
+                        if precision <= 16 {
+                            Box::new(Decimal128Builder::new().with_data_type(data_type))
+                                as Box<dyn ArrayBuilder>
+                        } else {
+                            Box::new(Decimal256Builder::new().with_data_type(data_type))
+                                as Box<dyn ArrayBuilder>
+                        }
+                    })
                 })
                 .map_err(Into::into),
 
-            AvroSchema::BigDecimal => todo!(),
+            AvroSchema::BigDecimal => Ok(Box::new(StringBuilder::new())),
             AvroSchema::Date => Ok(Box::new(Date32Builder::new())),
             AvroSchema::TimeMillis => Ok(Box::new(Time32MillisecondBuilder::new())),
             AvroSchema::TimeMicros => Ok(Box::new(Time64MicrosecondBuilder::new())),
             AvroSchema::TimestampMillis => Ok(Box::new(TimestampMillisecondBuilder::new())),
             AvroSchema::TimestampMicros => Ok(Box::new(TimestampMicrosecondBuilder::new())),
             AvroSchema::TimestampNanos => Ok(Box::new(TimestampNanosecondBuilder::new())),
-            AvroSchema::LocalTimestampMillis => Ok(Box::new(Time32MillisecondBuilder::new())),
-            AvroSchema::LocalTimestampMicros => Ok(Box::new(Time64MicrosecondBuilder::new())),
-            AvroSchema::LocalTimestampNanos => Ok(Box::new(Time64NanosecondBuilder::new())),
+            AvroSchema::LocalTimestampMillis => Ok(Box::new(TimestampMillisecondBuilder::new())),
+            AvroSchema::LocalTimestampMicros => Ok(Box::new(TimestampMicrosecondBuilder::new())),
+            AvroSchema::LocalTimestampNanos => Ok(Box::new(TimestampNanosecondBuilder::new())),
 
             AvroSchema::Duration => Ok(Box::new(StructBuilder::new(
                 vec![
@@ -382,10 +393,10 @@ impl Schema {
                 ],
             ))),
 
-            AvroSchema::Ref { name } => {
-                let _ = name;
-                todo!();
-            }
+            AvroSchema::Ref { name } => Err(Error::Message(format!(
+                "Avro Arrow builder conversion cannot resolve reference {}",
+                name.name
+            ))),
         }
     }
 }
@@ -435,6 +446,48 @@ try_as!(try_as_bytes, Value::Bytes, Vec<u8>);
 try_as!(try_as_string, Value::String, String);
 try_as!(try_as_record, Value::Record, Vec<(String, Value)>);
 
+fn conversion_error(context: &str, schema: &AvroSchema, value: Option<&Value>) -> Error {
+    value.map_or_else(
+        || {
+            Error::Message(format!(
+                "Avro Arrow {context} cannot convert schema {schema:?}"
+            ))
+        },
+        |value| {
+            Error::Message(format!(
+                "Avro Arrow {context} cannot convert schema {schema:?} and value {value:?}"
+            ))
+        },
+    )
+}
+
+fn decimal_i128(value: apache_avro::Decimal) -> Result<i128> {
+    let big_int = BigInt::from(value);
+    let rendered = big_int.to_string();
+    big_int.try_into().map_err(|_| {
+        Error::Message(format!(
+            "Avro decimal value exceeds Arrow decimal128: {rendered}"
+        ))
+    })
+}
+
+fn append_duration_value(value: apache_avro::Duration, builder: &mut StructBuilder) -> Result<()> {
+    builder
+        .field_builder::<UInt32Builder>(0)
+        .ok_or(Error::Downcast)
+        .map(|values| values.append_value(u32::from(value.months())))?;
+    builder
+        .field_builder::<UInt32Builder>(1)
+        .ok_or(Error::Downcast)
+        .map(|values| values.append_value(u32::from(value.days())))?;
+    builder
+        .field_builder::<UInt32Builder>(2)
+        .ok_or(Error::Downcast)
+        .map(|values| values.append_value(u32::from(value.millis())))?;
+    builder.append(true);
+    Ok(())
+}
+
 fn append_list_builder(
     schema: &ArraySchema,
     values: Vec<Value>,
@@ -447,13 +500,7 @@ fn append_list_builder(
             .downcast_mut::<NullBuilder>()
             .ok_or(Error::Downcast)
             .inspect_err(|err| error!(?err, ?schema, ?values))
-            .and_then(|builder| {
-                values
-                    .into_iter()
-                    .map(try_as_bool)
-                    .collect::<Result<Vec<_>>>()
-                    .map(|values| builder.append_nulls(values.len()))
-            })?,
+            .map(|builder| builder.append_nulls(values.len()))?,
 
         AvroSchema::Boolean => builder
             .values()
@@ -561,9 +608,24 @@ fn append_list_builder(
                     })
             })?,
 
-        AvroSchema::Array(_schema) => todo!(),
-        AvroSchema::Map(_schema) => todo!(),
-        AvroSchema::Union(_schema) => todo!(),
+        AvroSchema::Array(_)
+        | AvroSchema::Map(_)
+        | AvroSchema::Union(_)
+        | AvroSchema::Enum(_)
+        | AvroSchema::Fixed(_)
+        | AvroSchema::Decimal(_)
+        | AvroSchema::BigDecimal
+        | AvroSchema::TimestampMillis
+        | AvroSchema::TimestampMicros
+        | AvroSchema::TimestampNanos
+        | AvroSchema::LocalTimestampMillis
+        | AvroSchema::LocalTimestampMicros
+        | AvroSchema::LocalTimestampNanos
+        | AvroSchema::Duration => {
+            for value in values {
+                append_value(Some(schema.items.as_ref()), value, builder.values())?;
+            }
+        }
 
         AvroSchema::Record(schema) => builder
             .values()
@@ -584,11 +646,6 @@ fn append_list_builder(
                     })
             })
             .map(|_| ())?,
-
-        AvroSchema::Enum(_schema) => todo!(),
-        AvroSchema::Fixed(_schema) => todo!(),
-        AvroSchema::Decimal(_schema) => todo!(),
-        AvroSchema::BigDecimal => todo!(),
 
         AvroSchema::Date => builder
             .values()
@@ -644,16 +701,11 @@ fn append_list_builder(
                     })
             })?,
 
-        AvroSchema::TimestampMillis => todo!(),
-        AvroSchema::TimestampMicros => todo!(),
-        AvroSchema::TimestampNanos => todo!(),
-        AvroSchema::LocalTimestampMillis => todo!(),
-        AvroSchema::LocalTimestampMicros => todo!(),
-        AvroSchema::LocalTimestampNanos => todo!(),
-        AvroSchema::Duration => todo!(),
         AvroSchema::Ref { name } => {
-            let _ = name;
-            todo!()
+            return Err(Error::Message(format!(
+                "Avro Arrow list conversion cannot resolve reference {}",
+                name.name
+            )));
         }
     }
 
@@ -739,8 +791,16 @@ fn append_struct_builder(
                 .inspect_err(|err| error!(?err, ?schema, ?values))
                 .and_then(|builder| append_map_builder(schema, values, builder))?,
 
-            (AvroSchema::Union(_schema), Value::Union(_, _value)) => {
-                todo!()
+            (AvroSchema::Union(schema), Value::Union(_, value)) => {
+                return Err(conversion_error(
+                    if schema.nullable_variant().is_some() {
+                        "struct nullable-union append"
+                    } else {
+                        "struct non-null union append"
+                    },
+                    &field.schema,
+                    Some(&value),
+                ));
             }
 
             (AvroSchema::Record(schema), Value::Record(items)) => builder
@@ -748,9 +808,20 @@ fn append_struct_builder(
                 .ok_or(Error::BadDowncast { field: name })
                 .and_then(|builder| append_struct_builder(schema, items, builder))?,
 
-            (AvroSchema::Fixed(_fixed_schema), _) => todo!(),
-            (AvroSchema::Decimal(_decimal_schema), _) => todo!(),
-            (AvroSchema::BigDecimal, _) => todo!(),
+            (AvroSchema::Fixed(_), Value::Fixed(_, value)) => builder
+                .field_builder::<LargeBinaryBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .map(|values| values.append_value(value))?,
+
+            (AvroSchema::Decimal(_), Value::Decimal(value)) => builder
+                .field_builder::<Decimal128Builder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .and_then(|values| decimal_i128(value).map(|value| values.append_value(value)))?,
+
+            (AvroSchema::BigDecimal, Value::BigDecimal(value)) => builder
+                .field_builder::<StringBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .map(|values| values.append_value(value.to_string()))?,
 
             (AvroSchema::Uuid, Value::Uuid(value)) => builder
                 .field_builder::<StringBuilder>(index)
@@ -787,15 +858,35 @@ fn append_struct_builder(
                 .ok_or(Error::BadDowncast { field: name })
                 .map(|values| values.append_value(value))?,
 
-            (AvroSchema::LocalTimestampMillis, _) => todo!(),
-            (AvroSchema::LocalTimestampMicros, _) => todo!(),
-            (AvroSchema::LocalTimestampNanos, _) => todo!(),
-            (AvroSchema::Duration, _) => todo!(),
-            (AvroSchema::Ref { name }, _) => {
-                let _ = name;
-                todo!();
+            (AvroSchema::LocalTimestampMillis, Value::LocalTimestampMillis(value)) => builder
+                .field_builder::<TimestampMillisecondBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .map(|values| values.append_value(value))?,
+
+            (AvroSchema::LocalTimestampMicros, Value::LocalTimestampMicros(value)) => builder
+                .field_builder::<TimestampMicrosecondBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .map(|values| values.append_value(value))?,
+
+            (AvroSchema::LocalTimestampNanos, Value::LocalTimestampNanos(value)) => builder
+                .field_builder::<TimestampNanosecondBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .map(|values| values.append_value(value))?,
+
+            (AvroSchema::Duration, Value::Duration(value)) => builder
+                .field_builder::<StructBuilder>(index)
+                .ok_or(Error::BadDowncast { field: name })
+                .and_then(|values| append_duration_value(value, values))?,
+
+            (AvroSchema::Ref { name }, value) => {
+                return Err(Error::Message(format!(
+                    "Avro Arrow struct conversion cannot resolve reference {} for value {value:?}",
+                    name.name
+                )));
             }
-            (schema, value) => unimplemented!("schema: {schema:?}, value: {value:?}"),
+            (schema, value) => {
+                return Err(conversion_error("struct append", schema, Some(&value)));
+            }
         }
     }
 
@@ -912,9 +1003,40 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_null()),
 
-        (Some(AvroSchema::LocalTimestampNanos), Value::Null) => column
+        (Some(AvroSchema::TimestampNanos), Value::Null)
+        | (Some(AvroSchema::LocalTimestampNanos), Value::Null) => column
             .as_any_mut()
             .downcast_mut::<TimestampNanosecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_null()),
+
+        (Some(AvroSchema::LocalTimestampMillis), Value::Null) => column
+            .as_any_mut()
+            .downcast_mut::<TimestampMillisecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_null()),
+
+        (Some(AvroSchema::LocalTimestampMicros), Value::Null) => column
+            .as_any_mut()
+            .downcast_mut::<TimestampMicrosecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_null()),
+
+        (Some(AvroSchema::Decimal(_)), Value::Null) => column
+            .as_any_mut()
+            .downcast_mut::<Decimal128Builder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_null()),
+
+        (Some(AvroSchema::BigDecimal), Value::Null) => column
+            .as_any_mut()
+            .downcast_mut::<StringBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_null()),
+
+        (Some(AvroSchema::Duration), Value::Null) => column
+            .as_any_mut()
+            .downcast_mut::<StructBuilder>()
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_null()),
 
@@ -924,10 +1046,9 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_null()),
 
-        (schema, Value::Null) => {
-            debug!(?schema);
-            todo!()
-        }
+        (schema, Value::Null) => Err(Error::Message(format!(
+            "Avro Arrow null append cannot convert schema {schema:?}"
+        ))),
 
         (_, Value::Boolean(value)) => column
             .as_any_mut()
@@ -983,7 +1104,9 @@ fn append_value(
             if let Some(schema) = schema.nullable_variant() {
                 append_value(Some(schema), *value, column)
             } else {
-                todo!()
+                Err(Error::Message(format!(
+                    "Avro Arrow value append cannot encode non-null union {schema:?}"
+                )))
             }
         }
 
@@ -1014,12 +1137,17 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_value(value)),
 
-        (schema, Value::Decimal(value)) => {
-            let big_int = BigInt::from(value);
-            todo!("schema: {schema:?}, value: {big_int:?}")
-        }
+        (Some(AvroSchema::Decimal(_)), Value::Decimal(value)) => column
+            .as_any_mut()
+            .downcast_mut::<Decimal128Builder>()
+            .ok_or(Error::Downcast)
+            .and_then(|builder| decimal_i128(value).map(|value| builder.append_value(value))),
 
-        (schema, Value::BigDecimal(value)) => todo!("schema: {schema:?}, value: {value:?}"),
+        (Some(AvroSchema::BigDecimal), Value::BigDecimal(value)) => column
+            .as_any_mut()
+            .downcast_mut::<StringBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_value(value.to_string())),
 
         (_, Value::TimeMillis(value)) => column
             .as_any_mut()
@@ -1051,17 +1179,27 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_value(value)),
 
-        (schema, Value::LocalTimestampMillis(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
-        (schema, Value::LocalTimestampMicros(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
-        (schema, Value::LocalTimestampNanos(value)) => {
-            todo!("schema: {schema:?}, value: {value:?}")
-        }
+        (_, Value::LocalTimestampMillis(value)) => column
+            .as_any_mut()
+            .downcast_mut::<TimestampMillisecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_value(value)),
+        (_, Value::LocalTimestampMicros(value)) => column
+            .as_any_mut()
+            .downcast_mut::<TimestampMicrosecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_value(value)),
+        (_, Value::LocalTimestampNanos(value)) => column
+            .as_any_mut()
+            .downcast_mut::<TimestampNanosecondBuilder>()
+            .ok_or(Error::Downcast)
+            .map(|builder| builder.append_value(value)),
 
-        (schema, Value::Duration(value)) => todo!("schema: {schema:?}, value: {value:?}"),
+        (_, Value::Duration(value)) => column
+            .as_any_mut()
+            .downcast_mut::<StructBuilder>()
+            .ok_or(Error::Downcast)
+            .and_then(|builder| append_duration_value(value, builder)),
 
         (_, Value::Uuid(value)) => column
             .as_any_mut()
@@ -1069,7 +1207,9 @@ fn append_value(
             .ok_or(Error::Downcast)
             .map(|builder| builder.append_value(value.to_string())),
 
-        (schema, value) => unimplemented!("schema: {schema:?}, value: {value:?}"),
+        (schema, value) => Err(Error::Message(format!(
+            "Avro Arrow value append cannot convert schema {schema:?} and value {value:?}"
+        ))),
     }
 }
 
@@ -1427,7 +1567,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1527,7 +1667,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1587,7 +1727,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1653,7 +1793,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1730,7 +1870,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1791,7 +1931,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1862,7 +2002,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -1952,7 +2092,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2023,7 +2163,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2096,7 +2236,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2167,7 +2307,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2241,7 +2381,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2315,7 +2455,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2389,7 +2529,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2483,7 +2623,7 @@ mod tests {
         assert_eq!(2, data_files[0].record_count());
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2557,7 +2697,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2632,7 +2772,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2705,7 +2845,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2777,7 +2917,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2850,7 +2990,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2922,7 +3062,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -2995,7 +3135,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3068,7 +3208,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3142,7 +3282,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3222,7 +3362,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3298,7 +3438,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;
@@ -3571,7 +3711,7 @@ mod tests {
         let ctx = SessionContext::new();
 
         _ = ctx.register_batch(topic, record_batch)?;
-        let df = ctx.sql(format!("select * from {topic}").as_str()).await?;
+        let df = ctx.sql("select * from t").await?;
         let results = df.collect().await?;
 
         let pretty_results = pretty_format_batches(&results).map(|pretty| pretty.to_string())?;

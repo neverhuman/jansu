@@ -446,19 +446,27 @@ impl Producer {
 
         let response = self.client.call(req).await?;
 
-        assert!(
-            response
-                .responses
-                .unwrap_or_default()
-                .into_iter()
-                .all(|topic| {
-                    topic
-                        .partition_responses
-                        .unwrap_or_default()
-                        .iter()
-                        .all(|partition| partition.error_code == i16::from(ErrorCode::None))
-                })
-        );
+        let responses = response.responses.ok_or_else(|| {
+            Error::Protocol(jansu_sans_io::Error::Message(
+                "produce response did not include topic results".into(),
+            ))
+        })?;
+
+        for topic in responses {
+            let partition_responses = topic.partition_responses.ok_or_else(|| {
+                Error::Protocol(jansu_sans_io::Error::Message(format!(
+                    "produce response for topic {} did not include partition results",
+                    topic.name
+                )))
+            })?;
+
+            for partition in partition_responses {
+                let error_code = ErrorCode::try_from(partition.error_code)?;
+                if error_code != ErrorCode::None {
+                    return Err(Error::Api(error_code));
+                }
+            }
+        }
 
         Ok(())
     }
@@ -578,16 +586,14 @@ impl Info {
         self.current.observation.bytes_sent
             - self
                 .previous
-                .map(|previous| previous.observation.bytes_sent)
-                .unwrap_or_default()
+                .map_or(0, |previous| previous.observation.bytes_sent)
     }
 
     fn records_sent(&self) -> u64 {
         self.current.observation.record_count
             - self
                 .previous
-                .map(|previous| previous.observation.record_count)
-                .unwrap_or_default()
+                .map_or(0, |previous| previous.observation.record_count)
     }
 
     fn records_sent_per_second(&self) -> f64 {

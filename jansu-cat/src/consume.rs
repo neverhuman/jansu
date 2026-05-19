@@ -230,6 +230,11 @@ impl Consume {
             )
             .await?;
 
+        let metadata_topics = match metadata.topics {
+            Some(topics) => topics,
+            None => Vec::new(),
+        };
+
         let response = client
             .call(
                 FetchRequest::default()
@@ -246,9 +251,7 @@ impl Consume {
                         FetchTopic::default()
                             .topic(Some(self.configuration.topic.clone()))
                             .topic_id(
-                                metadata
-                                    .topics
-                                    .unwrap_or_default()
+                                metadata_topics
                                     .into_iter()
                                     .find(|topic| {
                                         topic.name.as_ref().is_some_and(|name| {
@@ -269,10 +272,20 @@ impl Consume {
             )
             .await?;
 
-        for response in response.responses.unwrap_or_default() {
+        let responses = match response.responses {
+            Some(responses) => responses,
+            None => Vec::new(),
+        };
+
+        for response in responses {
             debug!(?response);
 
-            for partition in response.partitions.unwrap_or_default() {
+            let partitions = match response.partitions {
+                Some(partitions) => partitions,
+                None => Vec::new(),
+            };
+
+            for partition in partitions {
                 debug!(?partition);
 
                 if let Some(frame) = partition.records {
@@ -305,6 +318,9 @@ impl Consume {
     }
 
     fn maybe_json(&self, data: Option<Bytes>) -> Option<Value> {
-        data.and_then(|data| serde_json::from_slice::<Value>(&data[..]).ok())
+        data.and_then(|data| match serde_json::from_slice::<Value>(&data[..]) {
+            Ok(value) => Some(value),
+            Err(_) => None,
+        })
     }
 }

@@ -276,14 +276,22 @@ impl Produce {
             .map(Client::new)?;
 
         let ProduceResponse { responses, .. } = client.call(req).await?;
-        let responses = responses.unwrap_or_default();
+        let responses = responses.ok_or_else(|| {
+            Error::Protocol(jansu_sans_io::Error::Message(
+                "produce response did not include topic results".into(),
+            ))
+        })?;
         assert_eq!(1, responses.len());
 
         let TopicProduceResponse {
             partition_responses,
             ..
         } = responses.first().expect("responses: {responses:?}");
-        let partition_responses = partition_responses.as_deref().unwrap_or_default();
+        let partition_responses = partition_responses.as_deref().ok_or_else(|| {
+            Error::Protocol(jansu_sans_io::Error::Message(
+                "produce response did not include partition results".into(),
+            ))
+        })?;
         assert_eq!(1, partition_responses.len());
 
         let PartitionProduceResponse { error_code, .. } = partition_responses

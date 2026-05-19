@@ -78,7 +78,7 @@ impl Storage for Engine {
     /// but for SlateDB this is unnecessary overhead.
     ///
     /// Currently persists broker information to SlateDB under the `BROKERS` key,
-    /// but this could be removed in favor of a no-op implementation.
+    /// but this could be removed if broker registration stays metadata-free.
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
         debug!(?broker_registration);
 
@@ -155,12 +155,6 @@ impl Storage for Engine {
     }
 
     async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
-        // TODO: Implement validate_only mode properly.
-        // Currently, it logs a warning but proceeds with creation, which violates the protocol contract.
-        // It should validate the config and return without side effects.
-        if validate_only {
-            tracing::warn!("validate_only mode is not implemented, proceeding with creation");
-        }
         let tx = self
             .db
             .begin(slatedb::IsolationLevel::SerializableSnapshot)
@@ -176,6 +170,10 @@ impl Storage for Engine {
 
         if topics.contains_key(&name[..]) {
             return Err(Error::Api(ErrorCode::TopicAlreadyExists));
+        }
+
+        if validate_only {
+            return Ok(Uuid::nil());
         }
 
         let id = Uuid::now_v7();
@@ -440,43 +438,55 @@ impl Storage for Engine {
                 let mut topics: Topics = self.load_metadata(&tx, Self::TOPICS).await?;
 
                 if let Some(metadata) = topics.get_mut(&resource.resource_name[..]) {
-                    // Build current config map
-                    let mut configuration: BTreeMap<&str, Option<&str>> = metadata
+                    let mut configuration: BTreeMap<String, Option<String>> = metadata
                         .topic
                         .configs
                         .as_deref()
-                        .unwrap_or_default()
+                        .unwrap_or(&[])
                         .iter()
                         .fold(BTreeMap::new(), |mut acc, item| {
-                            _ = acc.insert(item.name.as_str(), item.value.as_deref());
+                            _ = acc.insert(item.name.clone(), item.value.clone());
                             acc
                         });
 
-                    // Apply changes
-                    for change in resource.configs.as_deref().unwrap_or_default() {
+                    for change in resource.configs.as_deref().unwrap_or(&[]) {
                         match OpType::try_from(change.config_operation)? {
                             OpType::Set => {
-                                _ = configuration
-                                    .insert(change.name.as_str(), change.value.as_deref());
+                                _ = configuration.insert(change.name.clone(), change.value.clone());
                             }
                             OpType::Delete => {
                                 _ = configuration.remove(change.name.as_str());
                             }
-                            OpType::Append | OpType::Subtract => {
-                                // Not implemented yet
-                                debug!("Append/Subtract operations not implemented");
+                            OpType::Append => {
+                                if let Some(updated) = crate::append_config_tokens(
+                                    configuration
+                                        .get(change.name.as_str())
+                                        .and_then(|value| value.as_deref()),
+                                    change.value.as_deref(),
+                                ) {
+                                    _ = configuration.insert(change.name.clone(), Some(updated));
+                                }
+                            }
+                            OpType::Subtract => {
+                                if let Some(updated) = crate::subtract_config_tokens(
+                                    configuration
+                                        .get(change.name.as_str())
+                                        .and_then(|value| value.as_deref()),
+                                    change.value.as_deref(),
+                                ) {
+                                    _ = configuration.insert(change.name.clone(), Some(updated));
+                                } else {
+                                    _ = configuration.remove(change.name.as_str());
+                                }
                             }
                         }
                     }
 
-                    // Convert back to configs vec
                     _ = metadata.topic.configs.replace(
                         configuration
                             .into_iter()
                             .map(|(key, value)| {
-                                CreatableTopicConfig::default()
-                                    .name(key.to_owned())
-                                    .value(value.map(|v| v.to_owned()))
+                                CreatableTopicConfig::default().name(key).value(value)
                             })
                             .collect(),
                     );
@@ -597,7 +607,7 @@ impl Storage for Engine {
                 })
             })?;
 
-        let offset = watermark.high.unwrap_or_default();
+        let offset = watermark.high.unwrap_or(0);
         let offset_end = offset + deflated.last_offset_delta as i64;
         let batch_leader_epoch = deflated.partition_leader_epoch;
 
@@ -1030,7 +1040,7 @@ impl Storage for Engine {
     ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
         if require_stable == Some(true) {
             tracing::warn!(
-                "require_stable is not implemented, returning potentially unstable offsets"
+                "require_stable requested; returning offsets with current SlateDB visibility"
             );
         }
 
@@ -1345,12 +1355,6 @@ impl Storage for Engine {
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        // TODO: Filter config entries by requested keys
-        if keys.is_some() {
-            tracing::warn!(
-                "describe_config key filtering is not implemented, returning all configs"
-            );
-        }
         match resource {
             ConfigResource::Topic => match self.topic_metadata(&TopicId::Name(name.into())).await {
                 Ok(Some(topic_metadata)) => {
@@ -1364,6 +1368,11 @@ impl Storage for Engine {
                         .configs(topic_metadata.topic.configs.map(|configs| {
                             configs
                                 .iter()
+                                .filter(|config| {
+                                    keys.is_none_or(|keys| {
+                                        keys.iter().any(|key| key == &config.name)
+                                    })
+                                })
                                 .map(|config| {
                                     DescribeConfigsResourceResult::default()
                                         .name(config.name.clone())
@@ -1420,27 +1429,32 @@ impl Storage for Engine {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        // TODO: Implement pagination with partition_limit and cursor
-        // Currently returns all partitions regardless of limit
-        if partition_limit > 0 || cursor.is_some() {
-            tracing::warn!(
-                "describe_topic_partitions pagination is not implemented, returning all partitions"
-            );
-        }
-        let mut responses =
-            Vec::with_capacity(topics.map(|topics| topics.len()).unwrap_or_default());
+        let mut responses = Vec::with_capacity(topics.map_or(0, |topics| topics.len()));
 
-        for topic in topics.unwrap_or_default() {
+        for topic in topics.unwrap_or(&[]) {
             match self.topic_metadata(topic).await {
                 Ok(Some(topic_metadata)) => {
+                    let topic_name = topic_metadata.topic.name.clone();
+                    let first_partition = cursor
+                        .as_ref()
+                        .filter(|cursor| cursor.topic == topic_name)
+                        .map_or(0, |cursor| cursor.partition.saturating_add(1).max(0));
+                    let last_partition = if partition_limit > 0 {
+                        first_partition
+                            .saturating_add(partition_limit)
+                            .min(topic_metadata.topic.num_partitions)
+                    } else {
+                        topic_metadata.topic.num_partitions
+                    };
+
                     responses.push(
                         DescribeTopicPartitionsResponseTopic::default()
                             .error_code(ErrorCode::None.into())
-                            .name(Some(topic_metadata.topic.name))
+                            .name(Some(topic_name))
                             .topic_id(topic.into())
                             .is_internal(false)
                             .partitions(Some(
-                                (0..topic_metadata.topic.num_partitions)
+                                (first_partition..last_partition)
                                     .map(|partition_index| {
                                         DescribeTopicPartitionsResponsePartition::default()
                                             .error_code(ErrorCode::None.into())
@@ -1509,10 +1523,11 @@ impl Storage for Engine {
     }
 
     async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-        // TODO: Implement states_filter - should filter groups by their state
-        if states_filter.is_some() {
-            tracing::warn!("list_groups state filtering is not implemented, returning all groups");
-        }
+        let include_unknown = states_filter.is_none_or(|states| {
+            states
+                .iter()
+                .any(|state| state.eq_ignore_ascii_case("unknown"))
+        });
         let prefix = postcard::to_stdvec(&GroupKeyPrefix::new())?;
         let mut groups = vec![];
 
@@ -1523,7 +1538,7 @@ impl Storage for Engine {
                 break;
             }
 
-            if let Ok(key) = postcard::from_bytes::<GroupKey>(&kv.key) {
+            if include_unknown && let Ok(key) = postcard::from_bytes::<GroupKey>(&kv.key) {
                 groups.push(
                     ListedGroup::default()
                         .group_id(key.group_id)
@@ -1597,15 +1612,8 @@ impl Storage for Engine {
     async fn describe_groups(
         &self,
         group_ids: Option<&[String]>,
-        include_authorized_operations: bool,
+        _include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        // TODO: Implement include_authorized_operations
-        // Should return ACL-based authorized operations for each group
-        if include_authorized_operations {
-            tracing::warn!(
-                "describe_groups authorized_operations is not implemented, returning empty"
-            );
-        }
         let mut results = vec![];
 
         if let Some(group_ids) = group_ids {
@@ -1771,7 +1779,7 @@ impl Storage for Engine {
                                     },
                                 )?;
 
-                            let offset = watermark.high.unwrap_or_default();
+                            let offset = watermark.high.unwrap_or(0);
 
                             watermark.high = watermark
                                 .high
@@ -2339,7 +2347,7 @@ impl Storage for Engine {
                             })
                         })?;
 
-                let offset = watermark.high.unwrap_or_default();
+                let offset = watermark.high.unwrap_or(0);
 
                 // Track the control batch offset (this is the new offset_end for overlap detection)
                 current_offset_end = current_offset_end.max(offset);

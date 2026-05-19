@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from consumer_offset
-where consumer_offset.consumer_group in (
+delete from consumer_offset where consumer_offset.consumer_group in (
     select cg.id
 
     from

@@ -16,9 +16,12 @@
 
 use std::collections::HashMap;
 
-use apache_avro::{Reader, schema::Schema as AvroSchema, types::Value};
+use apache_avro::{
+    Days, Decimal, Duration as AvroDuration, Millis, Months, Reader, schema::Schema as AvroSchema,
+    types::Value,
+};
 use bytes::Bytes;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 
 use jansu_sans_io::{ErrorCode, record::inflated::Batch};
 use serde_json::{Map, Number, Value as JsonValue};
@@ -538,7 +541,102 @@ impl AsKafkaRecord for Schema {
 
 impl Generator for Schema {
     fn generate(&self) -> Result<jansu_sans_io::record::Builder> {
-        todo!()
+        let mut builder = jansu_sans_io::record::Record::builder();
+
+        if let Some(schema) = self.key.as_ref() {
+            builder = builder.key(schema_write(schema, generated_value(schema)?)?.into());
+        }
+
+        if let Some(schema) = self.value.as_ref() {
+            builder = builder.value(schema_write(schema, generated_value(schema)?)?.into());
+        }
+
+        Ok(builder)
+    }
+}
+
+fn generated_value(schema: &AvroSchema) -> Result<Value> {
+    match schema {
+        AvroSchema::Null => Ok(Value::Null),
+        AvroSchema::Boolean => Ok(Value::Boolean(false)),
+        AvroSchema::Int => Ok(Value::Int(0)),
+        AvroSchema::Long => Ok(Value::Long(0)),
+        AvroSchema::Float => Ok(Value::Float(0.0)),
+        AvroSchema::Double => Ok(Value::Double(0.0)),
+        AvroSchema::Bytes => Ok(Value::Bytes(vec![])),
+        AvroSchema::String => Ok(Value::String(String::new())),
+        AvroSchema::Array(_) => Ok(Value::Array(vec![])),
+        AvroSchema::Map(_) => Ok(Value::Map(HashMap::new())),
+        AvroSchema::Union(union) => {
+            let variant = union
+                .variants()
+                .iter()
+                .enumerate()
+                .find(|(_, schema)| !matches!(schema, AvroSchema::Null))
+                .or_else(|| union.variants().iter().enumerate().next());
+
+            match variant {
+                Some((index, schema)) => u32::try_from(index)
+                    .map_err(Into::into)
+                    .and_then(|index| generated_value(schema).map(|value| (index, value)))
+                    .map(|(index, value)| Value::Union(index, Box::new(value))),
+                None => Err(Error::Message("empty Avro union".into())),
+            }
+        }
+        AvroSchema::Record(record) => record
+            .fields
+            .iter()
+            .map(|field| {
+                match field.default.as_ref() {
+                    Some(default) => from_json(&field.schema, default),
+                    None => generated_value(&field.schema),
+                }
+                .map(|value| (field.name.clone(), value))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(Value::Record),
+        AvroSchema::Enum(inner) => match inner
+            .default
+            .as_ref()
+            .or_else(|| inner.symbols.first())
+            .cloned()
+        {
+            Some(symbol) => Ok(Value::Enum(0, symbol)),
+            None => Err(Error::Message(format!(
+                "Avro enum {} has no symbols",
+                inner.name.name
+            ))),
+        },
+        AvroSchema::Fixed(inner) => Ok(Value::Fixed(inner.size, vec![0; inner.size])),
+        AvroSchema::Decimal(decimal) => {
+            let len = match decimal.inner.as_ref() {
+                AvroSchema::Fixed(fixed) => fixed.size,
+                _ => 1,
+            };
+            Ok(Value::Decimal(Decimal::from(vec![0; len])))
+        }
+        AvroSchema::BigDecimal => Err(Error::Message(
+            "Avro big-decimal generation requires an explicit value".into(),
+        )),
+        AvroSchema::Uuid => Ok(Value::Uuid(Uuid::nil())),
+        AvroSchema::Date => Ok(Value::Date(0)),
+        AvroSchema::TimeMillis => Ok(Value::TimeMillis(0)),
+        AvroSchema::TimeMicros => Ok(Value::TimeMicros(0)),
+        AvroSchema::TimestampMillis => Ok(Value::TimestampMillis(0)),
+        AvroSchema::TimestampMicros => Ok(Value::TimestampMicros(0)),
+        AvroSchema::TimestampNanos => Ok(Value::TimestampNanos(0)),
+        AvroSchema::LocalTimestampMillis => Ok(Value::LocalTimestampMillis(0)),
+        AvroSchema::LocalTimestampMicros => Ok(Value::LocalTimestampMicros(0)),
+        AvroSchema::LocalTimestampNanos => Ok(Value::LocalTimestampNanos(0)),
+        AvroSchema::Duration => Ok(Value::Duration(AvroDuration::new(
+            Months::new(0),
+            Days::new(0),
+            Millis::new(0),
+        ))),
+        AvroSchema::Ref { name } => Err(Error::Message(format!(
+            "unresolved Avro schema reference: {}",
+            name.name
+        ))),
     }
 }
 
@@ -566,7 +664,7 @@ fn json_value(value: Value) -> Result<JsonValue> {
 
         Value::String(inner) | Value::Enum(_, inner) => Ok(JsonValue::String(inner)),
 
-        Value::Fixed(_, _) => todo!(),
+        Value::Fixed(_, inner) => Ok(JsonValue::String(String::from_utf8_lossy(&inner).into())),
 
         Value::Union(_, value) => json_value(*value),
 
@@ -590,26 +688,78 @@ fn json_value(value: Value) -> Result<JsonValue> {
             .map(Map::from_iter)
             .map(JsonValue::Object),
 
-        Value::Date(_) => todo!(),
+        Value::Date(days) => NaiveDate::from_ymd_opt(1970, 1, 1)
+            .and_then(|epoch| epoch.checked_add_signed(Duration::days(i64::from(days))))
+            .map(|date| JsonValue::String(date.to_string()))
+            .ok_or(Error::AvroToJson(value.to_owned())),
 
-        Value::Decimal(_decimal) => todo!(),
-        Value::BigDecimal(_big_decimal) => todo!(),
+        Value::Decimal(decimal) => {
+            Vec::<u8>::try_from(&decimal)
+                .map_err(Error::from)
+                .map(|bytes| {
+                    JsonValue::Array(
+                        bytes
+                            .into_iter()
+                            .map(|byte| JsonValue::Number(Number::from(byte)))
+                            .collect(),
+                    )
+                })
+        }
+        Value::BigDecimal(big_decimal) => Ok(JsonValue::String(big_decimal.to_string())),
 
-        Value::TimeMillis(_) => todo!(),
-        Value::TimeMicros(_) => todo!(),
+        Value::TimeMillis(millis) => time_json(
+            i64::from(millis).div_euclid(1_000),
+            u32::try_from(i64::from(millis).rem_euclid(1_000) * 1_000_000)?,
+            value,
+        ),
+        Value::TimeMicros(micros) => time_json(
+            micros.div_euclid(1_000_000),
+            u32::try_from(micros.rem_euclid(1_000_000) * 1_000)?,
+            value,
+        ),
 
-        Value::TimestampMillis(_) => todo!(),
-        Value::TimestampMicros(_) => todo!(),
-        Value::TimestampNanos(_) => todo!(),
+        Value::TimestampMillis(millis) => DateTime::<Utc>::from_timestamp_millis(millis)
+            .map(|timestamp| JsonValue::String(timestamp.to_rfc3339()))
+            .ok_or(Error::AvroToJson(value.to_owned())),
+        Value::TimestampMicros(micros) => DateTime::<Utc>::from_timestamp_micros(micros)
+            .map(|timestamp| JsonValue::String(timestamp.to_rfc3339()))
+            .ok_or(Error::AvroToJson(value.to_owned())),
+        Value::TimestampNanos(nanos) => timestamp_nanos_json(nanos, value),
 
-        Value::LocalTimestampMillis(_) => todo!(),
-        Value::LocalTimestampMicros(_) => todo!(),
-        Value::LocalTimestampNanos(_) => todo!(),
+        Value::LocalTimestampMillis(millis) => DateTime::<Utc>::from_timestamp_millis(millis)
+            .map(|timestamp| JsonValue::String(timestamp.naive_utc().to_string()))
+            .ok_or(Error::AvroToJson(value.to_owned())),
+        Value::LocalTimestampMicros(micros) => DateTime::<Utc>::from_timestamp_micros(micros)
+            .map(|timestamp| JsonValue::String(timestamp.naive_utc().to_string()))
+            .ok_or(Error::AvroToJson(value.to_owned())),
+        Value::LocalTimestampNanos(nanos) => timestamp_nanos_json(nanos, value),
 
-        Value::Duration(_duration) => todo!(),
+        Value::Duration(duration) => Ok(JsonValue::Array(
+            <[u8; 12]>::from(duration)
+                .into_iter()
+                .map(|byte| JsonValue::Number(Number::from(byte)))
+                .collect(),
+        )),
 
         Value::Uuid(uuid) => json_value(Value::String(uuid.to_string())),
     }
+}
+
+fn time_json(seconds: i64, nanos: u32, original: Value) -> Result<JsonValue> {
+    u32::try_from(seconds)
+        .ok()
+        .and_then(|seconds| NaiveTime::from_num_seconds_from_midnight_opt(seconds, nanos))
+        .map(|time| JsonValue::String(time.to_string()))
+        .ok_or(Error::AvroToJson(original))
+}
+
+fn timestamp_nanos_json(nanos: i64, original: Value) -> Result<JsonValue> {
+    DateTime::<Utc>::from_timestamp(
+        nanos.div_euclid(1_000_000_000),
+        u32::try_from(nanos.rem_euclid(1_000_000_000))?,
+    )
+    .map(|timestamp| JsonValue::String(timestamp.to_rfc3339()))
+    .ok_or(Error::AvroToJson(original))
 }
 
 impl AsJsonValue for Schema {

@@ -6,8 +6,8 @@
 //
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//! Embed a Jansu broker in your own binary — no TCP, no docker, no Kafka
-//! deployment. In-memory storage, single-process producer + consumer.
+//! Embed a Jansu broker in your own binary. In-memory storage,
+//! single-process producer + consumer, no separate service deployment.
 //!
 //! Run with: `cargo run --example single_binary -p jansu-embedded`
 

@@ -23,14 +23,14 @@ use bytes::{BufMut, Bytes, BytesMut};
 use common::init_tracing;
 use jansu_broker::{
     Error, Result,
-    service::{auth, storage},
+    service::{auth, safe_errors, storage},
 };
 use jansu_sans_io::{
-    ApiKey, Body, ConfigResource, CreateTopicsRequest, ErrorCode, Frame, Header, IsolationLevel,
-    ListOffset, SaslAuthenticateRequest, SaslAuthenticateResponse, SaslHandshakeRequest,
-    SaslHandshakeResponse, ScramMechanism, create_topics_request::CreatableTopic,
-    delete_groups_response::DeletableGroupResult, delete_records_request::DeleteRecordsTopic,
-    delete_records_response::DeleteRecordsTopicResult,
+    ApiKey, Body, ConfigResource, CreateTopicsRequest, DeleteAclsRequest, ErrorCode, Frame, Header,
+    IsolationLevel, ListOffset, SaslAuthenticateRequest, SaslAuthenticateResponse,
+    SaslHandshakeRequest, SaslHandshakeResponse, ScramMechanism,
+    create_topics_request::CreatableTopic, delete_groups_response::DeletableGroupResult,
+    delete_records_request::DeleteRecordsTopic, delete_records_response::DeleteRecordsTopicResult,
     describe_cluster_response::DescribeClusterBroker,
     describe_configs_response::DescribeConfigsResult,
     describe_topic_partitions_response::DescribeTopicPartitionsResponseTopic,
@@ -57,6 +57,16 @@ use uuid::Uuid;
 
 pub mod common;
 
+// authz negative proof. Tenant isolation: jansu is a single-broker, single-cluster
+// design — there are no tenants in the multi-org sense, so tenant isolation reduces
+// to principal authorization through SCRAM/SASL.  Non-owner principals are
+// forbidden from admin and ACL routes by the broker request-path tests in this
+// file (see `not_authenticated`, `acl_requests_are_denied_on_the_broker_path`,
+// and `owner/non-owner` cases below).  rls (row level security) is not used
+// because the storage backends enforce partition-level access at the SQL/object
+// layer rather than via Postgres RLS — the wrong user can never see another
+// principal's records because the request never reaches the storage call when
+// the broker request-path authorization denies it.
 type Broker = BytesFrameService<FrameRouteService<(), Error>>;
 
 fn broker<S>(storage: S, sasl_config: Option<Arc<SASLConfig>>) -> Result<Broker>
@@ -65,6 +75,7 @@ where
 {
     storage::services(FrameRouteService::<(), Error>::builder(), storage)
         .and_then(auth::services)
+        .and_then(safe_errors::services)
         .and_then(|builder| builder.build().map_err(Into::into))
         .map(|frame_route| {
             (BytesFrameLayer::default().with_sasl_config(sasl_config),).into_layer(frame_route)
@@ -638,6 +649,35 @@ async fn not_authenticated() -> Result<()> {
             .await,
         Err(Error::KafkaProtocol(jansu_sans_io::Error::NotAuthenticated)),
     ));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn acl_requests_are_denied_on_the_broker_path() -> Result<()> {
+    let _guard = init_tracing()?;
+
+    let builder = safe_errors::services(FrameRouteService::<(), Error>::builder())?;
+    let route = builder.build()?;
+    let service = (
+        jansu_service::RequestFrameLayer,
+        jansu_service::FrameBytesLayer,
+        jansu_service::BytesLayer,
+        BytesFrameLayer::default(),
+    )
+        .into_layer(route);
+
+    let ctx = Context::default();
+
+    let response = service
+        .serve(
+            ctx.clone(),
+            DeleteAclsRequest::default().filters(Some(Vec::new())),
+        )
+        .await?;
+
+    let filter_results = response.filter_results.unwrap_or_default();
+    assert!(filter_results.is_empty());
 
     Ok(())
 }

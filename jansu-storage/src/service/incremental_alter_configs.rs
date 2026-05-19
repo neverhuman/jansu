@@ -171,7 +171,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for resource in req.resources.unwrap_or_default() {
+        for resource in req.resources.unwrap_or_else(Vec::new) {
             responses.push(ctx.state().incremental_alter_resource(resource).await?);
         }
 

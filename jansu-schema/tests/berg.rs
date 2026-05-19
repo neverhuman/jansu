@@ -15,7 +15,7 @@
 use crate::common::alphanumeric_string;
 use arrow::{array::RecordBatch, util::pretty::pretty_format_batches};
 use bytes::Bytes;
-use common::init_tracing;
+use common::{init_tracing, repo_asset_bytes};
 use datafusion::prelude::SessionContext;
 use dotenvy::dotenv;
 use iceberg::CatalogBuilder;
@@ -232,7 +232,7 @@ mod json {
         let namespace = &alphanumeric_string(5)[..];
 
         let schema_registry = {
-            let schema = Bytes::from_static(include_bytes!("../../../jansu/etc/schema/grade.json"));
+            let schema = repo_asset_bytes("etc/schema/grade.json")?;
 
             let object_store = InMemory::new();
             let location = Path::from(format!("{topic}.json"));
@@ -243,9 +243,9 @@ mod json {
             Registry::new(object_store)
         };
 
-        let kv = if let JsonValue::Array(values) = serde_json::from_slice::<JsonValue>(
-            include_bytes!("../../../jansu/etc/data/grades.json"),
-        )? {
+        let kv = if let JsonValue::Array(values) =
+            serde_json::from_slice::<JsonValue>(&repo_asset_bytes("etc/data/grades.json")?)?
+        {
             values
                 .into_iter()
                 .map(|value| {
@@ -896,7 +896,7 @@ mod proto {
         let namespace = &alphanumeric_string(5)[..];
         let topic = &alphanumeric_string(5)[..];
 
-        let proto = Bytes::from_static(include_bytes!("../../../jansu/etc/schema/taxi.proto"));
+        let proto = repo_asset_bytes("etc/schema/taxi.proto")?;
 
         let schema_registry = {
             let object_store = InMemory::new();
@@ -964,7 +964,7 @@ mod proto {
         let namespace = &alphanumeric_string(5)[..];
         let topic = &alphanumeric_string(5)[..];
 
-        let proto = Bytes::from_static(include_bytes!("../../../jansu/etc/schema/taxi.proto"));
+        let proto = repo_asset_bytes("etc/schema/taxi.proto")?;
 
         let schema_registry = {
             let object_store = InMemory::new();

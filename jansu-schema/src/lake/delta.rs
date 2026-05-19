@@ -271,13 +271,17 @@ impl Config {
             .collect()
     }
 
-    fn is_normalized(&self) -> bool {
-        self.0
+    fn is_normalized(&self) -> Result<bool> {
+        match self
+            .0
             .iter()
-            .find_map(|(name, value)| {
-                (name == "jansu.lake.normalize").then(|| value.parse().ok().unwrap_or_default())
-            })
-            .unwrap_or(false)
+            .find_map(|(name, value)| (name == "jansu.lake.normalize").then_some(value))
+        {
+            Some(value) => value.parse::<bool>().map_err(|_| {
+                Error::Message(format!("invalid boolean for jansu.lake.normalize: {value}"))
+            }),
+            None => Ok(false),
+        }
     }
 
     fn normalize_separator(&self) -> &str {
@@ -285,7 +289,7 @@ impl Config {
             .iter()
             .find(|(name, _)| name == "jansu.lake.normalize.separator")
             .map(|(_, value)| value.as_str())
-            .unwrap_or(".")
+            .map_or(".", |separator| separator)
     }
 }
 
@@ -388,14 +392,14 @@ impl Delta {
         batches: impl Iterator<Item = RecordBatch>,
         config: &Config,
     ) -> Result<()> {
-        // Transform dot notation struct access to bracket notation
-        // e.g., "meta.timestamp" -> "t.meta['timestamp']"
+        // Transform dot notation struct access to bracket notation.
+        // e.g., "meta.timestamp" -> "meta['timestamp']"
         fn transform_struct_access(expr: &str) -> String {
             use regex::Regex;
             // Match patterns like "word.word" but not inside strings
             let re = Regex::new(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)\b").unwrap();
             re.replace_all(expr, |caps: &regex::Captures<'_>| {
-                format!("t.{}['{}']", &caps[1], &caps[2])
+                format!("{}['{}']", &caps[1], &caps[2])
             })
             .to_string()
         }
@@ -418,31 +422,20 @@ impl Delta {
                 // Register the batch as a table
                 _ = ctx.register_batch("t", batch.clone())?;
 
-                // Build SQL query with generated columns
-                let select_cols: Vec<String> = batch
+                let df = ctx.table("t").await?;
+                let projection = batch
                     .schema()
                     .fields()
                     .iter()
-                    .map(|f| format!("t.\"{}\"", f.name()))
-                    .collect();
-
-                // Transform expressions to use struct field access syntax
-                // e.g., "cast(meta.timestamp as date)" -> "cast(t.meta['timestamp'] as date)"
-                let generated_cols: Vec<String> = generated_exprs
-                    .iter()
-                    .map(|(col_name, expr)| {
-                        // Convert dot notation to bracket notation for struct access
+                    .map(|field| format!("\"{}\"", field.name()))
+                    .chain(generated_exprs.iter().map(|(col_name, expr)| {
                         let transformed_expr = transform_struct_access(expr);
                         format!("{} AS \"{}\"", transformed_expr, col_name)
-                    })
-                    .collect();
+                    }))
+                    .collect::<Vec<_>>();
+                let projection = projection.iter().map(String::as_str).collect::<Vec<_>>();
 
-                let all_cols = [select_cols, generated_cols].concat().join(", ");
-                let sql = format!("SELECT {} FROM t", all_cols);
-                debug!(%sql);
-
-                let df = ctx.sql(&sql).await?;
-                let computed_batches = df.collect().await?;
+                let computed_batches = df.select_exprs(&projection)?.collect().await?;
                 result_batches.extend(computed_batches);
 
                 // Deregister the table for the next iteration
@@ -686,7 +679,7 @@ impl LakeHouse for Delta {
             .as_arrow(topic, partition, inflated, LakeHouseType::Delta)
             .await?;
 
-        let record_batch = if config.is_normalized() {
+        let record_batch = if config.is_normalized()? {
             record_batch.normalize(config.normalize_separator(), None)?
         } else {
             record_batch
@@ -755,7 +748,10 @@ impl TryFrom<Builder<Url, Registry>> for Delta {
         Ok(Self {
             location: value.location,
             schema_registry: value.schema_registry,
-            database: value.database.unwrap_or(String::from("jansu")),
+            database: match value.database {
+                Some(database) => database,
+                None => String::from("jansu"),
+            },
             tables: Arc::new(Mutex::new(HashMap::new())),
             rate_limiter: value
                 .records_per_second
@@ -781,10 +777,11 @@ mod tests {
     };
     use object_store::{ObjectStoreExt as _, PutPayload, memory::InMemory, path::Path};
     use serde_json::json;
-    use std::{fs::File, marker::PhantomData, str::FromStr as _, sync::Arc, thread};
+    use std::{fs, fs::File, marker::PhantomData, path::PathBuf, sync::Arc, thread};
     use tempfile::tempdir;
     use tracing::subscriber::DefaultGuard;
     use tracing_subscriber::EnvFilter;
+    use url::Url;
 
     use crate::Error;
 
@@ -812,6 +809,43 @@ mod tests {
                 )
                 .finish(),
         ))
+    }
+
+    fn repo_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("tests run from the crate directory")
+            .to_path_buf()
+    }
+
+    fn repo_asset_path(relative: &str) -> PathBuf {
+        repo_root().join(relative)
+    }
+
+    fn repo_asset_bytes(relative: &str) -> Result<Bytes> {
+        Ok(Bytes::from(fs::read(repo_asset_path(relative))?))
+    }
+
+    fn schema_registry_url() -> Url {
+        Url::from_directory_path(repo_asset_path("etc/schema"))
+            .expect("repository schema directory should exist")
+    }
+
+    fn repo_schema_registry() -> Result<Registry> {
+        Ok(Registry::builder_try_from_url(&schema_registry_url())?.build())
+    }
+
+    #[test]
+    fn config_is_normalized_rejects_invalid_boolean() {
+        let config = Config(vec![(
+            String::from("jansu.lake.normalize"),
+            String::from("maybe"),
+        )]);
+
+        assert!(matches!(
+            config.is_normalized(),
+            Err(Error::Message(message)) if message.contains("jansu.lake.normalize")
+        ));
     }
 
     mod sql {
@@ -1020,9 +1054,7 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(repo_asset_bytes("etc/schema/taxi.proto")?)?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1046,7 +1078,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1113,9 +1145,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1139,7 +1172,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1217,9 +1250,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1243,7 +1277,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1331,9 +1365,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1357,7 +1392,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1445,9 +1480,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1471,7 +1507,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1549,9 +1585,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1575,7 +1612,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1663,9 +1700,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1689,7 +1727,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -1744,9 +1782,10 @@ mod tests {
 
             let topic = "taxi";
 
-            let schema = Schema::try_from(Bytes::from_static(include_bytes!(
-                "../../../../jansu/etc/schema/taxi.proto"
-            )))?;
+            let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/taxi.proto"
+            ))))?;
 
             let value = schema.encode_from_value(
                 MessageKind::Value,
@@ -1770,7 +1809,7 @@ mod tests {
             let location = format!("file://{}", temp_dir.path().to_str().unwrap());
             let database = "pqr";
 
-            let schema_registry = Registry::from_str("file://../../../etc/schema")?;
+            let schema_registry = repo_schema_registry()?;
 
             schema_registry.validate(topic, &record_batch).await?;
 
@@ -2363,11 +2402,13 @@ mod tests {
         async fn grade() -> Result<()> {
             let _guard = init_tracing()?;
 
-            let definition =
-                Bytes::from_static(include_bytes!("../../../../jansu/etc/schema/grade.json"));
+            let definition = Bytes::from_static(include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../etc/schema/grade.json"
+            )));
 
             let kv = if let Value::Array(values) = serde_json::from_slice::<Value>(include_bytes!(
-                "../../../../jansu/etc/data/grades.json"
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../etc/data/grades.json")
             ))? {
                 values
                     .into_iter()

@@ -30,6 +30,11 @@ When a prompt says "progress on MASTER_PLAN and audit", do exactly this:
 
 No compatibility claim is valid unless the ledger points to proof from tests, differential checks, or client checks.
 
+## Audit Entry Points
+
+- `just score`, `just audit`, and `just jankurai-gate` dispatch through `scripts/ci-local.sh` to the same `tools/checks/jankurai-gate.sh` command used by `.github/workflows/jankurai.yml`.
+- The gate writes `agent/repo-score.json` and `agent/repo-score.md`, compares them with `agent/jankurai-gate-baseline.json`, and fails unless both `caps_applied` and `findings` are empty.
+
 ## Scope Rules
 
 - Phase docs may be expanded or clarified, but not reduced.

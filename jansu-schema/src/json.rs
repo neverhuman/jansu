@@ -22,7 +22,7 @@ use crate::{
 
 use bytes::Bytes;
 
-use serde_json::Value;
+use serde_json::{Map, Number, Value};
 
 use jansu_sans_io::{ErrorCode, record::inflated::Batch};
 use tracing::{debug, instrument, warn};
@@ -34,6 +34,8 @@ mod arrow;
 pub struct Schema {
     key: Option<jsonschema::Validator>,
     value: Option<jsonschema::Validator>,
+    key_schema: Option<Value>,
+    value_schema: Option<Value>,
 
     #[allow(dead_code)]
     ids: BTreeMap<String, i32>,
@@ -94,12 +96,20 @@ impl TryFrom<Bytes> for Schema {
             .and_then(|properties| properties.get(MessageKind::Key.as_ref()))
             .inspect(|key| debug!(?key))
             .and_then(|key| jsonschema::validator_for(key).ok());
+        let key_schema = schema
+            .get(PROPERTIES)
+            .and_then(|properties| properties.get(MessageKind::Key.as_ref()))
+            .cloned();
 
         let value = schema
             .get(PROPERTIES)
             .and_then(|properties| properties.get(MessageKind::Value.as_ref()))
             .inspect(|value| debug!(?value))
             .and_then(|value| jsonschema::validator_for(value).ok());
+        let value_schema = schema
+            .get(PROPERTIES)
+            .and_then(|properties| properties.get(MessageKind::Value.as_ref()))
+            .cloned();
 
         let meta =
             serde_json::from_slice::<Value>(&Bytes::from_static(include_bytes!("meta.json")))
@@ -114,7 +124,13 @@ impl TryFrom<Bytes> for Schema {
         let ids = field_ids(&schema);
         debug!(?ids);
 
-        Ok(Self { key, value, ids })
+        Ok(Self {
+            key,
+            value,
+            key_schema,
+            value_schema,
+            ids,
+        })
     }
 }
 
@@ -159,14 +175,112 @@ impl AsKafkaRecord for Schema {
 
 impl Generator for Schema {
     fn generate(&self) -> Result<jansu_sans_io::record::Builder> {
-        todo!()
+        let mut builder = jansu_sans_io::record::Record::builder();
+
+        if let Some(schema) = self.key_schema.as_ref() {
+            builder = builder.key(
+                serde_json::to_vec(&generate_json_value(schema))
+                    .map(Bytes::from)
+                    .map(Into::into)?,
+            );
+        }
+
+        if let Some(schema) = self.value_schema.as_ref() {
+            builder = builder.value(
+                serde_json::to_vec(&generate_json_value(schema))
+                    .map(Bytes::from)
+                    .map(Into::into)?,
+            );
+        }
+
+        Ok(builder)
     }
 }
 
 impl AsJsonValue for Schema {
     fn as_json_value(&self, batch: &Batch) -> Result<Value> {
-        let _ = batch;
-        todo!()
+        Ok(Value::Array(
+            batch
+                .records
+                .iter()
+                .map(|record| {
+                    let key = decode_json_record_value(record.key.clone())?;
+                    let value = decode_json_record_value(record.value.clone())?;
+
+                    Ok(Value::Object(Map::from_iter([
+                        (MessageKind::Key.as_ref().to_owned(), key),
+                        (MessageKind::Value.as_ref().to_owned(), value),
+                    ])))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        ))
+    }
+}
+
+fn decode_json_record_value(encoded: Option<Bytes>) -> Result<Value> {
+    encoded.map_or(Ok(Value::Null), |encoded| {
+        serde_json::from_slice(&encoded[..]).map_err(Into::into)
+    })
+}
+
+fn generate_json_value(schema: &Value) -> Value {
+    if let Some(default) = schema.get("default") {
+        return default.clone();
+    }
+
+    if let Some(r#const) = schema.get("const") {
+        return r#const.clone();
+    }
+
+    if let Some(first_enum) = schema
+        .get("enum")
+        .and_then(|items| items.as_array())
+        .and_then(|items| items.first())
+    {
+        return first_enum.clone();
+    }
+
+    match schema.get("type") {
+        Some(Value::Array(types)) => types
+            .iter()
+            .find(|candidate| candidate.as_str() != Some("null"))
+            .map_or(Value::Null, generate_json_value),
+
+        Some(Value::Object(nested)) => generate_json_value(&Value::Object(nested.clone())),
+
+        Some(Value::String(kind)) => match kind.as_str() {
+            "null" => Value::Null,
+            "boolean" => Value::Bool(false),
+            "integer" => Value::Number(Number::from(0)),
+            "number" => Value::Number(Number::from(0)),
+            "string" => Value::String(String::new()),
+            "array" => schema
+                .get("items")
+                .map(generate_json_value)
+                .map(|value| Value::Array(vec![value]))
+                .unwrap_or_else(|| Value::Array(vec![])),
+            "object" => Value::Object(Map::from_iter(
+                schema
+                    .get("properties")
+                    .and_then(|properties| properties.as_object())
+                    .into_iter()
+                    .flat_map(|properties| properties.iter())
+                    .map(|(name, schema)| (name.clone(), generate_json_value(schema))),
+            )),
+            _ => Value::Null,
+        },
+
+        _ => {
+            if let Some(properties) = schema.get("properties").and_then(|value| value.as_object()) {
+                Value::Object(Map::from_iter(
+                    properties
+                        .iter()
+                        .map(|(name, schema)| (name.clone(), generate_json_value(schema))),
+                ))
+            } else {
+                Value::Null
+            }
+        }
     }
 }
 

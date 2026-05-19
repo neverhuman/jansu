@@ -180,7 +180,7 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
         ("lite/vacuum_into.sql", include_sql!("lite/vacuum_into.sql")),
         ("policy_compact.sql", include_sql!("sql/policy_compact.sql")),
         ("policy_delete.sql", include_sql!("sql/policy_delete.sql")),
-        ("ping.sql", "select 1 + 1".to_string()),
+        ("ping.sql", "select 1".to_string()),
         (
             "producer_detail_delete_by_topic.sql",
             include_sql!("sql/producer_detail_delete_by_topic.sql"),
@@ -218,6 +218,10 @@ pub(crate) static SQL: LazyLock<Cache> = LazyLock::new(|| {
             include_sql!("sql/producer_update_sequence.sql"),
         ),
         ("record_copy.sql", include_sql!("sql/record_copy.sql")),
+        (
+            "record_delete_before_offset.sql",
+            include_sql!("sql/record_delete_before_offset.sql"),
+        ),
         (
             "record_delete_by_topic.sql",
             include_sql!("sql/record_delete_by_topic.sql"),
