@@ -50,7 +50,7 @@ jobs:
         id: install-jankurai
         env:
           JANKURAI_INSTALL_GIT: https://github.com/neverhuman/jankurai.git
-          JANKURAI_INSTALL_TAG: v1.5.0
+          JANKURAI_INSTALL_TAG: v1.5.1
         run: |
           set -euo pipefail
           mkdir -p target/jankurai
