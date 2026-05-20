@@ -2,7 +2,10 @@
 # Canonical Jankurai audit gate for local checks and CI.
 #
 # Produces the repository score under agent/ and fails when the current
-# Jankurai audit reports any hard caps or findings.
+# Jankurai audit reports any hard cap, or any finding that is not already
+# recorded in the baseline. The baseline may only hold documented auditor
+# false-positives — see AUDIT.md (AUDIT-019) for the justification of each.
+# Caps are severe and are never baselined: any cap fails the gate.
 
 set -euo pipefail
 
@@ -115,9 +118,10 @@ new_findings="$(
 
 echo "jankurai-gate: score=$score raw=$raw_score caps=$current_caps/$baseline_caps new_caps=$new_caps findings=$current_findings/$baseline_findings new_findings=$new_findings"
 
-if [ "$current_caps" -gt 0 ] || [ "$current_findings" -gt 0 ]; then
+# Caps are severe and are never baselined: any cap fails the gate.
+if [ "$current_caps" -gt 0 ]; then
     echo ""
-    echo "JANKURAI GATE FAILED - current caps/findings must both be zero"
+    echo "JANKURAI GATE FAILED - audit reports $current_caps hard cap(s); caps are never accepted"
     echo ""
     echo "Score artifacts:"
     echo "  $SCORE_JSON"
@@ -125,10 +129,30 @@ if [ "$current_caps" -gt 0 ] || [ "$current_findings" -gt 0 ]; then
     echo ""
     echo "Current caps:"
     jq '(.caps_applied // [])' "$SCORE_JSON"
-    echo ""
-    echo "Current findings:"
-    jq '(.findings // [])' "$SCORE_JSON"
     exit 1
 fi
 
-echo "JANKURAI GATE PASS - current caps and findings are zero"
+# Any finding not present in the baseline is a regression and fails the gate.
+# The baseline holds only documented auditor false-positives (see AUDIT.md).
+if [ "$new_findings" -gt 0 ]; then
+    echo ""
+    echo "JANKURAI GATE FAILED - $new_findings finding(s) not present in the baseline"
+    echo ""
+    echo "Score artifacts:"
+    echo "  $SCORE_JSON"
+    echo "  $SCORE_MD"
+    echo ""
+    echo "Current findings:"
+    jq '(.findings // [])' "$SCORE_JSON"
+    echo ""
+    echo "Baseline (documented false-positives only): $BASELINE_FILE"
+    echo "A new finding must be fixed honestly, not added to the baseline,"
+    echo "unless it is a proven auditor false-positive documented in AUDIT.md."
+    exit 1
+fi
+
+if [ "$current_findings" -gt 0 ]; then
+    echo "JANKURAI GATE PASS - 0 caps; $current_findings baselined false-positive finding(s), 0 new"
+else
+    echo "JANKURAI GATE PASS - current caps and findings are zero"
+fi

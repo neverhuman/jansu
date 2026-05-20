@@ -54,3 +54,19 @@ the proof.
 Stop before broadening a failing lane when the failure is unrelated to the
 current phase or audit item. Record the failing command and residual risk in the
 attempt log instead of masking it with unrelated changes.
+
+## Build-speed audit residual
+
+The Jankurai `Build speed signals` dimension (finding `HLT-018`) caps at `80`
+for this repository against an `85` floor. The two `+15` bonuses that would
+reach the floor are hardcoded in the auditor to its own monorepo — one wants
+`cargo check -p jankurai`, the other an `npm --workspace @jankurai/ux-qa` lane —
+and jansu has neither crate nor npm workspace. Adding those literal strings
+would game a text scanner without making any build faster, so it is not done.
+
+jansu's generic build-speed posture is already maxed: locked dependency graph
+(`Cargo.lock`), CI cache hints, `cargo nextest`, and narrow per-package
+`check`/`test` targets in the `justfile`. `HLT-018` is therefore recorded as a
+documented auditor false-positive in `agent/jankurai-gate-baseline.json`. The
+Jankurai gate fails on any *new* finding but accepts this one baselined
+false-positive; see `AUDIT.md` (`AUDIT-019`).
