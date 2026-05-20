@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Storage trait dispatchers for [`StorageContainer`].
-//!
-//! The [`Storage`] trait implementation for [`StorageContainer`] is kept as
-//! one block; each method delegates to a free function grouped by request
-//! family in the [`container_impl`](self) submodules.
+//! Blanket [`Storage`] implementation forwarding through an [`Arc`].
 
-use std::{collections::BTreeMap, time::SystemTime};
+use std::{
+    collections::BTreeMap,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use async_trait::async_trait;
 use jansu_sans_io::{
@@ -40,61 +40,47 @@ use crate::{
     AbortedTransactionRange, BrokerRegistrationRequest, GroupDetail, LeaderEpochRecord,
     ListOffsetResponse, MetadataResponse, NamedGroupDetail, OffsetCommitRequest, OffsetFetchRecord,
     OffsetStage, ProducerIdResponse, Result, ScramCredential, Storage, StorageCapabilities,
-    StorageContainer, TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse,
-    TxnOffsetCommitRequest, UpdateError, Version,
+    TopicId, Topition, TxnAddPartitionsRequest, TxnAddPartitionsResponse, TxnOffsetCommitRequest,
+    UpdateError, Version,
 };
 
-mod broker;
-mod groups;
-mod offsets;
-mod records;
-mod scram;
-mod topics;
-mod txn;
-
 #[async_trait]
-impl Storage for StorageContainer {
+impl<T> Storage for Arc<T>
+where
+    T: Storage + ?Sized,
+{
     fn capabilities(&self) -> StorageCapabilities {
-        broker::capabilities(self)
+        self.as_ref().capabilities()
     }
 
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
-        broker::register_broker(self, broker_registration).await
+        self.as_ref().register_broker(broker_registration).await
     }
 
-    async fn offset_fetch_records(
-        &self,
-        group_id: Option<&str>,
-        topics: &[Topition],
-        require_stable: Option<bool>,
-    ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
-        offsets::offset_fetch_records(self, group_id, topics, require_stable).await
+    async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
+        self.as_ref().create_topic(topic, validate_only).await
     }
 
     async fn incremental_alter_resource(
         &self,
         resource: AlterConfigsResource,
     ) -> Result<AlterConfigsResourceResponse> {
-        topics::incremental_alter_resource(self, resource).await
-    }
-
-    async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
-        topics::create_topic(self, topic, validate_only).await
+        self.as_ref().incremental_alter_resource(resource).await
     }
 
     async fn delete_records(
         &self,
         topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        topics::delete_records(self, topics).await
+        self.as_ref().delete_records(topics).await
     }
 
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
-        topics::delete_topic(self, topic).await
+        self.as_ref().delete_topic(topic).await
     }
 
     async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-        broker::brokers(self).await
+        self.as_ref().brokers().await
     }
 
     async fn produce(
@@ -103,7 +89,7 @@ impl Storage for StorageContainer {
         topition: &Topition,
         batch: deflated::Batch,
     ) -> Result<i64> {
-        records::produce(self, transaction_id, topition, batch).await
+        self.as_ref().produce(transaction_id, topition, batch).await
     }
 
     async fn fetch(
@@ -114,14 +100,16 @@ impl Storage for StorageContainer {
         max_bytes: u32,
         isolation: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>> {
-        records::fetch(self, topition, offset, min_bytes, max_bytes, isolation).await
+        self.as_ref()
+            .fetch(topition, offset, min_bytes, max_bytes, isolation)
+            .await
     }
 
     async fn aborted_transaction_ranges(
         &self,
         topition: &Topition,
     ) -> Result<Vec<AbortedTransactionRange>> {
-        records::aborted_transaction_ranges(self, topition).await
+        self.as_ref().aborted_transaction_ranges(topition).await
     }
 
     async fn fetch_wait(
@@ -131,16 +119,15 @@ impl Storage for StorageContainer {
         min_bytes: u32,
         max_bytes: u32,
         isolation: IsolationLevel,
-        max_wait: std::time::Duration,
+        max_wait: Duration,
     ) -> Result<Vec<deflated::Batch>> {
-        records::fetch_wait(
-            self, topition, offset, min_bytes, max_bytes, isolation, max_wait,
-        )
-        .await
+        self.as_ref()
+            .fetch_wait(topition, offset, min_bytes, max_bytes, isolation, max_wait)
+            .await
     }
 
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
-        records::offset_stage(self, topition).await
+        self.as_ref().offset_stage(topition).await
     }
 
     async fn list_offsets(
@@ -148,20 +135,18 @@ impl Storage for StorageContainer {
         isolation_level: IsolationLevel,
         offsets: &[(Topition, ListOffset)],
     ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
-        records::list_offsets(self, isolation_level, offsets).await
+        self.as_ref().list_offsets(isolation_level, offsets).await
     }
 
     async fn offset_commit(
         &self,
         group_id: &str,
-        retention_time_ms: Option<std::time::Duration>,
+        retention_time_ms: Option<Duration>,
         offsets: &[(Topition, OffsetCommitRequest)],
     ) -> Result<Vec<(Topition, ErrorCode)>> {
-        offsets::offset_commit(self, group_id, retention_time_ms, offsets).await
-    }
-
-    async fn committed_offset_topitions(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
-        offsets::committed_offset_topitions(self, group_id).await
+        self.as_ref()
+            .offset_commit(group_id, retention_time_ms, offsets)
+            .await
     }
 
     async fn offset_fetch(
@@ -170,7 +155,20 @@ impl Storage for StorageContainer {
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, i64>> {
-        offsets::offset_fetch(self, group_id, topics, require_stable).await
+        self.as_ref()
+            .offset_fetch(group_id, topics, require_stable)
+            .await
+    }
+
+    async fn offset_fetch_records(
+        &self,
+        group_id: Option<&str>,
+        topics: &[Topition],
+        require_stable: Option<bool>,
+    ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
+        self.as_ref()
+            .offset_fetch_records(group_id, topics, require_stable)
+            .await
     }
 
     async fn offset_for_leader_epoch(
@@ -178,15 +176,50 @@ impl Storage for StorageContainer {
         topition: &Topition,
         leader_epoch: i32,
     ) -> Result<Option<(i32, i64)>> {
-        records::offset_for_leader_epoch(self, topition, leader_epoch).await
+        self.as_ref()
+            .offset_for_leader_epoch(topition, leader_epoch)
+            .await
     }
 
     async fn leader_epoch_history(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
-        records::leader_epoch_history(self, topition).await
+        self.as_ref().leader_epoch_history(topition).await
+    }
+
+    async fn committed_offset_topitions(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
+        self.as_ref().committed_offset_topitions(group_id).await
     }
 
     async fn metadata(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
-        topics::metadata(self, topics).await
+        self.as_ref().metadata(topics).await
+    }
+
+    async fn upsert_user_scram_credential(
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
+        credential: ScramCredential,
+    ) -> Result<()> {
+        self.as_ref()
+            .upsert_user_scram_credential(user, mechanism, credential)
+            .await
+    }
+
+    async fn delete_user_scram_credential(
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
+    ) -> Result<()> {
+        self.as_ref()
+            .delete_user_scram_credential(user, mechanism)
+            .await
+    }
+
+    async fn user_scram_credential(
+        &self,
+        user: &str,
+        mechanism: ScramMechanism,
+    ) -> Result<Option<ScramCredential>> {
+        self.as_ref().user_scram_credential(user, mechanism).await
     }
 
     async fn describe_config(
@@ -195,7 +228,28 @@ impl Storage for StorageContainer {
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        topics::describe_config(self, name, resource, keys).await
+        self.as_ref().describe_config(name, resource, keys).await
+    }
+
+    async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
+        self.as_ref().list_groups(states_filter).await
+    }
+
+    async fn delete_groups(
+        &self,
+        group_ids: Option<&[String]>,
+    ) -> Result<Vec<DeletableGroupResult>> {
+        self.as_ref().delete_groups(group_ids).await
+    }
+
+    async fn describe_groups(
+        &self,
+        group_ids: Option<&[String]>,
+        include_authorized_operations: bool,
+    ) -> Result<Vec<NamedGroupDetail>> {
+        self.as_ref()
+            .describe_groups(group_ids, include_authorized_operations)
+            .await
     }
 
     async fn describe_topic_partitions(
@@ -204,26 +258,9 @@ impl Storage for StorageContainer {
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        topics::describe_topic_partitions(self, topics, partition_limit, cursor).await
-    }
-
-    async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-        groups::list_groups(self, states_filter).await
-    }
-
-    async fn delete_groups(
-        &self,
-        group_ids: Option<&[String]>,
-    ) -> Result<Vec<DeletableGroupResult>> {
-        groups::delete_groups(self, group_ids).await
-    }
-
-    async fn describe_groups(
-        &self,
-        group_ids: Option<&[String]>,
-        include_authorized_operations: bool,
-    ) -> Result<Vec<NamedGroupDetail>> {
-        groups::describe_groups(self, group_ids, include_authorized_operations).await
+        self.as_ref()
+            .describe_topic_partitions(topics, partition_limit, cursor)
+            .await
     }
 
     async fn update_group(
@@ -232,7 +269,7 @@ impl Storage for StorageContainer {
         detail: GroupDetail,
         version: Option<Version>,
     ) -> Result<Version, UpdateError<GroupDetail>> {
-        groups::update_group(self, group_id, detail, version).await
+        self.as_ref().update_group(group_id, detail, version).await
     }
 
     async fn init_producer(
@@ -242,14 +279,14 @@ impl Storage for StorageContainer {
         producer_id: Option<i64>,
         producer_epoch: Option<i16>,
     ) -> Result<ProducerIdResponse> {
-        txn::init_producer(
-            self,
-            transaction_id,
-            transaction_timeout_ms,
-            producer_id,
-            producer_epoch,
-        )
-        .await
+        self.as_ref()
+            .init_producer(
+                transaction_id,
+                transaction_timeout_ms,
+                producer_id,
+                producer_epoch,
+            )
+            .await
     }
 
     async fn txn_add_offsets(
@@ -259,21 +296,23 @@ impl Storage for StorageContainer {
         producer_epoch: i16,
         group_id: &str,
     ) -> Result<ErrorCode> {
-        txn::txn_add_offsets(self, transaction_id, producer_id, producer_epoch, group_id).await
+        self.as_ref()
+            .txn_add_offsets(transaction_id, producer_id, producer_epoch, group_id)
+            .await
     }
 
     async fn txn_add_partitions(
         &self,
         partitions: TxnAddPartitionsRequest,
     ) -> Result<TxnAddPartitionsResponse> {
-        txn::txn_add_partitions(self, partitions).await
+        self.as_ref().txn_add_partitions(partitions).await
     }
 
     async fn txn_offset_commit(
         &self,
         offsets: TxnOffsetCommitRequest,
     ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
-        txn::txn_offset_commit(self, offsets).await
+        self.as_ref().txn_offset_commit(offsets).await
     }
 
     async fn txn_end(
@@ -283,51 +322,28 @@ impl Storage for StorageContainer {
         producer_epoch: i16,
         committed: bool,
     ) -> Result<ErrorCode> {
-        txn::txn_end(self, transaction_id, producer_id, producer_epoch, committed).await
+        self.as_ref()
+            .txn_end(transaction_id, producer_id, producer_epoch, committed)
+            .await
     }
 
     async fn maintain(&self, now: SystemTime) -> Result<()> {
-        broker::maintain(self, now).await
+        self.as_ref().maintain(now).await
     }
 
     async fn cluster_id(&self) -> Result<String> {
-        broker::cluster_id(self).await
+        self.as_ref().cluster_id().await
     }
 
     async fn node(&self) -> Result<i32> {
-        broker::node(self).await
+        self.as_ref().node().await
     }
 
     async fn advertised_listener(&self) -> Result<Url> {
-        broker::advertised_listener(self).await
-    }
-
-    async fn delete_user_scram_credential(
-        &self,
-        user: &str,
-        mechanism: ScramMechanism,
-    ) -> Result<()> {
-        scram::delete_user_scram_credential(self, user, mechanism).await
-    }
-
-    async fn upsert_user_scram_credential(
-        &self,
-        user: &str,
-        mechanism: ScramMechanism,
-        credential: ScramCredential,
-    ) -> Result<()> {
-        scram::upsert_user_scram_credential(self, user, mechanism, credential).await
-    }
-
-    async fn user_scram_credential(
-        &self,
-        user: &str,
-        mechanism: ScramMechanism,
-    ) -> Result<Option<ScramCredential>> {
-        scram::user_scram_credential(self, user, mechanism).await
+        self.as_ref().advertised_listener().await
     }
 
     async fn ping(&self) -> Result<()> {
-        broker::ping(self).await
+        self.as_ref().ping().await
     }
 }
