@@ -12,101 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Type definitions for SlateDB storage engine
+//! Composite key definitions for SlateDB storage.
 //!
-//! # Key Design for LSM-tree
-//!
-//! All keys follow a consistent pattern optimized for LSM-tree storage:
-//!
-//! ```text
-//! {type_prefix}/{hierarchy...}/{leaf_id}
-//! ```
-//!
-//! ## Key Prefixes (sorted by access pattern)
-//!
-//! | Prefix | Description | Key Structure |
-//! |--------|-------------|---------------|
-//! | `b/` | Batch data | `b/{topic_uuid}/{partition:be32}/{offset:be64}` |
-//! | `c/` | Consumer group commits | `c/{group}/{topic}/{partition:be32}` |
-//! | `g/` | Group state | `g/{group_id}` |
-//! | `w/` | Watermarks | `w/{topic_uuid}/{partition:be32}` |
-//!
-//! ## Design Principles
-//!
-//! 1. **Prefix-first**: Type prefix comes first for efficient filtering
-//! 2. **Big-endian integers**: Preserves numeric ordering in lexicographic sort
-//! 3. **Fixed-width encoding**: Ensures consistent key ordering
-//! 4. **Hierarchical structure**: Enables efficient prefix scans
-//!
-//! ## LSM-tree Considerations
-//!
-//! - Keys with same prefix are stored together → better compaction
-//! - Bloom filters can efficiently skip unrelated key types
-//! - Range scans for a partition only touch relevant SSTable blocks
+//! All keys follow a consistent prefix-first, big-endian, fixed-width pattern
+//! optimized for LSM-tree storage. See the parent module for the full key design.
 
-use std::{collections::BTreeMap, time::SystemTime};
-
-use jansu_sans_io::create_topics_request::CreatableTopic;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{GroupDetail, TxnState, Version};
-
-// Type aliases
-pub(super) type Group = String;
-pub(super) type Offset = i64;
-pub(super) type Partition = i32;
-pub(super) type ProducerEpoch = i16;
-pub(super) type ProducerId = i64;
-pub(super) type Sequence = i32;
-pub(super) type Topic = String;
-
-// Collection types
-pub(super) type Topics = BTreeMap<Topic, TopicMetadata>;
-pub(super) type Producers = BTreeMap<ProducerId, ProducerDetail>;
-pub(super) type Brokers = BTreeMap<i32, BrokerInfo>;
-pub(super) type Transactions = BTreeMap<String, Txn>;
-
-/// Transaction produce offset range
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
-pub(super) struct TxnProduceOffset {
-    pub offset_start: Offset,
-    pub offset_end: Offset,
-}
-
-/// Transaction commit offset
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(default)]
-pub(super) struct TxnCommitOffset {
-    pub committed_offset: Offset,
-    pub leader_epoch: Option<i32>,
-    pub metadata: Option<String>,
-    pub commit_timestamp: Option<SystemTime>,
-    pub expires_at: Option<SystemTime>,
-}
-
-/// Topic metadata
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct TopicMetadata {
-    pub id: Uuid,
-    pub topic: CreatableTopic,
-}
-
-/// Watermark for a topic partition
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct Watermark {
-    pub low: Option<i64>,
-    pub high: Option<i64>,
-    pub timestamps: Option<BTreeMap<i64, i64>>,
-}
+use super::Partition;
 
 /// Key for watermark storage: `w/{topic_uuid}/{partition:be32}`
 ///
 /// Watermarks are accessed per-partition, so we use topic+partition as the key.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct WatermarkKey {
+pub(in crate::slate) struct WatermarkKey {
     /// Type prefix for LSM-tree grouping
     pub prefix: char,
     /// Topic UUID (16 bytes, fixed)
@@ -127,7 +47,7 @@ impl Default for WatermarkKey {
 }
 
 impl WatermarkKey {
-    pub(super) fn new(topic: Uuid, partition: Partition) -> Self {
+    pub(in crate::slate) fn new(topic: Uuid, partition: Partition) -> Self {
         Self {
             prefix: 'w',
             topic,
@@ -138,7 +58,7 @@ impl WatermarkKey {
 
 /// Key for leader epoch history: `e/{topic_uuid}/{partition:be32}/{epoch:be32}`.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct LeaderEpochKey {
+pub(in crate::slate) struct LeaderEpochKey {
     pub prefix: char,
     pub topic: Uuid,
     #[serde(with = "postcard::fixint::be")]
@@ -148,7 +68,7 @@ pub(super) struct LeaderEpochKey {
 }
 
 impl LeaderEpochKey {
-    pub(super) fn new(topic: Uuid, partition: Partition, epoch: i32) -> Self {
+    pub(in crate::slate) fn new(topic: Uuid, partition: Partition, epoch: i32) -> Self {
         Self {
             prefix: 'e',
             topic,
@@ -160,7 +80,7 @@ impl LeaderEpochKey {
 
 /// Prefix key for scanning all leader epochs in a topic partition.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct LeaderEpochKeyPrefix {
+pub(in crate::slate) struct LeaderEpochKeyPrefix {
     pub prefix: char,
     pub topic: Uuid,
     #[serde(with = "postcard::fixint::be")]
@@ -168,70 +88,13 @@ pub(super) struct LeaderEpochKeyPrefix {
 }
 
 impl LeaderEpochKeyPrefix {
-    pub(super) fn new(topic: Uuid, partition: Partition) -> Self {
+    pub(in crate::slate) fn new(topic: Uuid, partition: Partition) -> Self {
         Self {
             prefix: 'e',
             topic,
             partition,
         }
     }
-}
-
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
-pub(super) struct LeaderEpochValue {
-    pub start_offset: Offset,
-}
-
-/// Group detail with version
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct GroupDetailVersion {
-    pub detail: GroupDetail,
-    pub version: Version,
-}
-
-impl GroupDetailVersion {
-    pub(super) fn detail(self, detail: GroupDetail) -> Self {
-        Self { detail, ..self }
-    }
-
-    pub(super) fn version(self, version: Version) -> Self {
-        Self { version, ..self }
-    }
-}
-
-/// Producer detail with sequence tracking
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct ProducerDetail {
-    pub sequences: BTreeMap<ProducerEpoch, BTreeMap<String, BTreeMap<i32, Sequence>>>,
-}
-
-/// Transaction identifier
-#[allow(dead_code)]
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct TxnId {
-    pub transaction: String,
-    pub producer_id: ProducerId,
-    pub producer_epoch: ProducerEpoch,
-    pub state: TxnState,
-}
-
-/// Transaction state
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct Txn {
-    pub producer: ProducerId,
-    pub epochs: BTreeMap<ProducerEpoch, TxnDetail>,
-}
-
-/// Transaction detail
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct TxnDetail {
-    pub transaction_timeout_ms: i32,
-    pub started_at: Option<SystemTime>,
-    pub state: Option<TxnState>,
-    pub produces: BTreeMap<Topic, BTreeMap<Partition, Option<TxnProduceOffset>>>,
-    pub offsets: BTreeMap<Group, BTreeMap<Topic, BTreeMap<Partition, TxnCommitOffset>>>,
 }
 
 /// Key for batch storage: `b/{topic_uuid}/{partition:be32}/{offset:be64}`
@@ -241,7 +104,7 @@ pub(super) struct TxnDetail {
 /// - Prefix scan for all batches in a partition
 /// - Bloom filter can quickly skip non-batch keys
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct BatchKey {
+pub(in crate::slate) struct BatchKey {
     /// Type prefix 'b' for batch
     pub prefix: char,
     /// Topic UUID (16 bytes, fixed)
@@ -251,7 +114,7 @@ pub(super) struct BatchKey {
     pub partition: Partition,
     /// Offset within partition (big-endian for correct ordering)
     #[serde(with = "postcard::fixint::be")]
-    pub offset: Offset,
+    pub offset: super::Offset,
 }
 
 impl Default for BatchKey {
@@ -266,7 +129,7 @@ impl Default for BatchKey {
 }
 
 impl BatchKey {
-    pub(super) fn new(topic: Uuid, partition: Partition, offset: Offset) -> Self {
+    pub(in crate::slate) fn new(topic: Uuid, partition: Partition, offset: super::Offset) -> Self {
         Self {
             prefix: 'b',
             topic,
@@ -276,7 +139,11 @@ impl BatchKey {
     }
 
     /// Create a key for range scan starting from this offset
-    pub(super) fn scan_from(topic: Uuid, partition: Partition, offset: Offset) -> Self {
+    pub(in crate::slate) fn scan_from(
+        topic: Uuid,
+        partition: Partition,
+        offset: super::Offset,
+    ) -> Self {
         Self::new(topic, partition, offset)
     }
 }
@@ -286,7 +153,7 @@ impl BatchKey {
 /// This is a separate struct from `BatchKey` because we need to check if a scanned key
 /// still belongs to the same topic/partition before decoding the batch data.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct BatchKeyPrefix {
+pub(in crate::slate) struct BatchKeyPrefix {
     /// Type prefix 'b' for batch
     pub prefix: char,
     /// Topic UUID (16 bytes, fixed)
@@ -297,7 +164,7 @@ pub(super) struct BatchKeyPrefix {
 }
 
 impl BatchKeyPrefix {
-    pub(super) fn new(topic: Uuid, partition: Partition) -> Self {
+    pub(in crate::slate) fn new(topic: Uuid, partition: Partition) -> Self {
         Self {
             prefix: 'b',
             topic,
@@ -311,7 +178,7 @@ impl BatchKeyPrefix {
 /// Consumer group offsets are accessed by group, then by topic-partition.
 /// This enables efficient "get all offsets for a group" scans.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct OffsetCommitKey {
+pub(in crate::slate) struct OffsetCommitKey {
     /// Type prefix 'c' for commit
     pub prefix: char,
     /// Consumer group ID
@@ -335,7 +202,7 @@ impl Default for OffsetCommitKey {
 }
 
 impl OffsetCommitKey {
-    pub(super) fn new(
+    pub(in crate::slate) fn new(
         group: impl Into<String>,
         topic: impl Into<String>,
         partition: Partition,
@@ -355,7 +222,7 @@ impl OffsetCommitKey {
 /// includes length prefixes for strings, so we can't use an `OffsetCommitKey` with
 /// empty topic as a scan prefix - it would include the empty string's length marker.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct OffsetCommitKeyPrefix {
+pub(in crate::slate) struct OffsetCommitKeyPrefix {
     /// Type prefix 'c' for commit
     pub prefix: char,
     /// Consumer group ID
@@ -363,7 +230,7 @@ pub(super) struct OffsetCommitKeyPrefix {
 }
 
 impl OffsetCommitKeyPrefix {
-    pub(super) fn new(group: impl Into<String>) -> Self {
+    pub(in crate::slate) fn new(group: impl Into<String>) -> Self {
         Self {
             prefix: 'c',
             group: group.into(),
@@ -371,20 +238,9 @@ impl OffsetCommitKeyPrefix {
     }
 }
 
-/// Value stored for offset commits
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(default)]
-pub(super) struct OffsetCommitValue {
-    pub offset: i64,
-    pub leader_epoch: Option<i32>,
-    pub metadata: Option<String>,
-    pub commit_timestamp: Option<SystemTime>,
-    pub expires_at: Option<SystemTime>,
-}
-
 /// Key for storing group state: `g/{group_id}`
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct GroupKey {
+pub(in crate::slate) struct GroupKey {
     /// Type prefix 'g' for group
     pub prefix: char,
     /// Group ID
@@ -401,7 +257,7 @@ impl Default for GroupKey {
 }
 
 impl GroupKey {
-    pub(super) fn new(group_id: impl Into<String>) -> Self {
+    pub(in crate::slate) fn new(group_id: impl Into<String>) -> Self {
         Self {
             prefix: 'g',
             group_id: group_id.into(),
@@ -415,22 +271,13 @@ impl GroupKey {
 /// includes length prefixes for strings, so we can't use a `GroupKey` with
 /// empty group_id as a scan prefix.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct GroupKeyPrefix {
+pub(in crate::slate) struct GroupKeyPrefix {
     /// Type prefix 'g' for group
     pub prefix: char,
 }
 
 impl GroupKeyPrefix {
-    pub(super) fn new() -> Self {
+    pub(in crate::slate) fn new() -> Self {
         Self { prefix: 'g' }
     }
-}
-
-/// Stored broker information
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub(super) struct BrokerInfo {
-    pub broker_id: i32,
-    pub host: String,
-    pub port: i32,
-    pub rack: Option<String>,
 }

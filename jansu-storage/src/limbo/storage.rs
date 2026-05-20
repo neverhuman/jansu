@@ -1,62 +1,51 @@
-use super::*;
+//! `Storage` trait implementation for the Turso/limbo `Engine`.
+//!
+//! Each method is a thin delegator; the request logic lives in inherent
+//! `impl Engine` blocks under the sibling modules.
 
-impl Engine {
-    pub fn builder()
-    -> Builder<PhantomData<String>, PhantomData<i32>, PhantomData<Url>, PhantomData<Url>> {
-        Builder::default()
-    }
-}
+use super::*;
 
 #[async_trait]
 impl Storage for Engine {
-    #[instrument(skip_all)]
     async fn register_broker(&self, broker_registration: BrokerRegistrationRequest) -> Result<()> {
-        self.register_broker_metered(broker_registration).await
+        self.register_broker_impl(broker_registration).await
     }
 
-    #[instrument(skip_all)]
     async fn brokers(&self) -> Result<Vec<DescribeClusterBroker>> {
-        self.brokers_metered().await
+        self.brokers_impl().await
     }
 
-    #[instrument(skip_all)]
     async fn create_topic(&self, topic: CreatableTopic, validate_only: bool) -> Result<Uuid> {
-        self.create_topic_metered(topic, validate_only).await
+        self.create_topic_impl(topic, validate_only).await
     }
 
-    #[instrument(skip_all)]
     async fn delete_records(
         &self,
         topics: &[DeleteRecordsTopic],
     ) -> Result<Vec<DeleteRecordsTopicResult>> {
-        self.delete_records_metered(topics).await
+        self.delete_records_impl(topics).await
     }
 
-    #[instrument(skip_all)]
     async fn delete_topic(&self, topic: &TopicId) -> Result<ErrorCode> {
-        self.delete_topic_metered(topic).await
+        self.delete_topic_impl(topic).await
     }
 
-    #[instrument(skip_all)]
     async fn incremental_alter_resource(
         &self,
         resource: AlterConfigsResource,
     ) -> Result<AlterConfigsResourceResponse> {
-        self.incremental_alter_resource_metered(resource).await
+        self.incremental_alter_resource_impl(resource).await
     }
 
-    #[instrument(skip_all)]
     async fn produce(
         &self,
         transaction_id: Option<&str>,
         topition: &Topition,
         deflated: deflated::Batch,
     ) -> Result<i64> {
-        self.produce_metered(transaction_id, topition, deflated)
-            .await
+        self.produce_impl(transaction_id, topition, deflated).await
     }
 
-    #[instrument(skip_all)]
     async fn fetch(
         &self,
         topition: &Topition,
@@ -65,125 +54,120 @@ impl Storage for Engine {
         max_bytes: u32,
         isolation_level: IsolationLevel,
     ) -> Result<Vec<deflated::Batch>> {
-        self.fetch_metered(topition, offset, min_bytes, max_bytes, isolation_level)
+        self.fetch_impl(topition, offset, min_bytes, max_bytes, isolation_level)
             .await
     }
 
-    #[instrument(skip_all)]
     async fn offset_stage(&self, topition: &Topition) -> Result<OffsetStage> {
-        self.offset_stage_metered(topition).await
+        self.offset_stage_impl(topition).await
     }
 
-    #[instrument(skip_all)]
     async fn offset_commit(
         &self,
         group: &str,
         retention: Option<Duration>,
         offsets: &[(Topition, OffsetCommitRequest)],
     ) -> Result<Vec<(Topition, ErrorCode)>> {
-        self.offset_commit_metered(group, retention, offsets).await
+        self.offset_commit_impl(group, retention, offsets).await
     }
 
-    #[instrument(skip_all)]
     async fn committed_offset_topitions(&self, group_id: &str) -> Result<BTreeMap<Topition, i64>> {
-        self.committed_offset_topitions_metered(group_id).await
+        self.committed_offset_topitions_impl(group_id).await
     }
 
-    #[instrument(skip_all)]
     async fn offset_for_leader_epoch(
         &self,
         topition: &Topition,
         leader_epoch: i32,
     ) -> Result<Option<(i32, i64)>> {
-        self.offset_for_leader_epoch_metered(topition, leader_epoch)
+        self.offset_for_leader_epoch_impl(topition, leader_epoch)
             .await
     }
 
-    #[instrument(skip_all)]
     async fn leader_epoch_history(&self, topition: &Topition) -> Result<Vec<LeaderEpochRecord>> {
-        self.leader_epoch_history_metered(topition).await
+        self.leader_epoch_history_impl(topition).await
     }
 
-    #[instrument(skip_all)]
     async fn offset_fetch(
         &self,
         group_id: Option<&str>,
         topics: &[Topition],
         require_stable: Option<bool>,
     ) -> Result<BTreeMap<Topition, i64>> {
-        self.offset_fetch_metered(group_id, topics, require_stable)
+        self.offset_fetch_impl(group_id, topics, require_stable)
             .await
     }
 
-    #[instrument(skip_all)]
+    async fn offset_fetch_records(
+        &self,
+        group_id: Option<&str>,
+        topics: &[Topition],
+        require_stable: Option<bool>,
+    ) -> Result<BTreeMap<Topition, OffsetFetchRecord>> {
+        self.offset_fetch_records_impl(group_id, topics, require_stable)
+            .await
+    }
+
     async fn list_offsets(
         &self,
         isolation_level: IsolationLevel,
-        offsets: &[(Topition, ListOffset)],
+        offsets: &[(Topition, ListOffsetRequest)],
     ) -> Result<Vec<(Topition, ListOffsetResponse)>> {
-        self.list_offsets_metered(isolation_level, offsets).await
+        self.list_offsets_impl(isolation_level, offsets).await
     }
 
-    #[instrument(skip_all)]
     async fn metadata(&self, topics: Option<&[TopicId]>) -> Result<MetadataResponse> {
-        self.metadata_metered(topics).await
+        self.metadata_impl(topics).await
     }
 
-    #[instrument(skip_all)]
     async fn describe_config(
         &self,
         name: &str,
         resource: ConfigResource,
         keys: Option<&[String]>,
     ) -> Result<DescribeConfigsResult> {
-        self.describe_config_metered(name, resource, keys).await
+        self.describe_config_impl(name, resource, keys).await
     }
 
-    #[instrument(skip_all)]
     async fn describe_topic_partitions(
         &self,
         topics: Option<&[TopicId]>,
         partition_limit: i32,
         cursor: Option<Topition>,
     ) -> Result<Vec<DescribeTopicPartitionsResponseTopic>> {
-        self.describe_topic_partitions_metered(topics, partition_limit, cursor)
+        self.describe_topic_partitions_impl(topics, partition_limit, cursor)
             .await
     }
 
-    #[instrument(skip_all)]
     async fn list_groups(&self, states_filter: Option<&[String]>) -> Result<Vec<ListedGroup>> {
-        self.list_groups_metered(states_filter).await
+        self.list_groups_impl(states_filter).await
     }
 
-    #[instrument(skip_all)]
     async fn delete_groups(
         &self,
         group_ids: Option<&[String]>,
     ) -> Result<Vec<DeletableGroupResult>> {
-        self.delete_groups_metered(group_ids).await
+        self.delete_groups_impl(group_ids).await
     }
 
-    #[instrument(skip_all)]
     async fn describe_groups(
         &self,
         group_ids: Option<&[String]>,
         include_authorized_operations: bool,
     ) -> Result<Vec<NamedGroupDetail>> {
-        self.describe_groups_metered(group_ids, include_authorized_operations)
+        self.describe_groups_impl(group_ids, include_authorized_operations)
             .await
     }
 
-    #[instrument(skip_all)]
     async fn update_group(
         &self,
         group_id: &str,
         detail: GroupDetail,
         version: Option<Version>,
     ) -> Result<Version, UpdateError<GroupDetail>> {
-        self.update_group_metered(group_id, detail, version).await
+        self.update_group_impl(group_id, detail, version).await
     }
 
-    #[instrument(skip_all)]
     async fn init_producer(
         &self,
         transaction_id: Option<&str>,
@@ -191,7 +175,7 @@ impl Storage for Engine {
         producer_id: Option<i64>,
         producer_epoch: Option<i16>,
     ) -> Result<ProducerIdResponse> {
-        self.init_producer_metered(
+        self.init_producer_impl(
             transaction_id,
             transaction_timeout_ms,
             producer_id,
@@ -200,7 +184,6 @@ impl Storage for Engine {
         .await
     }
 
-    #[instrument(skip_all)]
     async fn txn_add_offsets(
         &self,
         transaction_id: &str,
@@ -208,27 +191,24 @@ impl Storage for Engine {
         producer_epoch: i16,
         group_id: &str,
     ) -> Result<ErrorCode> {
-        self.txn_add_offsets_metered(transaction_id, producer_id, producer_epoch, group_id)
+        self.txn_add_offsets_impl(transaction_id, producer_id, producer_epoch, group_id)
             .await
     }
 
-    #[instrument(skip_all)]
     async fn txn_add_partitions(
         &self,
         partitions: TxnAddPartitionsRequest,
     ) -> Result<TxnAddPartitionsResponse> {
-        self.txn_add_partitions_metered(partitions).await
+        self.txn_add_partitions_impl(partitions).await
     }
 
-    #[instrument(skip_all)]
     async fn txn_offset_commit(
         &self,
         offsets: TxnOffsetCommitRequest,
     ) -> Result<Vec<TxnOffsetCommitResponseTopic>> {
-        self.txn_offset_commit_metered(offsets).await
+        self.txn_offset_commit_impl(offsets).await
     }
 
-    #[instrument(skip_all)]
     async fn txn_end(
         &self,
         transaction_id: &str,
@@ -236,62 +216,54 @@ impl Storage for Engine {
         producer_epoch: i16,
         committed: bool,
     ) -> Result<ErrorCode> {
-        self.txn_end_metered(transaction_id, producer_id, producer_epoch, committed)
+        self.txn_end_impl(transaction_id, producer_id, producer_epoch, committed)
             .await
     }
 
-    #[instrument(skip_all)]
-    async fn maintain(&self, now: SystemTime) -> Result<()> {
-        self.maintain_metered(now).await
+    async fn maintain(&self, _now: SystemTime) -> Result<()> {
+        Ok(())
     }
 
-    #[instrument(skip_all)]
     async fn cluster_id(&self) -> Result<String> {
-        self.cluster_id_metered().await
+        Ok(self.cluster.clone())
     }
 
-    #[instrument(skip_all)]
     async fn node(&self) -> Result<i32> {
-        self.node_metered().await
+        Ok(self.node)
     }
 
-    #[instrument(skip_all)]
     async fn advertised_listener(&self) -> Result<Url> {
-        self.advertised_listener_metered().await
+        Ok(self.advertised_listener.clone())
     }
 
-    #[instrument(skip_all)]
     async fn delete_user_scram_credential(
         &self,
-        user: &str,
-        mechanism: ScramMechanism,
+        _user: &str,
+        _mechanism: ScramMechanism,
     ) -> Result<()> {
-        self.delete_user_scram_credential_metered(user, mechanism)
-            .await
+        Err(Error::Api(ErrorCode::SecurityDisabled))
     }
 
-    #[instrument(skip_all)]
     async fn upsert_user_scram_credential(
         &self,
-        user: &str,
-        mechanism: ScramMechanism,
-        credential: ScramCredential,
+        _user: &str,
+        _mechanism: ScramMechanism,
+        _credential: ScramCredential,
     ) -> Result<()> {
-        self.upsert_user_scram_credential_metered(user, mechanism, credential)
-            .await
+        Err(Error::Api(ErrorCode::SecurityDisabled))
     }
 
-    #[instrument(skip_all)]
     async fn user_scram_credential(
         &self,
-        user: &str,
-        mechanism: ScramMechanism,
+        _user: &str,
+        _mechanism: ScramMechanism,
     ) -> Result<Option<ScramCredential>> {
-        self.user_scram_credential_metered(user, mechanism).await
+        Ok(None)
     }
 
-    #[instrument(skip_all)]
     async fn ping(&self) -> Result<()> {
-        self.ping_metered().await
+        let c = self.connection().await?;
+        let _ = c.query("ping.sql", ()).await?;
+        Ok(())
     }
 }

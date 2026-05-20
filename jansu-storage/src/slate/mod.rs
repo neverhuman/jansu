@@ -24,7 +24,9 @@
 //! - `storage`: Storage trait implementation
 //! - `tests`: Unit tests (test-only)
 
+mod builder;
 mod engine;
+mod ops;
 mod storage;
 mod types;
 
