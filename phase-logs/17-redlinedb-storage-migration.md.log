@@ -1,0 +1,97 @@
+# Phase 17 - RedlineDB Storage Migration and Legacy SQL-Engine Retirement
+
+## Date
+
+- 2026-05-20
+
+## Phase File
+
+- tips/phases/17-redlinedb-storage-migration.md
+
+## Intent
+
+- Initialize the repo-backed migration phase for RedlineDB-only SQL storage and legacy SQL-engine retirement.
+
+## Files Touched
+
+- AUDIT.md
+- MASTER_PLAN.md
+- tips/phases/17-redlinedb-storage-migration.md
+- phase-logs/index.json
+
+## Ledger Rows Touched
+
+- None.
+
+## Tests Added
+
+- None.
+
+## Verification Commands
+
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-redlinedb-governance cargo test -p jansu-broker --test compatibility_contract --all-features -- phase_log_manifest_contract_covers_phase_docs --nocapture`
+- `rtk cargo fmt --all --check`
+- `rtk git diff --check`
+- `rtk actionlint .github/workflows/*.yml`
+- `rtk bash tools/security-lane.sh`
+- `rtk rm -f target/jankurai/audit-state.json && rtk just score`
+
+## Outcomes
+
+- Phase 17 scaffold created so future RedlineDB migration work has an explicit phase anchor.
+- The phase manifest contract, formatting check, diff hygiene, workflow lint, security lane, and full Jankurai score run all completed successfully or reproduced the known strict-gate residuals.
+- The strict Jankurai gate still reports the same two residual findings: `HLT-001` and `HLT-018`.
+
+## Residual Risks
+
+- Product-surface migration, helper wiring, and storage-harness changes are not implemented yet.
+- The strict-gate residuals remain unresolved until a deeper code-shape or build-speed proof lane is added.
+
+## Session 2 - 2026-05-20: PR 13 Verification and Residual Confirmation
+
+### Date
+
+2026-05-20
+
+### Phase File
+
+`tips/phases/17-redlinedb-storage-migration.md`
+
+### Intent
+
+Verify the Phase 17 scaffold against the current PR-CI cleanup tree and confirm the known strict-gate residuals remain separate from the standard checks.
+
+### Files Touched
+
+- `phase-logs/17-redlinedb-storage-migration.md.log`
+
+### Ledger Rows Touched
+
+- None.
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `rtk just fmt`
+- `rtk git diff --check`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-current just check`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-clippy just clippy`
+- `rtk actionlint .github/workflows/*.yml`
+- `rtk bash tools/security-lane.sh`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-contract cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture`
+- `rtk rm -f target/jankurai/audit-state.json`
+- `rtk just score`
+
+### Outcomes
+
+- `cargo fmt`, `cargo check`, `cargo clippy`, actionlint, the security lane, and the compatibility-contract test all passed.
+- The strict gate still reports `score=83 raw=83 caps=0 findings=2`.
+- The only remaining strict-gate findings are `HLT-001` and `HLT-018`.
+
+### Residual Risks
+
+- Phase 17 migration work remains scaffold-only.
+- The Jankurai residuals are intentionally tracked outside the standard PR-CI baseline.

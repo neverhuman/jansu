@@ -1,0 +1,17 @@
+[[zone]]
+path = "agent/repo-score.json"
+source = "installed jankurai binary"
+command = "bash scripts/ci-local.sh audit"
+read_only = false
+
+[[zone]]
+path = "agent/repo-score.md"
+source = "installed jankurai binary"
+command = "bash scripts/ci-local.sh audit"
+read_only = false
+
+[[zone]]
+path = "jansu-sans-io/message"
+source = "Kafka protocol message descriptors vendored in this repository"
+command = "cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture"
+read_only = true

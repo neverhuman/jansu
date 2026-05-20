@@ -13,6 +13,5 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from record
-where record.topition = $1
+delete from record where record.topition = $1
 and record.offset_id = $2

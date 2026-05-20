@@ -2965,7 +2965,7 @@ But Phase 12 should own:
 ```text
 broker fail
 ::contentReference[oaicite:16]{index=16}
-ure detection
+failure detection
 controller election
 automatic partition leader election
 partition reassignment orchestration
@@ -2989,4 +2989,3 @@ That boundary keeps Phase 11 finishable while still making it genuinely complete
 [12]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/service/produce.rs "https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/service/produce.rs"
 [13]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/service.rs "https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-storage/src/service.rs"
 [14]: https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-broker/src/broker.rs "https://raw.githubusercontent.com/jansu-io/jansu/main/jansu-broker/src/broker.rs"
-

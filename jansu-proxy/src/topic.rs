@@ -235,9 +235,7 @@ impl ResourceConfig {
         debug!(?self, resource_name);
         self.configuration
             .lock()
-            .map(|guard| guard.contains_key(resource_name))
-            .ok()
-            .unwrap_or_default()
+            .is_ok_and(|guard| guard.contains_key(resource_name))
     }
 
     pub(crate) fn get(&self, resource_name: &str, key: &str) -> Option<ResourceConfigValue> {
@@ -296,7 +294,11 @@ pub(crate) struct TopicConfigService<I, O> {
 impl<I, O> TopicConfigService<I, O> {
     fn add_topic_configuration(&self, response: DescribeConfigsResponse) -> Result<(), Error> {
         debug!(?response);
-        for result in response.results.unwrap_or_default() {
+        let Some(results) = response.results else {
+            return Ok(());
+        };
+
+        for result in results {
             debug!(?result);
 
             if result.error_code != i16::from(ErrorCode::None)
@@ -306,7 +308,11 @@ impl<I, O> TopicConfigService<I, O> {
                 continue;
             }
 
-            for resource_result in result.configs.as_deref().unwrap_or_default() {
+            let Some(configs) = result.configs.as_deref() else {
+                continue;
+            };
+
+            for resource_result in configs {
                 debug!(?resource_result);
 
                 if let Some(config_value) = resource_result
@@ -562,7 +568,10 @@ mod tests {
                                         .into(),
                                     )),
 
-                                otherwise => unreachable!("{otherwise:?}"),
+                                otherwise => DescribeConfigsResult::default()
+                                    .resource_name(otherwise.into())
+                                    .resource_type(i8::from(ConfigResource::Topic))
+                                    .configs(Some([].into())),
                             })
                             .collect::<Vec<_>>()
                     })),
@@ -600,14 +609,14 @@ mod tests {
                 .serve(Context::default(), produce_request(RESOURCE_NAME_0)?)
                 .await?;
 
-            let responses = response.responses.unwrap_or_default();
+            let responses = response.responses.expect("produce responses");
             assert_eq!(1, responses.len());
             assert_eq!(RESOURCE_NAME_0, responses[0].name);
 
             let partitions = responses[0]
                 .partition_responses
                 .as_deref()
-                .unwrap_or_default();
+                .expect("partition responses");
             assert_eq!(1, partitions.len());
             assert_eq!(0, partitions[0].index);
             assert_eq!(
@@ -629,14 +638,14 @@ mod tests {
                 .serve(Context::default(), produce_request(RESOURCE_NAME_1)?)
                 .await?;
 
-            let responses = response.responses.unwrap_or_default();
+            let responses = response.responses.expect("produce responses");
             assert_eq!(1, responses.len());
             assert_eq!(RESOURCE_NAME_1, responses[0].name);
 
             let partitions = responses[0]
                 .partition_responses
                 .as_deref()
-                .unwrap_or_default();
+                .expect("partition responses");
             assert_eq!(1, partitions.len());
             assert_eq!(0, partitions[0].index);
             assert_eq!(i16::from(ErrorCode::None), partitions[0].error_code);

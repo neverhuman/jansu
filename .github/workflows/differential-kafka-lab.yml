@@ -14,35 +14,32 @@ on:
       - "tips/phases/04-differential-kafka-lab.md"
       - "justfile"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   phase04-differential:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Pull Kafka 4.2 image
-        run: docker compose -f etc/differential/compose.kafka-4.2.yaml pull
-
-      - name: Run compatibility contract
-        run: |
-          CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-contract \
-          cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
 
       - name: Run differential Kafka lab
-        run: |
-          JANSU_DIFFERENTIAL=1 \
-          JANSU_DIFF_ARTIFACT_DIR=target/differential \
-          CARGO_TARGET_DIR=/tmp/jansu-verify-phase04-differential \
-          cargo test -p jansu-broker --test differential_lab --all-features -- --nocapture
+        run: bash ops/ci/diff-lab.sh
 
       - name: Upload differential artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: phase04-differential-artifacts
           path: target/differential

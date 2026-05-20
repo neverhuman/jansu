@@ -1,0 +1,11 @@
+title = "jansu gitleaks config"
+
+[allowlist]
+description = "development-only credentials and immutable fingerprints"
+regexTarget = "line"
+regexes = [
+    '''minioadmin''',
+    '''postgres://postgres:postgres@''',
+    '''postgresql://[^:]+:postgres@''',
+    '''sha256:[0-9a-f]{64}''',
+]

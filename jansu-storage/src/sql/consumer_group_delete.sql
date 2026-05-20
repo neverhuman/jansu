@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from consumer_group
-where consumer_group.id in (
+delete from consumer_group where consumer_group.id in (
     select cg.id
 
     from

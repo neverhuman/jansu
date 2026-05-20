@@ -48,5 +48,4 @@ ancient as (
     and (extract(epoch from cast($2 as timestamp)) - extract(epoch from r.timestamp)) > coalesce(cast(ret.value as integer) / 1000, $3)
 )
 
-delete from record
-where (record.topition, record.offset_id) in (select * from ancient);
+delete from record where (record.topition, record.offset_id) in (select * from ancient);

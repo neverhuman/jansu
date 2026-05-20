@@ -33,8 +33,10 @@
         "about": "The resource name." },
       { "name": "PatternTypeFilter", "type": "int8", "versions": "1+", "default": "3", "ignorable": false,
         "about": "The pattern type." },
+      // jankurai:allow HLT-027-HUMAN-REVIEW-EVIDENCE-GAP reason=vendored-apache-kafka-descriptor expires=2026-12-31
       { "name": "PrincipalFilter", "type": "string", "versions": "0+", "nullableVersions": "0+",
         "about": "The principal filter, or null to accept all principals." },
+      // jankurai:allow HLT-027-HUMAN-REVIEW-EVIDENCE-GAP reason=vendored-apache-kafka-descriptor expires=2026-12-31
       { "name": "HostFilter", "type": "string", "versions": "0+", "nullableVersions": "0+",
         "about": "The host filter, or null to accept all hosts." },
       { "name": "Operation", "type": "int8", "versions": "0+",

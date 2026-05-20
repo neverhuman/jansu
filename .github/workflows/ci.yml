@@ -11,12 +11,16 @@ on:
   pull_request:
     branches:
       - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 env:
   REGISTRY: ghcr.io
   CLICOLOR: 1
 jobs:
   test:
     needs: [check, fmt, clippy, build-storage, build-storage-lake]
+    timeout-minutes: 60
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -50,27 +54,27 @@ jobs:
     steps:
       - run: sudo mkdir /mnt/build
       - run: sudo chmod a+rwxt /mnt/build
-      - run: echo "PG_IMAGE_DASH=${POSTGRES_IMAGE/:/-}" >> $GITHUB_ENV
-      - run: echo ${PG_IMAGE_DASH}
+      - run: echo "PG_IMAGE_DASH=${POSTGRES_IMAGE/:/-}" >> "$GITHUB_ENV"
+      - run: echo "${PG_IMAGE_DASH}"
       - run: df -h
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v3
-      - run: just ci
-      - run: sudo apt-get install -y libclang-dev libkrb5-dev
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
-      - run: cargo install cargo-nextest --locked
       - run: df -h
-      - run: just test
+      - name: Run CI test lane
+        run: bash ops/ci/test.sh
       - run: df -h
         if: always()
       - run: ls -l
         if: always()
       - run: tar --create --verbose --gzip --file=logs-${{env.PG_IMAGE_DASH}}.tar.gz logs
         if: always()
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
           name: logs-${{env.PG_IMAGE_DASH}}.tar.gz
@@ -80,49 +84,59 @@ jobs:
       - run: docker system df
       - run: df -h
   check:
+    timeout-minutes: 30
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v3
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
       - run: just check
       - run: just compatibility-contract
   fmt:
+    timeout-minutes: 20
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v3
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
       - run: just fmt
   clippy:
+    timeout-minutes: 40
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: extractions/setup-just@v3
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
       - run: just clippy
   build-storage:
+    timeout-minutes: 30
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -135,14 +149,17 @@ jobs:
           - postgres
           - slatedb
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
       - run: sudo apt-get install -y libclang-dev libkrb5-dev
       - run: cargo build --features ${{matrix.storage}}
   build-storage-lake:
+    timeout-minutes: 30
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -159,14 +176,17 @@ jobs:
           - iceberg
           - parquet
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           components: clippy, rustfmt
           cache: false
       - run: sudo apt-get install -y libclang-dev libkrb5-dev
       - run: cargo build --features ${{matrix.storage}} --features ${{matrix.lake}}
   cargo-publish-dry-run:
+    timeout-minutes: 30
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -174,32 +194,75 @@ jobs:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
+        with:
+          cache: false
       - run: sudo apt-get install -y libclang-dev libkrb5-dev
-      - run: cargo publish --dry-run --workspace
+      - run: bash ops/ci/cargo-publish-dry-run.sh
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
+        with:
+          cache: false
+      - name: Install cargo-audit
+        continue-on-error: true
+        run: cargo install cargo-audit --version 0.22.1 --locked
+      - name: Install actionlint
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          go install github.com/gitleaks/gitleaks/v8@v8.28.0
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+      - name: Run security lane
+        run: bash tools/security-lane.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: security-evidence
+          if-no-files-found: ignore
+          path: target/jankurai/security/
   typos:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - uses: crate-ci/typos@v1.44.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: crate-ci/typos@a8d8e187146634c459c27ade2d3e338569378720
         with:
           config: typos.toml
   src:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
       - run: |
           git archive --format=tar.gz HEAD >${{runner.temp}}/src.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: src
           path: ${{runner.temp}}/src.tar.gz
           if-no-files-found: error
   package:
-    needs: [test, cargo-publish-dry-run, typos]
+    needs: [test, cargo-publish-dry-run, typos, security]
+    timeout-minutes: 45
     runs-on: ${{matrix.os}}
     permissions:
+      contents: read
       packages: write
     strategy:
       fail-fast: false
@@ -207,8 +270,10 @@ jobs:
         os:
           - ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: docker/metadata-action@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
         id: meta
         with:
           images: ${{env.REGISTRY}}/${{github.repository}}
@@ -217,15 +282,15 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
         with:
           buildkitd-flags: --debug
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
           registry: ${{env.REGISTRY}}
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -250,6 +315,7 @@ jobs:
           - apache/kafka:3.8.1
           - apache/kafka:3.7.0
     runs-on: ${{matrix.os}}
+    timeout-minutes: 60
     env:
       ADVERTISED_LISTENER_URL: tcp://jansu:9092
       AWS_ACCESS_KEY_ID: minioadmin
@@ -264,7 +330,7 @@ jobs:
       RUST_LOG: warn,jansu_broker=debug,jansu_storage=debug,jansu_schema=debug
       STORAGE_ENGINE: ${{matrix.storage}}
     steps:
-      - uses: docker/metadata-action@v6
+      - uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
         id: meta
         with:
           images: ${{env.REGISTRY}}/${{github.repository}}
@@ -273,12 +339,14 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           repository: jansu-io/example-java
           path: integration
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          persist-credentials: false
           sparse-checkout: |
             etc/initdb.d/010-schema.sql
           sparse-checkout-cone-mode: false
@@ -293,7 +361,7 @@ jobs:
         working-directory: integration
         env:
           JANSU_IMAGE: ghcr.io/jansu-io/jansu:${{steps.meta.outputs.version}}
-      - run: docker compose --ansi never exec minio /usr/bin/mc alias set local http://localhost:9000 ${{ env.AWS_ACCESS_KEY_ID }} ${{ env.AWS_SECRET_ACCESS_KEY }}
+      - run: docker compose --ansi never exec minio /usr/bin/mc alias set local http://localhost:9000 "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY"
         working-directory: integration
         env:
           JANSU_IMAGE: ghcr.io/jansu-io/jansu:${{steps.meta.outputs.version}}
@@ -320,6 +388,7 @@ jobs:
     needs: [test, src, typos]
     permissions:
       contents: write
+    timeout-minutes: 60
     runs-on: ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -342,12 +411,14 @@ jobs:
             flags: ""
             enabled: true
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           cache: false
       - run: rustc -vV
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: artifacts
           merge-multiple: true
@@ -372,16 +443,16 @@ jobs:
           dist=$(mktemp -d -p ${{runner.temp}})
           mkdir "$dist"/bin
           cp target/"${TARGET}"/release/jansu "$dist"/bin
-          cp compose.yaml example.env LICENSE README.md "$dist"
+          cp compose.yaml LICENSE README.md "$dist"
           cp -r etc "$dist"
           tar --create --verbose --gzip --file=jansu-"${TARGET}".tar.gz -C "$dist" .
       - if: ${{matrix.enabled && github.ref_type != 'tag'}}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: jansu-${{matrix.target}}
           path: jansu-${{matrix.target}}.tar.gz
           if-no-files-found: error
       - if: ${{matrix.enabled && github.ref_type == 'tag'}}
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           files: jansu-${{matrix.target}}.tar.gz

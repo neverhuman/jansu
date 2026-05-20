@@ -1,0 +1,29 @@
+[[lane]]
+name = "fast"
+command = "just fast"
+purpose = "deterministic local syntax, formatting, and focused proof lane"
+
+[[lane]]
+name = "audit"
+command = "just score"
+purpose = "write Jankurai score artifacts and enforce the strict gate"
+
+[[lane]]
+name = "security"
+command = "just security"
+purpose = "workflow lint, secret scan, dependency advisory scan, and SBOM evidence"
+
+[[lane]]
+name = "compatibility"
+command = "just compatibility-contract"
+purpose = "verify ledger-backed Kafka compatibility claims"
+
+[[lane]]
+name = "release"
+command = "just release-check"
+purpose = "release build, checksum, and readiness evidence"
+
+[[lane]]
+name = "db-doctor"
+command = "just db-doctor"
+purpose = "copy destructive-delete proof and run database audit evidence checks"

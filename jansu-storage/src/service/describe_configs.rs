@@ -83,7 +83,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut results = vec![];
 
-        for resource in req.resources.unwrap_or_default() {
+        for resource in req.resources.map_or_else(Vec::new, std::convert::identity) {
             results.push(
                 ctx.state()
                     .describe_config(

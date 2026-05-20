@@ -14,7 +14,6 @@
 .env
 .vscode
 .zed
-Cargo.lock
 cargo-flamegraph.trace
 debug
 dhat.*
@@ -25,3 +24,6 @@ profile.json*
 target
 !phase-logs/
 !phase-logs/*.md.log
+
+# Local jeryu daemon artifacts
+.jeryu/

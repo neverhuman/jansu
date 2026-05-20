@@ -156,10 +156,8 @@ impl<'de> Decoder<'de> {
             kind: Some(Kind::Response),
             api_key: Some(api_key),
             api_version: Some(api_version),
-            meta: RootMessageMeta::messages()
-                .responses()
-                .get(&api_key)
-                .map_or_else(Meta::default, |meta| {
+            meta: match RootMessageMeta::messages().responses().get(&api_key) {
+                Some(meta) => {
                     let mut parse = VecDeque::with_capacity(PARSE_DEPTH);
                     parse.push_front(meta.fields.into());
 
@@ -169,7 +167,9 @@ impl<'de> Decoder<'de> {
                         parse,
                         ..Default::default()
                     }
-                }),
+                }
+                None => Meta::default(),
+            },
             length: None,
             in_seq_of_primitive: false,
             path: VecDeque::with_capacity(PARSE_DEPTH),
@@ -938,9 +938,7 @@ impl<'de> Deserializer<'de> for &mut Decoder<'de> {
                 .meta
                 .structures
                 .as_deref()
-                .unwrap_or_default()
-                .iter()
-                .find(|(found, _)| name == *found)
+                .and_then(|structures| structures.iter().find(|(found, _)| name == *found))
             {
                 debug!(r#struct = name);
 

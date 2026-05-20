@@ -230,6 +230,8 @@ impl Consume {
             )
             .await?;
 
+        let metadata_topics = present_or_empty(metadata.topics);
+
         let response = client
             .call(
                 FetchRequest::default()
@@ -246,9 +248,7 @@ impl Consume {
                         FetchTopic::default()
                             .topic(Some(self.configuration.topic.clone()))
                             .topic_id(
-                                metadata
-                                    .topics
-                                    .unwrap_or_default()
+                                metadata_topics
                                     .into_iter()
                                     .find(|topic| {
                                         topic.name.as_ref().is_some_and(|name| {
@@ -269,10 +269,14 @@ impl Consume {
             )
             .await?;
 
-        for response in response.responses.unwrap_or_default() {
+        let responses = present_or_empty(response.responses);
+
+        for response in responses {
             debug!(?response);
 
-            for partition in response.partitions.unwrap_or_default() {
+            let partitions = present_or_empty(response.partitions);
+
+            for partition in partitions {
                 debug!(?partition);
 
                 if let Some(frame) = partition.records {
@@ -307,4 +311,12 @@ impl Consume {
     fn maybe_json(&self, data: Option<Bytes>) -> Option<Value> {
         data.and_then(|data| serde_json::from_slice::<Value>(&data[..]).ok())
     }
+}
+
+fn present_or_empty<T>(items: Option<Vec<T>>) -> Vec<T> {
+    if let Some(items) = items {
+        return items;
+    }
+
+    Vec::new()
 }

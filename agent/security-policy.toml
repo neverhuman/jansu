@@ -1,0 +1,7 @@
+schema_version = "1.0.0"
+enabled_tools = ["actionlint", "gitleaks", "cargo-audit", "syft"]
+required_tools = []
+advisory_tools = ["zizmor"]
+
+[severity_thresholds]
+fail_lane_on = "high"

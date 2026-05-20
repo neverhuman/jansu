@@ -27,6 +27,9 @@ use super::leader_epoch::{
 };
 use crate::{Error, LeaderEpochRecord, Result, Storage, Topition};
 
+type PartitionResponseSlot = (i32, Option<ListOffsetsPartitionResponse>);
+type TopicResponseSlots = (String, Vec<PartitionResponseSlot>);
+
 /// A [`Service`] using [`Storage`] as [`Context`] taking [`ListOffsetsRequest`] returning [`ListOffsetsResponse`].
 /// ```
 /// use rama::{Context, Layer as _, Service, layer::MapStateLayer};
@@ -146,10 +149,8 @@ where
         let topics = if let Some(request_topics) = req.topics {
             // Phase 1: Walk the request in order, validate each partition,
             // and build the response skeleton preserving request topology.
-            let mut response_topics: Vec<(
-                String,
-                Vec<(i32, Option<ListOffsetsPartitionResponse>)>,
-            )> = Vec::with_capacity(request_topics.len());
+            let mut response_topics: Vec<TopicResponseSlots> =
+                Vec::with_capacity(request_topics.len());
 
             let mut pending = Vec::new();
             let mut histories: BTreeMap<Topition, Vec<LeaderEpochRecord>> = BTreeMap::new();
@@ -157,7 +158,9 @@ where
             for request_topic in request_topics {
                 let topic_slot = response_topics.len();
                 let topic_name = request_topic.name;
-                let request_partitions = request_topic.partitions.unwrap_or_default();
+                let request_partitions = request_topic
+                    .partitions
+                    .map_or_else(Vec::new, std::convert::identity);
 
                 let mut partition_slots: Vec<_> = request_partitions
                     .iter()
@@ -241,7 +244,7 @@ where
                         let history = histories
                             .get(&pending.topition)
                             .map(Vec::as_slice)
-                            .unwrap_or_default();
+                            .unwrap_or(&[]);
 
                         let epoch = if offset.error_code() == ErrorCode::None {
                             offset.offset().map_or_else(

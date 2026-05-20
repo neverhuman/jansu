@@ -9,6 +9,7 @@ members = [
     "jansu-cat",
     "jansu-cli",
     "jansu-client",
+    "jansu-embedded",
     "jansu-generator",
     "jansu-model",
     "jansu-otel", "jansu-perf",
@@ -22,7 +23,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.6.0"
+version = "0.6.3"
 license = "Apache-2.0"
 homepage = "https://jansu.io"
 repository = "https://github.com/jansu-io/jansu"
@@ -88,7 +89,7 @@ deadpool-postgres = "0.14.1"
 delta_kernel = { version = "0.20.0", default-features = false, features = ["arrow-57"] }
 deltalake = { version = "0.30", features = ["datafusion", "s3"] }
 digest = "0.10.7"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 fake = "4.3.0"
 flate2 = "1.1"
 futures = "0.3"
@@ -133,7 +134,7 @@ protobuf = { version = "3.7.1", features = ["with-bytes"] }
 protobuf-json-mapping = "3.7.1"
 protobuf-parse = "3.7.1"
 quote = "1.0"
-rama = { version = "0.2.0", features = ["http", "tcp"] }
+rama = { package = "rama-core", version = "0.2.0" }
 rand = "0.10"
 regex = "1.12.3"
 rhai = { version = "1.24.0", features = ["sync"] }
@@ -147,22 +148,23 @@ sha2 = "0.10.9"
 slatedb = "0.10.1"
 snap = "1.1.1"
 syn = { version = "2.0", features = ["full"] }
-jansu = { version = "0.6.0", path = "jansu", default-features = false }
-jansu-auth = { version = "0.6.0", path = "jansu-auth", default-features = false }
-jansu-broker = { version = "0.6.0", path = "jansu-broker", default-features = false }
-jansu-cat = { version = "0.6.0", path = "jansu-cat", default-features = false }
-jansu-cli = { version = "0.6.0", path = "jansu-cli", default-features = false }
-jansu-client = { version = "0.6.0", path = "jansu-client", default-features = false }
-jansu-generator = { version = "0.6.0", path = "jansu-generator", default-features = false }
-jansu-model = { version = "0.6.0", path = "jansu-model", default-features = false }
-jansu-otel = { version = "0.6.0", path = "jansu-otel", default-features = false }
-jansu-perf = { version = "0.6.0", path = "jansu-perf", default-features = false }
-jansu-proxy = { version = "0.6.0", path = "jansu-proxy", default-features = false }
-jansu-sans-io = { version = "0.6.0", path = "jansu-sans-io", default-features = false }
-jansu-schema = { version = "0.6.0", path = "jansu-schema", default-features = false }
-jansu-service = { version = "0.6.0", path = "jansu-service", default-features = false }
-jansu-storage = { version = "0.6.0", path = "jansu-storage", default-features = false }
-jansu-topic = { version = "0.6.0", path = "jansu-topic", default-features = false }
+jansu = { version = "0.6.3", path = "jansu", default-features = false }
+jansu-auth = { version = "0.6.3", path = "jansu-auth", default-features = false }
+jansu-broker = { version = "0.6.3", path = "jansu-broker", default-features = false }
+jansu-cat = { version = "0.6.3", path = "jansu-cat", default-features = false }
+jansu-cli = { version = "0.6.3", path = "jansu-cli", default-features = false }
+jansu-client = { version = "0.6.3", path = "jansu-client", default-features = false }
+jansu-embedded = { version = "0.6.3", path = "jansu-embedded", default-features = false }
+jansu-generator = { version = "0.6.3", path = "jansu-generator", default-features = false }
+jansu-model = { version = "0.6.3", path = "jansu-model", default-features = false }
+jansu-otel = { version = "0.6.3", path = "jansu-otel", default-features = false }
+jansu-perf = { version = "0.6.3", path = "jansu-perf", default-features = false }
+jansu-proxy = { version = "0.6.3", path = "jansu-proxy", default-features = false }
+jansu-sans-io = { version = "0.6.3", path = "jansu-sans-io", default-features = false }
+jansu-schema = { version = "0.6.3", path = "jansu-schema", default-features = false }
+jansu-service = { version = "0.6.3", path = "jansu-service", default-features = false }
+jansu-storage = { version = "0.6.3", path = "jansu-storage", default-features = false }
+jansu-topic = { version = "0.6.3", path = "jansu-topic", default-features = false }
 tempfile = "3"
 thiserror = "2.0"
 time = { version = "0.3.47", features = ["formatting", "macros"] }

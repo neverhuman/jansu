@@ -140,7 +140,7 @@ impl Create {
             .await
             .inspect(|response| debug!(?response))?;
 
-        let topics = topics.unwrap_or_default();
+        let topics = topics.unwrap_or_else(Vec::new);
         assert_eq!(1, topics.len());
 
         let CreatableTopicResult { error_code, .. } = topics.first().expect("topics: {topics:?}");

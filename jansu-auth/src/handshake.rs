@@ -43,7 +43,7 @@ where
             .lock()
             .map_err(Into::into)
             .and_then(|mut guard| {
-                // Re-authentication (KIP-368): a Java kafka-clients
+                // Re-authentication (KIP-368): a Java protocol library
                 // connection periodically issues another SaslHandshake
                 // on the same TCP socket. The previous handshake left
                 // the Stage in `Session`/`Finished`, so a stale

@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from header
-where header.topition in (
+delete from header where header.topition in (
     select r.topition
     from cluster c
     join topic t on t.cluster = c.id

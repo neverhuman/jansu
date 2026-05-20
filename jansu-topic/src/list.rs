@@ -76,7 +76,7 @@ impl List {
             .await
             .inspect(|response| debug!(?response))?;
 
-        serde_json::to_string(topics.as_deref().unwrap_or_default())
+        serde_json::to_string(topics.as_deref().unwrap_or(&[]))
             .inspect(|topics| println!("{topics}"))
             .map_err(Into::into)
             .and(Ok(ErrorCode::None))

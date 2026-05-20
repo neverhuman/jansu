@@ -1,0 +1,106 @@
+name: jankurai
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/jankurai.yml"
+      - "AGENTS.md"
+      - "MASTER_PLAN.md"
+      - "AUDIT.md"
+      - "agent/**"
+      - "docs/**"
+      - "ops/**"
+      - "scripts/ci-local.sh"
+      - "tools/checks/jankurai-gate.sh"
+      - "tools/security-lane.sh"
+      - "justfile"
+      - "phase-logs/**"
+      - "tips/phases/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "**/*.rs"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: jankurai-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+        with:
+          toolchain: stable
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jankurai
+        id: install-jankurai
+        env:
+          JANKURAI_INSTALL_GIT: https://github.com/neverhuman/jankurai.git
+          JANKURAI_INSTALL_TAG: v1.5.1
+        run: |
+          set -euo pipefail
+          mkdir -p target/jankurai
+          if cargo install --git "$JANKURAI_INSTALL_GIT" --tag "$JANKURAI_INSTALL_TAG" jankurai --locked >target/jankurai/jankurai-install.log 2>&1; then
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+            printf 'soft-gate=jankurai-install status=soft-failed reason=install-unavailable\n' \
+              | tee -a target/jankurai/jankurai-install.log
+            echo "::warning::jankurai install failed; audit gate skipped"
+          fi
+      - name: jankurai version
+        if: steps.install-jankurai.outputs.installed == 'true'
+        run: jankurai --version
+      - name: Jankurai gate
+        if: steps.install-jankurai.outputs.installed == 'true'
+        run: JANKURAI_AUDIT_LANE='jankurai audit . --mode advisory --json agent/repo-score.json --md agent/repo-score.md' bash ops/ci/jankurai-audit.sh
+      - name: Upload Jankurai SARIF
+        if: steps.install-jankurai.outputs.installed == 'true'
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360
+        with:
+          sarif_file: target/jankurai/jankurai.sarif
+      - name: Jankurai unavailable marker
+        if: steps.install-jankurai.outputs.installed != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p target/jankurai
+          printf 'soft-gate=jankurai-install status=skipped reason=install-unavailable\n' \
+            | tee target/jankurai/jankurai-gate.log
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: jankurai-audit
+          if-no-files-found: ignore
+          path: |
+            agent/repo-score.json
+            agent/repo-score.md
+            target/jankurai/repo-score.json
+            target/jankurai/repo-score.md
+            target/jankurai/jankurai.sarif
+            target/jankurai/repair-queue.jsonl
+            target/jankurai/security/evidence.json
+            target/jankurai/proofbind/
+            target/jankurai/proofmark/
+            target/jankurai/authz/
+            target/jankurai/input-boundary/
+            target/jankurai/agent-tool-supply/
+            target/jankurai/release/
+            target/jankurai/cost/
+            target/jankurai/db/
+            target/jankurai/jankurai-install.log
+            target/jankurai/jankurai-gate.log

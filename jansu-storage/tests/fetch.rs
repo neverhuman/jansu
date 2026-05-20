@@ -18,7 +18,7 @@ mod common;
 mod phase08 {
     use bytes::Bytes;
     use jansu_sans_io::{
-        FetchRequest, FetchResponse, IsolationLevel, NULL_TOPIC_ID,
+        BatchAttribute, FetchRequest, FetchResponse, IsolationLevel, NULL_TOPIC_ID,
         fetch_request::{FetchPartition, FetchTopic},
         record::{Record, inflated},
     };
@@ -69,6 +69,37 @@ mod phase08 {
                 [FetchTopic::default()
                     .topic(Some(topic.to_owned()))
                     .topic_id(Some(NULL_TOPIC_ID))
+                    .partitions(Some(vec![
+                        FetchPartition::default()
+                            .partition(partition)
+                            .current_leader_epoch(Some(-1))
+                            .fetch_offset(0)
+                            .last_fetched_epoch(Some(-1))
+                            .log_start_offset(Some(-1))
+                            .partition_max_bytes(partition_max_bytes)
+                            .replica_directory_id(None),
+                    ]))]
+                .into(),
+            ))
+    }
+
+    fn request_with_topic_id(
+        topic: &str,
+        topic_id: [u8; 16],
+        partition: i32,
+        max_wait_ms: i32,
+        partition_max_bytes: i32,
+        isolation: IsolationLevel,
+    ) -> FetchRequest {
+        FetchRequest::default()
+            .max_wait_ms(max_wait_ms)
+            .min_bytes(1)
+            .max_bytes(Some(50 * 1024))
+            .isolation_level(Some(isolation.into()))
+            .topics(Some(
+                [FetchTopic::default()
+                    .topic(Some(topic.to_owned()))
+                    .topic_id(Some(topic_id))
                     .partitions(Some(vec![
                         FetchPartition::default()
                             .partition(partition)
@@ -170,6 +201,111 @@ mod phase08 {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn fetch_prefers_topic_id_when_topic_name_is_stale() -> Result<(), Error> {
+        let cluster_id = "phase08-fetch-topic-id";
+        let node_id = 8;
+        let topic = "phase08_fetch_topic_id";
+        let partition = 0;
+        let storage = memory_storage(cluster_id, node_id).await?;
+        common::register_broker(storage.as_ref(), cluster_id, node_id).await?;
+        let topic_id = common::create_topic(storage.as_ref(), topic, 1).await?;
+        let topic_id_bytes = topic_id.into_bytes();
+        let topition = Topition::new(topic, partition);
+        produce_value(storage.as_ref(), &topition, vec![b'c'; 64]).await?;
+
+        let response = FetchService
+            .serve(
+                Context::with_state(storage),
+                request_with_topic_id(
+                    "stale-name",
+                    topic_id_bytes,
+                    partition,
+                    5_000,
+                    50 * 1024,
+                    IsolationLevel::ReadUncommitted,
+                ),
+            )
+            .await?;
+
+        let topic_response = response.responses.as_deref().unwrap_or_default()[0].clone();
+        assert_eq!(Some(topic.to_owned()), topic_response.topic);
+        assert_eq!(Some(topic_id_bytes), topic_response.topic_id);
+
+        let records = topic_response.partitions.as_deref().unwrap_or_default()[0]
+            .records
+            .as_ref()
+            .expect("records");
+        assert_eq!(1, records.batches.len());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fetch_stops_after_global_max_bytes_is_spent() -> Result<(), Error> {
+        let cluster_id = "phase08-fetch-max-bytes";
+        let node_id = 8;
+        let topic = "phase08_fetch_max_bytes";
+        let storage = memory_storage(cluster_id, node_id).await?;
+        common::register_broker(storage.as_ref(), cluster_id, node_id).await?;
+        _ = common::create_topic(storage.as_ref(), topic, 2).await?;
+        let left = Topition::new(topic, 0);
+        let right = Topition::new(topic, 1);
+
+        produce_value(storage.as_ref(), &left, vec![b'l'; 128]).await?;
+        produce_value(storage.as_ref(), &right, vec![b'r'; 128]).await?;
+
+        let stored = storage
+            .fetch(&left, 0, 1, 50 * 1024, IsolationLevel::ReadUncommitted)
+            .await?;
+        let partition_max_bytes = stored
+            .first()
+            .expect("left partition should have a batch")
+            .record_data
+            .len() as i32;
+
+        let partition = |partition| {
+            FetchPartition::default()
+                .partition(partition)
+                .current_leader_epoch(Some(-1))
+                .fetch_offset(0)
+                .last_fetched_epoch(Some(-1))
+                .log_start_offset(Some(-1))
+                .partition_max_bytes(partition_max_bytes)
+                .replica_directory_id(None)
+        };
+
+        let response = FetchService
+            .serve(
+                Context::with_state(storage),
+                FetchRequest::default()
+                    .max_wait_ms(500)
+                    .min_bytes(1)
+                    .max_bytes(Some(partition_max_bytes))
+                    .isolation_level(Some(IsolationLevel::ReadUncommitted.into()))
+                    .topics(Some(vec![
+                        FetchTopic::default()
+                            .topic(Some(topic.to_owned()))
+                            .topic_id(Some(NULL_TOPIC_ID))
+                            .partitions(Some(vec![partition(0), partition(1)])),
+                    ])),
+            )
+            .await?;
+
+        let topic_response = response.responses.as_deref().unwrap_or_default()[0].clone();
+        let partitions = topic_response.partitions.as_deref().unwrap_or_default();
+        assert_eq!(2, partitions.len());
+
+        let left_records = partitions[0].records.as_ref().expect("left records");
+        assert_eq!(1, left_records.batches.len());
+        assert!(
+            partitions[1].records.is_none(),
+            "global max_bytes should prevent a second partition from consuming bytes after the first partition spends the ceiling"
+        );
+
+        Ok(())
+    }
+
     fn record_count(fetch: &FetchResponse) -> i64 {
         fetch
             .responses
@@ -198,6 +334,52 @@ mod phase08 {
                     .sum::<i64>()
             })
             .sum::<i64>()
+    }
+
+    async fn produce_transactional_value<S>(
+        storage: &S,
+        transaction_id: &str,
+        topic: &str,
+        partition: i32,
+        value: Vec<u8>,
+    ) -> Result<jansu_storage::ProducerIdResponse, Error>
+    where
+        S: Storage + ?Sized,
+    {
+        let producer = storage
+            .init_producer(Some(transaction_id), 10_000, Some(-1), Some(-1))
+            .await?;
+
+        _ = storage
+            .txn_add_partitions(jansu_storage::TxnAddPartitionsRequest::VersionZeroToThree {
+                transaction_id: transaction_id.to_owned(),
+                producer_id: producer.id,
+                producer_epoch: producer.epoch,
+                topics: [
+                    jansu_sans_io::add_partitions_to_txn_request::AddPartitionsToTxnTopic::default(
+                    )
+                    .name(topic.to_owned())
+                    .partitions(Some([partition].into())),
+                ]
+                .into(),
+            })
+            .await?;
+
+        let topition = Topition::new(topic, partition);
+        let batch = inflated::Batch::builder()
+            .record(Record::builder().value(Some(Bytes::from(value))))
+            .attributes(BatchAttribute::default().transaction(true).into())
+            .producer_id(producer.id)
+            .producer_epoch(producer.epoch)
+            .base_sequence(0)
+            .build()
+            .and_then(TryInto::try_into)?;
+
+        _ = storage
+            .produce(Some(transaction_id), &topition, batch)
+            .await?;
+
+        Ok(producer)
     }
 
     #[tokio::test]
@@ -264,6 +446,90 @@ mod phase08 {
             pu.last_stable_offset,
             "non-transactional log: last stable offset should equal high watermark"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fetch_read_committed_hides_aborted_transactions() -> Result<(), Error> {
+        let cluster_id = "phase08-fetch-aborted";
+        let node_id = 8;
+        let topic = "phase08_fetch_aborted";
+        let partition = 0;
+        let storage = memory_storage(cluster_id, node_id).await?;
+        common::register_broker(storage.as_ref(), cluster_id, node_id).await?;
+        _ = common::create_topic(storage.as_ref(), topic, 1).await?;
+        let topition = Topition::new(topic, partition);
+        let transaction_id = "phase08-transaction-abort";
+
+        let producer = produce_transactional_value(
+            storage.as_ref(),
+            transaction_id,
+            topic,
+            partition,
+            vec![b't'; 64],
+        )
+        .await?;
+
+        _ = storage
+            .txn_end(transaction_id, producer.id, producer.epoch, false)
+            .await?;
+
+        produce_value(storage.as_ref(), &topition, vec![b'c'; 64]).await?;
+
+        let aborted_ranges = storage.aborted_transaction_ranges(&topition).await?;
+        assert_eq!(1, aborted_ranges.len());
+        assert_eq!(producer.id, aborted_ranges[0].producer_id);
+        assert_eq!(0, aborted_ranges[0].offset_start);
+
+        let fetch_uncommitted = FetchService
+            .serve(
+                Context::with_state(storage.clone()),
+                request(
+                    topic,
+                    partition,
+                    500,
+                    50 * 1024,
+                    IsolationLevel::ReadUncommitted,
+                ),
+            )
+            .await?;
+
+        let fetch_committed = FetchService
+            .serve(
+                Context::with_state(storage),
+                request(
+                    topic,
+                    partition,
+                    500,
+                    50 * 1024,
+                    IsolationLevel::ReadCommitted,
+                ),
+            )
+            .await?;
+
+        assert_eq!(2, record_count(&fetch_uncommitted));
+        assert_eq!(1, record_count(&fetch_committed));
+
+        let committed_partition = &fetch_committed.responses.as_deref().unwrap_or_default()[0]
+            .partitions
+            .as_deref()
+            .unwrap_or_default()[0];
+        let aborted_transactions = committed_partition
+            .aborted_transactions
+            .as_deref()
+            .unwrap_or_default();
+
+        assert_eq!(1, aborted_transactions.len());
+        assert_eq!(producer.id, aborted_transactions[0].producer_id);
+        assert_eq!(0, aborted_transactions[0].first_offset);
+
+        let committed_records = committed_partition
+            .records
+            .as_ref()
+            .expect("committed records");
+        assert_eq!(1, committed_records.batches.len());
+        assert_eq!(2, committed_records.batches[0].base_offset);
 
         Ok(())
     }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clap::{Parser, ValueEnum};
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use jansu_client::{Client, ConnectionManager, Error};
 use jansu_sans_io::{
     IsolationLevel, ListOffset, ListOffsetsRequest, MetadataRequest, NULL_TOPIC_ID,

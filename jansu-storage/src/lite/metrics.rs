@@ -1,0 +1,87 @@
+//! OpenTelemetry metrics and timing helpers for the libSQL storage engine.
+
+use super::*;
+
+pub(super) static SQL_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_duration")
+        .with_unit("ms")
+        .with_description("The SQL request latencies in milliseconds")
+        .build()
+});
+
+pub(super) static CONNECT_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_connect_duration")
+        .with_unit("ms")
+        .with_description("The connection latencies in milliseconds")
+        .build()
+});
+
+pub(super) static PRODUCE_IN_TX_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_produce_in_tx_duration")
+        .with_unit("ms")
+        .with_description("The produce in TX latencies in milliseconds")
+        .build()
+});
+
+pub(super) static TRANSACTION_WITH_BEHAVIOR_DURATION: LazyLock<Histogram<u64>> =
+    LazyLock::new(|| {
+        METER
+            .u64_histogram("jansu_sqlite_transaction_with_behavior_duration")
+            .with_unit("ms")
+            .with_description("The transaction with behavior latencies in milliseconds")
+            .build()
+    });
+
+pub(super) static TRANSACTION_COMMIT_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_transaction_commit_duration")
+        .with_unit("ms")
+        .with_description("The transaction commit latencies in milliseconds")
+        .build()
+});
+
+pub(super) static ENGINE_REQUEST_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_engine_request_duration")
+        .with_unit("ms")
+        .with_description("The engine latencies in milliseconds")
+        .build()
+});
+
+pub(super) static DELEGATE_REQUEST_DURATION: LazyLock<Histogram<u64>> = LazyLock::new(|| {
+    METER
+        .u64_histogram("jansu_sqlite_delegate_request_duration")
+        .with_boundaries(
+            [
+                0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 25.0, 50.0, 75.0, 100.0, 250.0, 500.0, 750.0,
+                1000.0,
+            ]
+            .into(),
+        )
+        .with_unit("ms")
+        .with_description("The engine latencies in milliseconds")
+        .build()
+});
+
+pub(super) static SQL_REQUESTS: LazyLock<Counter<u64>> = LazyLock::new(|| {
+    METER
+        .u64_counter("jansu_sqlite_requests")
+        .with_description("The number of SQL requests made")
+        .build()
+});
+
+pub(super) static SQL_ERROR: LazyLock<Counter<u64>> = LazyLock::new(|| {
+    METER
+        .u64_counter("jansu_sqlite_error")
+        .with_description("The SQL error count")
+        .build()
+});
+
+pub(super) fn elapsed_millis(start: SystemTime) -> u64 {
+    start
+        .elapsed()
+        .map_or(0, |duration| duration.as_millis() as u64)
+}

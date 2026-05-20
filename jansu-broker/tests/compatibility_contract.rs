@@ -294,10 +294,8 @@ fn section_bullets(contents: &str, heading: &str) -> Vec<String> {
         if in_section && trimmed.starts_with("## ") {
             break;
         }
-        if in_section {
-            if let Some(item) = trimmed.strip_prefix("- ") {
-                bullets.push(item.to_string());
-            }
+        if in_section && let Some(item) = trimmed.strip_prefix("- ") {
+            bullets.push(item.to_string());
         }
     }
 
@@ -459,7 +457,11 @@ fn assert_structured_phase_log(path: &Path) {
 
     let root = repo_root();
     for file in files_touched {
-        let touched = root.join(&file);
+        // Phase log bullets often wrap paths in markdown code-spans
+        // (`tips/phases/...`). Strip surrounding backticks before treating
+        // the bullet as a filesystem path.
+        let cleaned = file.trim().trim_matches('`');
+        let touched = root.join(cleaned);
         assert!(
             touched.exists(),
             "structured phase log {} references missing file {}",
@@ -495,7 +497,7 @@ fn assert_structured_phase_log(path: &Path) {
     );
 }
 
-fn ledger_by_key<'a>(ledger: &'a Ledger) -> BTreeMap<i16, &'a ApiRow> {
+fn ledger_by_key(ledger: &Ledger) -> BTreeMap<i16, &ApiRow> {
     let mut rows = BTreeMap::new();
 
     for row in &ledger.apis {

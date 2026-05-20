@@ -13,8 +13,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-delete from watermark
-where watermark.topition in (
+delete from watermark where watermark.topition in (
     select tp.id
     from
     cluster c

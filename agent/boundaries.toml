@@ -1,0 +1,74 @@
+schema_version = "1.0.0"
+
+[stack]
+id = "rust-postgres-libsql-kafka-native"
+version = "0.6.3"
+
+[db]
+root_paths = [
+    "etc/initdb.d",
+    "jansu-storage/src/sql",
+    "jansu-storage/src/lite",
+]
+constraint_paths = ["etc/initdb.d"]
+migration_paths = ["etc/initdb.d"]
+
+[queues]
+adapter_paths = [
+    "jansu-broker",
+    "jansu-cat",
+    "jansu-client",
+    "jansu-cli",
+    "jansu-embedded",
+    "jansu-proxy",
+]
+client_markers = [
+    "kafka",
+    "rdkafka",
+    "jansu",
+]
+event_contract_paths = ["docs/compatibility"]
+generated_type_paths = [
+    "jansu-model",
+    "jansu-sans-io/message",
+    "jansu-sans-io/src",
+]
+
+[rust]
+domain_paths = [
+    "jansu-model",
+    "jansu-sans-io",
+    "jansu-storage",
+    "jansu-broker",
+]
+forbidden_domain_imports = [
+    "std::process::Command",
+    "reqwest::",
+    "sqlx::",
+    "diesel::",
+]
+
+[typescript]
+web_paths = []
+generated_contract_paths = []
+
+[python]
+allowed_truth_paths = []
+
+# Auditor (jankurai 1.5.0) requires classification = "brownfield" (or reason =
+# "brownfield") to exempt kafka markers via scan.rs::kafka_exception_with_migration_path.
+# Human-facing classification ("product-goal", "protocol-model") is captured in
+# the migration_path text below.
+[[streaming_exception]]
+runtime = "kafka"
+classification = "brownfield"
+owner = "platform"
+expires = "2026-12-31"
+migration_path = "product-goal: Jansu is a Kafka-compatible broker; Kafka protocol compatibility is tracked by MASTER_PLAN phases and docs/compatibility/kafka-4.2-ledger.json."
+
+[[streaming_exception]]
+runtime = "kafka"
+classification = "brownfield"
+owner = "protocol"
+expires = "2026-12-31"
+migration_path = "protocol-model: Kafka protocol-model vocabulary stays in jansu-model until the adapter boundary split lands; see docs/streaming.md."

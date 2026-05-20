@@ -149,10 +149,8 @@ impl Encoder {
             field: None,
             api_key: Some(api_key),
             api_version: Some(api_version),
-            meta: RootMessageMeta::messages()
-                .responses()
-                .get(&api_key)
-                .map_or_else(Meta::default, |meta| {
+            meta: match RootMessageMeta::messages().responses().get(&api_key) {
+                Some(meta) => {
                     let mut parse = VecDeque::with_capacity(PARSE_DEPTH);
                     parse.push_front(meta.fields.into());
 
@@ -161,7 +159,9 @@ impl Encoder {
                         parse,
                         ..Default::default()
                     }
-                }),
+                }
+                None => Meta::default(),
+            },
         }
     }
 
@@ -194,7 +194,10 @@ impl Encoder {
     #[allow(dead_code)]
     fn field_name(&self) -> String {
         self.containers.iter().fold(
-            self.field.map_or_else(String::new, str::to_owned),
+            match self.field {
+                Some(field) => field.to_owned(),
+                None => String::new(),
+            },
             |acc, container| {
                 if acc.is_empty() {
                     container.name()
@@ -564,9 +567,8 @@ impl Serializer for &mut Encoder {
             } else {
                 Ok(())
             }
-        } else if self.serialize_schema_default_for_none()? {
-            Ok(())
         } else {
+            let _ = self.serialize_schema_default_for_none()?;
             Ok(())
         }
     }
@@ -1076,12 +1078,14 @@ impl Serializer for &mut RecordBatchEncoder {
 
     #[instrument(skip(self))]
     fn serialize_char(self, v: char) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{v}")
+        let mut encoded = [0; 4];
+        self.serialize_str(v.encode_utf8(&mut encoded))
     }
 
     #[instrument(skip(self))]
     fn serialize_str(self, v: &str) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{v}")
+        self.working.put_slice(v.as_bytes());
+        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -1100,12 +1104,12 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!("{}", type_name_of_val(value))
+        value.serialize(self)
     }
 
     #[instrument(skip_all)]
     fn serialize_unit(self) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -1113,7 +1117,7 @@ impl Serializer for &mut RecordBatchEncoder {
         self,
         name: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!()
+        Ok(())
     }
 
     #[instrument(skip(self))]
@@ -1123,7 +1127,9 @@ impl Serializer for &mut RecordBatchEncoder {
         variant_index: u32,
         variant: &'static str,
     ) -> std::result::Result<Self::Ok, Self::Error> {
-        unimplemented!("{name}, {variant_index}, {variant}")
+        Err(Error::UnexpectedType(format!(
+            "{name}:{variant_index}:{variant}"
+        )))
     }
 
     #[instrument(skip_all, fields(name, value = type_name::<T>()))]
@@ -1135,7 +1141,7 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!("{}, {name}", type_name_of_val(value))
+        value.serialize(self)
     }
 
     #[instrument(skip_all, fields(name, variant_index, variant, value = type_name::<T>()))]
@@ -1149,10 +1155,8 @@ impl Serializer for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        unimplemented!(
-            "{}, {name}, {variant_index}, {variant}",
-            type_name_of_val(value)
-        );
+        let _ = (name, variant_index, variant);
+        value.serialize(self)
     }
 
     #[instrument(skip(self))]
@@ -1165,7 +1169,8 @@ impl Serializer for &mut RecordBatchEncoder {
 
     #[instrument(skip(self))]
     fn serialize_tuple(self, len: usize) -> std::result::Result<Self::SerializeTuple, Self::Error> {
-        unimplemented!("{len}")
+        let _ = len;
+        Ok(self)
     }
 
     #[instrument(skip(self))]
@@ -1174,7 +1179,8 @@ impl Serializer for &mut RecordBatchEncoder {
         name: &'static str,
         len: usize,
     ) -> std::result::Result<Self::SerializeTupleStruct, Self::Error> {
-        unimplemented!("{name}, {len}")
+        let _ = (name, len);
+        Ok(self)
     }
 
     #[instrument(skip(self))]
@@ -1185,7 +1191,8 @@ impl Serializer for &mut RecordBatchEncoder {
         variant: &'static str,
         len: usize,
     ) -> std::result::Result<Self::SerializeTupleVariant, Self::Error> {
-        unimplemented!("{name}, {variant_index}, {variant}, {len}")
+        let _ = (name, variant_index, variant, len);
+        Ok(self)
     }
 
     #[instrument(skip(self))]
@@ -1193,7 +1200,8 @@ impl Serializer for &mut RecordBatchEncoder {
         self,
         len: Option<usize>,
     ) -> std::result::Result<Self::SerializeMap, Self::Error> {
-        unimplemented!("{len:?}")
+        let _ = len;
+        Ok(self)
     }
 
     #[instrument(skip(self))]
@@ -1244,11 +1252,11 @@ impl SerializeTuple for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(())
     }
 }
 
@@ -1261,11 +1269,11 @@ impl SerializeTupleVariant for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(())
     }
 }
 
@@ -1278,18 +1286,18 @@ impl SerializeMap for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        key.serialize(&mut **self)
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> std::result::Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(())
     }
 }
 
@@ -1324,11 +1332,11 @@ impl SerializeTupleStruct for &mut RecordBatchEncoder {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> std::result::Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(())
     }
 }
 

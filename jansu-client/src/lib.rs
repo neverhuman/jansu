@@ -326,25 +326,26 @@ impl Builder {
 
         let supported = RootMessageMeta::messages().requests();
 
-        client.call(req).await.map(|response| {
-            response
-                .api_keys
-                .unwrap_or_default()
-                .into_iter()
-                .filter_map(|api| {
-                    supported.get(&api.api_key).and_then(|supported| {
-                        if api.min_version >= supported.version.valid.start {
-                            Some((
-                                api.api_key,
-                                api.max_version.min(supported.version.valid.end),
-                            ))
-                        } else {
-                            None
-                        }
-                    })
+        let response = client.call(req).await?;
+        let api_keys = response.api_keys.ok_or_else(|| {
+            Error::Message("ApiVersions response did not include API key ranges".into())
+        })?;
+
+        Ok(api_keys
+            .into_iter()
+            .filter_map(|api| {
+                supported.get(&api.api_key).and_then(|supported| {
+                    if api.min_version >= supported.version.valid.start {
+                        Some((
+                            api.api_key,
+                            api.max_version.min(supported.version.valid.end),
+                        ))
+                    } else {
+                        None
+                    }
                 })
-                .collect()
-        })
+            })
+            .collect())
     }
 
     /// Establish the API versions supported by the broker returning a [`Pool`]

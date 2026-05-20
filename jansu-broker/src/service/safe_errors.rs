@@ -79,15 +79,21 @@ fn unknown_server_error_message() -> String {
     ErrorCode::UnknownServerError.to_string()
 }
 
+fn present_or_empty<T>(items: Option<Vec<T>>) -> Vec<T> {
+    if let Some(items) = items {
+        return items;
+    }
+
+    Vec::new()
+}
+
 safe_error_route!(
     alter_configs,
     AlterConfigsRequest,
     req,
     AlterConfigsResponse,
     {
-        let responses = req
-            .resources
-            .unwrap_or_default()
+        let responses = present_or_empty(req.resources)
             .into_iter()
             .map(|resource| {
                 _AlterConfigsResourceResponse::default()
@@ -109,15 +115,11 @@ safe_error_route!(
     req,
     AlterReplicaLogDirsResponse,
     {
-        let results = req
-            .dirs
-            .unwrap_or_default()
+        let results = present_or_empty(req.dirs)
             .into_iter()
             .flat_map(|dir| {
-                dir.topics.unwrap_or_default().into_iter().map(|topic| {
-                    let partitions = topic
-                        .partitions
-                        .unwrap_or_default()
+                present_or_empty(dir.topics).into_iter().map(|topic| {
+                    let partitions = present_or_empty(topic.partitions)
                         .into_iter()
                         .map(|partition_index| {
                             _AlterReplicaLogDirPartitionResult::default()
@@ -145,9 +147,7 @@ safe_error_route!(
     req,
     CreatePartitionsResponse,
     {
-        let results = req
-            .topics
-            .unwrap_or_default()
+        let results = present_or_empty(req.topics)
             .into_iter()
             .map(|topic| {
                 _CreatePartitionsTopicResult::default()
@@ -176,9 +176,7 @@ safe_error_route!(
 );
 
 safe_error_route!(delete_acls, DeleteAclsRequest, req, DeleteAclsResponse, {
-    let filter_results = req
-        .filters
-        .unwrap_or_default()
+    let filter_results = present_or_empty(req.filters)
         .into_iter()
         .map(|_| {
             _DeleteAclsFilterResult::default()
@@ -199,19 +197,13 @@ safe_error_route!(
     req,
     WriteTxnMarkersResponse,
     {
-        let markers = req
-            .markers
-            .unwrap_or_default()
+        let markers = present_or_empty(req.markers)
             .into_iter()
             .map(|marker| {
-                let topics = marker
-                    .topics
-                    .unwrap_or_default()
+                let topics = present_or_empty(marker.topics)
                     .into_iter()
                     .map(|topic| {
-                        let partitions = topic
-                            .partition_indexes
-                            .unwrap_or_default()
+                        let partitions = present_or_empty(topic.partition_indexes)
                             .into_iter()
                             .map(|partition_index| {
                                 _WritableTxnMarkerPartitionResult::default()
@@ -286,14 +278,10 @@ safe_error_route!(
     req,
     OffsetDeleteResponse,
     {
-        let topics = req
-            .topics
-            .unwrap_or_default()
+        let topics = present_or_empty(req.topics)
             .into_iter()
             .map(|topic| {
-                let partitions = topic
-                    .partitions
-                    .unwrap_or_default()
+                let partitions = present_or_empty(topic.partitions)
                     .into_iter()
                     .map(|partition| {
                         _OffsetDeleteResponsePartition::default()
@@ -333,9 +321,7 @@ safe_error_route!(
     req,
     UpdateFeaturesResponse,
     {
-        let results = req
-            .feature_updates
-            .unwrap_or_default()
+        let results = present_or_empty(req.feature_updates)
             .into_iter()
             .map(|feature| {
                 UpdatableFeatureResult::default()

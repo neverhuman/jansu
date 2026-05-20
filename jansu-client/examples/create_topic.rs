@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clap::Parser;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use jansu_client::{Client, ConnectionManager, Error};
 use jansu_sans_io::{CreateTopicsRequest, create_topics_request::CreatableTopic};
 use tracing_subscriber::{

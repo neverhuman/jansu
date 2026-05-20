@@ -1,0 +1,12 @@
+outputRoot = "."
+artifactRoot = "target/jankurai/ux-qa"
+readyState = "domcontentloaded"
+timeoutMs = 15000
+screenshotRequired = false
+ariaSnapshotRequired = false
+accessibilityScanRequired = false
+requiredStates = []
+
+[app]
+web_ui = false
+reason = "Jansu is a Rust Kafka-compatible broker and CLI workspace; no browser UI is shipped in this repository."

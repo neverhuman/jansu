@@ -80,12 +80,14 @@ impl Mechanism {
     fn salted_password(&self, password: &[u8], iterations: u32, salt: &[u8]) -> Result<Bytes> {
         match self {
             Mechanism::Scram256 => {
-                let mut buf = BytesMut::zeroed(32);
+                let mut buf = BytesMut::with_capacity(32);
+                buf.resize(32, 0);
                 pbkdf2::<Hmac<Sha256>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
             }
             Mechanism::Scram512 => {
-                let mut buf = BytesMut::zeroed(64);
+                let mut buf = BytesMut::with_capacity(64);
+                buf.resize(64, 0);
                 pbkdf2::<Hmac<Sha512>>(password, salt, iterations, &mut buf)?;
                 Ok(buf.into())
             }
@@ -122,7 +124,8 @@ impl Command {
                 mechanism,
                 ..
             } => {
-                let mut salt = BytesMut::zeroed(Self::DEFAULT_SALT_LEN);
+                let mut salt = BytesMut::with_capacity(Self::DEFAULT_SALT_LEN);
+                salt.resize(Self::DEFAULT_SALT_LEN, 0);
                 rng().fill_bytes(&mut salt);
 
                 let iterations = iterations.unwrap_or(Self::DEFAULT_ITERATIONS);

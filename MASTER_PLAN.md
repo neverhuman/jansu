@@ -29,6 +29,7 @@ Default next **feature** phase after ongoing cross-phase hygiene: **Phase 08** (
 7. Phase 14: `tips/phases/14-security-acls-quotas.md`.
 8. Phase 15: `tips/phases/15-cluster-metadata-modern-kafka.md`.
 9. Phase 16: `tips/phases/16-ecosystem-performance-ops-migration.md`.
+10. Phase 17: `tips/phases/17-redlinedb-storage-migration.md`.
 
 Completed or historical phases remain authoritative inputs and may be reopened only for audit-backed fixes.
 
@@ -54,6 +55,7 @@ Completed or historical phases remain authoritative inputs and may be reopened o
 - Phase 14: `tips/phases/14-security-acls-quotas.md`
 - Phase 15: `tips/phases/15-cluster-metadata-modern-kafka.md`
 - Phase 16: `tips/phases/16-ecosystem-performance-ops-migration.md`
+- Phase 17: `tips/phases/17-redlinedb-storage-migration.md`
 
 ## Parallel Work
 

@@ -47,7 +47,7 @@ Phase 10 — consumer groups / offsets (`tips/phases/10-consumer-groups-offsets.
 
 ## Residual Risks
 
-- **Protocol**: serde/codegen still mis-handles omitted `CurrentLeaderEpoch` on flexible ListOffsets requests; real clients that omit the field may hit decode failures until sans-io encode/decode applies Kafka defaults for non-nullable schema defaults.
+- **Protocol**: serde/codegen still mishandles omitted `CurrentLeaderEpoch` on flexible ListOffsets requests; real clients that omit the field may hit decode failures until sans-io encode/decode applies Kafka defaults for non-nullable schema defaults.
 - Broader `just test` / full workspace nextest not run in this session beyond the commands listed.
 
 ## Next Recommended Action
