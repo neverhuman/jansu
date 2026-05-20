@@ -31,10 +31,7 @@ impl From<LiteTimestamp> for SystemTime {
 
 impl From<LiteTimestamp> for Value {
     fn from(value: LiteTimestamp) -> Self {
-        Value::Integer(match to_timestamp(&value.0) {
-            Ok(timestamp) => timestamp,
-            Err(_) => 0,
-        })
+        Value::Integer(to_timestamp(&value.0).unwrap_or(0))
     }
 }
 

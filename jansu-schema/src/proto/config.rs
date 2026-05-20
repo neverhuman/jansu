@@ -46,13 +46,17 @@ impl Default for FieldGeneratorConfiguration {
 }
 
 impl FieldGeneratorConfiguration {
+    fn empty_message() -> Self {
+        Self::Message(BTreeMap::new())
+    }
+
     pub(super) fn with_field_generator(
         field: &FieldDescriptorProto,
         generator: &MessageDescriptor,
     ) -> FieldGeneratorConfiguration {
         debug!(field = field.name(), generator = generator.full_name(),);
 
-        field
+        let configuration = field
             .options
             .special_fields
             .unknown_fields()
@@ -72,8 +76,12 @@ impl FieldGeneratorConfiguration {
                 } else {
                     None
                 }
-            })
-            .unwrap_or_default()
+            });
+
+        match configuration {
+            Some(configuration) => configuration,
+            None => Self::empty_message(),
+        }
     }
 
     pub(super) fn skip(&self) -> bool {

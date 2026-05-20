@@ -102,20 +102,18 @@ impl Delegate {
                     transactions
                         .into_iter()
                         .map(|transaction| {
-                            let topics_in = match transaction.topics {
-                                Some(topics) => topics,
-                                None => Vec::new(),
-                            };
+                            let topics_in = transaction
+                                .topics
+                                .map_or_else(Vec::new, std::convert::identity);
                             AddPartitionsToTxnResult::default()
                                 .transactional_id(transaction.transactional_id)
                                 .topic_results(Some(
                                     topics_in
                                         .into_iter()
                                         .map(|topic| {
-                                            let partitions_in = match topic.partitions {
-                                                Some(partitions) => partitions,
-                                                None => Vec::new(),
-                                            };
+                                            let partitions_in = topic
+                                                .partitions
+                                                .map_or_else(Vec::new, std::convert::identity);
                                             AddPartitionsToTxnTopicResult::default()
                                                 .name(topic.name)
                                                 .results_by_partition(Some(

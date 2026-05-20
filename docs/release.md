@@ -1,7 +1,7 @@
 # Release
 
 The workspace version in `Cargo.toml` is the release version source. Release
-tags must use the same version with a `v` prefix, for example `v0.6.2`.
+tags must use the same version with a `v` prefix, for example `v0.6.3`.
 
 ## Required Evidence
 

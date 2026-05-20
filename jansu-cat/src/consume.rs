@@ -230,10 +230,7 @@ impl Consume {
             )
             .await?;
 
-        let metadata_topics = match metadata.topics {
-            Some(topics) => topics,
-            None => Vec::new(),
-        };
+        let metadata_topics = present_or_empty(metadata.topics);
 
         let response = client
             .call(
@@ -272,18 +269,12 @@ impl Consume {
             )
             .await?;
 
-        let responses = match response.responses {
-            Some(responses) => responses,
-            None => Vec::new(),
-        };
+        let responses = present_or_empty(response.responses);
 
         for response in responses {
             debug!(?response);
 
-            let partitions = match response.partitions {
-                Some(partitions) => partitions,
-                None => Vec::new(),
-            };
+            let partitions = present_or_empty(response.partitions);
 
             for partition in partitions {
                 debug!(?partition);
@@ -318,9 +309,14 @@ impl Consume {
     }
 
     fn maybe_json(&self, data: Option<Bytes>) -> Option<Value> {
-        data.and_then(|data| match serde_json::from_slice::<Value>(&data[..]) {
-            Ok(value) => Some(value),
-            Err(_) => None,
-        })
+        data.and_then(|data| serde_json::from_slice::<Value>(&data[..]).ok())
     }
+}
+
+fn present_or_empty<T>(items: Option<Vec<T>>) -> Vec<T> {
+    if let Some(items) = items {
+        return items;
+    }
+
+    Vec::new()
 }

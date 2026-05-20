@@ -281,7 +281,7 @@
         "jansu-storage/src/limbo/tests.rs",
         "jansu-storage/src/pg.rs",
         "jansu-storage/src/slate/storage.rs",
-        "jansu-storage/src/slate/types.rs",
+        "jansu-storage/src/slate/types/mod.rs",
         "jansu-storage/src/sql/leader_epoch_history.sql",
         "jansu-storage/src/sql/offset_for_leader_epoch.sql",
         "jansu-storage/tests/offset_for_leader_epoch.rs",
@@ -356,7 +356,9 @@
         "phase-logs/index.json",
         "phase-logs/attempts/cross-phase/20260518-222345-codex-jankurai-lite-limbo.md",
         "phase-logs/attempts/cross-phase/20260518-225114-codex-limbo-refactor.md",
-        "phase-logs/attempts/cross-phase/20260518-232239-codex-jankurai-recovery.md"
+        "phase-logs/attempts/cross-phase/20260518-232239-codex-jankurai-recovery.md",
+        "phase-logs/attempts/cross-phase/20260520-082529-codex-pr13-ci-recovery.md",
+        "phase-logs/attempts/cross-phase/20260520-094642-codex-pr13-verification.md"
       ],
       "verification_commands": [
         "rtk cargo fmt --all --check",
@@ -388,6 +390,15 @@
         "rtk rustfmt --edition 2024 jansu-storage/src/limbo/mod.rs jansu-storage/src/limbo/builder.rs jansu-storage/src/limbo/engine.rs jansu-storage/src/limbo/sql.rs jansu-storage/src/limbo/timestamp.rs jansu-storage/src/limbo/topics.rs jansu-storage/src/limbo/offsets.rs jansu-storage/src/limbo/groups.rs jansu-storage/src/limbo/transactions.rs jansu-storage/src/limbo/tests.rs",
         "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-limbo-turso cargo check -p jansu-storage --no-default-features --features turso",
         "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-limbo-libsql cargo check -p jansu-storage --no-default-features --features libsql --all-targets",
+        "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro cargo clippy --workspace --all-features --all-targets -- -D warnings",
+        "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-fix cargo test -p jansu-broker --test compatibility_contract --all-features -- phase_log_manifest_contract_covers_phase_docs --nocapture",
+        "rtk actionlint .github/workflows/*.yml",
+        "rtk just fmt",
+        "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro just check",
+        "rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro just clippy",
+        "rtk just security",
+        "rtk rm -f target/jankurai/audit-state.json && rtk just jankurai-gate",
+        "rtk env CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=24 CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-matrix bash -lc 'storage/lake feature matrix'",
         "rtk just score (failed as expected with score=68 raw=72 caps=7 findings=14)"
       ],
       "residual_risks": [
@@ -579,6 +590,25 @@
       ],
       "residual_risks": [
         "Historical activity was not backfilled into a structured log."
+      ]
+    },
+    {
+      "phase": "17",
+      "phase_file": "tips/phases/17-redlinedb-storage-migration.md",
+      "status": "in-progress",
+      "log_file": "phase-logs/17-redlinedb-storage-migration.md.log",
+      "attempt_log_dir": "phase-logs/attempts/17-redlinedb-storage-migration",
+      "ledger_api_keys": [],
+      "primary_paths": [
+        "tips/phases/17-redlinedb-storage-migration.md",
+        "phase-logs/17-redlinedb-storage-migration.md.log"
+      ],
+      "verification_commands": [
+        "cargo test -p jansu-broker --test compatibility_contract --all-features -- --nocapture"
+      ],
+      "residual_risks": [
+        "Historical migration activity is not yet backfilled into the structured log.",
+        "RedlineDB helper, harness, and legacy SQL-engine retirement are still pending implementation."
       ]
     }
   ]

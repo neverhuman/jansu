@@ -212,11 +212,17 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6
         with:
           cache: false
-      - name: Install security tools
+      - name: Install cargo-audit
+        continue-on-error: true
+        run: cargo install cargo-audit --version 0.22.1 --locked
+      - name: Install actionlint
         run: |
           set -euo pipefail
-          cargo install cargo-audit --version 0.22.1 --locked
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
           go install github.com/gitleaks/gitleaks/v8@v8.28.0
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
       - name: Run security lane

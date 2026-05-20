@@ -85,15 +85,15 @@ async fn iceberg_write(record_batch: RecordBatch) -> Result<Vec<DataFile>> {
     let memory = FileIOBuilder::new("memory").build()?;
 
     #[derive(Clone)]
-    struct Location;
+    struct JsonArrowLocation;
 
-    impl LocationGenerator for Location {
+    impl LocationGenerator for JsonArrowLocation {
         fn generate_location(
             &self,
             _partition_key: Option<&iceberg::spec::PartitionKey>,
             file_name: &str,
         ) -> String {
-            format!("abc/{file_name}")
+            format!("json-arrow/{file_name}")
         }
     }
 
@@ -103,8 +103,8 @@ async fn iceberg_write(record_batch: RecordBatch) -> Result<Vec<DataFile>> {
     let rolling_writer_builder = RollingFileWriterBuilder::new_with_default_file_size(
         parquet_writer_builder,
         memory,
-        Location,
-        DefaultFileNameGenerator::new("pqr".into(), None, Parquet),
+        JsonArrowLocation,
+        DefaultFileNameGenerator::new("json".into(), None, Parquet),
     );
 
     let mut data_file_writer = DataFileWriterBuilder::new(rolling_writer_builder)

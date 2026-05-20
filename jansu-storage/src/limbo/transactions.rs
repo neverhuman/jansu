@@ -220,10 +220,7 @@ impl Engine {
 
         let mut current_epoch: Option<i32> = None;
         while let Some(row) = rows.next().await? {
-            let row_epoch = match row.get::<Option<i32>>(0)? {
-                Some(row_epoch) => row_epoch,
-                None => 0,
-            };
+            let row_epoch = row.get::<Option<i32>>(0)?.unwrap_or(0);
             current_epoch = Some(current_epoch.map_or(row_epoch, |current| current.max(row_epoch)));
         }
 

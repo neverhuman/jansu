@@ -183,20 +183,19 @@ impl Delegate {
             let mut partition_responses = vec![];
 
             for partition in topic.partitions.as_deref().unwrap_or(&[]) {
-                let (error_code, low_watermark) = if !topic_exists {
-                    (ErrorCode::UnknownTopicOrPartition, 0)
-                } else if pc
-                    .query_opt(
-                        "topition_select.sql",
-                        (
-                            self.cluster.as_str(),
-                            topic.name.as_str(),
-                            partition.partition_index,
-                        ),
-                    )
-                    .await?
-                    .is_none()
-                {
+                let partition_exists = topic_exists
+                    && pc
+                        .query_opt(
+                            "topition_select.sql",
+                            (
+                                self.cluster.as_str(),
+                                topic.name.as_str(),
+                                partition.partition_index,
+                            ),
+                        )
+                        .await?
+                        .is_some();
+                let (error_code, low_watermark) = if !partition_exists {
                     (ErrorCode::UnknownTopicOrPartition, 0)
                 } else {
                     let watermark = pc

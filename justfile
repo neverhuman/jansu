@@ -16,7 +16,7 @@ license:
 
 build profile="dev" features="delta,dynostore,iceberg,libsql,parquet,postgres,slatedb" bin="jansu": (cargo-build "--profile" profile "--timings" "--bin" bin "--no-default-features" "--features" features)
 
-build-storage: clean-workspace (build "dev" "libsql") (build "dev" "postgres") (build "dev" "slatedb")
+build-storage: clean-workspace (build "dev" "dynostore") (build "dev" "libsql") (build "dev" "postgres") (build "dev" "slatedb")
 
 build-examples: (cargo-build "--examples")
 

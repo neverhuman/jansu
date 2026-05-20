@@ -1191,6 +1191,123 @@ Add always-on **dynostore** `FetchService` proof that `IsolationLevel::ReadCommi
 
 ---
 
+## Session 9 - 2026-05-20: PR 13 CI Recovery and Manifest Contract
+
+### Date
+
+2026-05-20
+
+### Phase File
+
+`tips/phases/08-fetch-list-offsets-leader-epoch.md`
+
+### Intent
+
+Recover PR 13 CI parity for workflow setup, clippy, security, Jankurai audit plumbing, and the Phase 08 manifest contract without changing Kafka protocol behavior.
+
+### Files Touched
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/jankurai.yml`
+- `jansu-broker/src/service/safe_errors.rs`
+- `jansu-cat/src/consume.rs`
+- `jansu-schema/src/json/arrow/tests.rs`
+- `jansu-schema/src/proto/config.rs`
+- `jansu-service/src/frame.rs`
+- `jansu-storage/src/dynostore/dispatch/produce.rs`
+- `jansu-storage/src/dynostore/dispatch/topics.rs`
+- `jansu-storage/src/dynostore/opticon.rs`
+- `jansu-storage/src/groups.rs`
+- `jansu-storage/src/limbo/offsets.rs`
+- `jansu-storage/src/limbo/timestamp.rs`
+- `jansu-storage/src/limbo/topics.rs`
+- `jansu-storage/src/limbo/topics_config.rs`
+- `jansu-storage/src/limbo/transactions.rs`
+- `jansu-storage/src/limbo/txn_produce.rs`
+- `jansu-storage/src/lite/storage_config.rs`
+- `jansu-storage/src/lite/storage_topics.rs`
+- `jansu-storage/src/lite/storage_txn.rs`
+- `jansu-storage/src/lite/timestamp.rs`
+- `jansu-storage/src/pg/dispatch/configs.rs`
+- `jansu-storage/src/pg/dispatch/txn.rs`
+- `jansu-storage/src/service/create_topics.rs`
+- `jansu-storage/src/service/delete_topics.rs`
+- `jansu-storage/src/service/describe_configs.rs`
+- `jansu-storage/src/service/incremental_alter_configs.rs`
+- `jansu-storage/src/service/list_offsets.rs`
+- `jansu-storage/src/service/txn/offset_commit.rs`
+- `jansu-storage/src/storage_box.rs`
+- `phase-logs/index.json`
+- `AUDIT.md`
+- `phase-logs/attempts/cross-phase/20260520-082529-codex-pr13-ci-recovery.md`
+
+### Ledger Rows Touched
+
+- None.
+
+### Tests Added
+
+- None.
+
+### Verification Commands
+
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro cargo clippy --workspace --all-features --all-targets -- -D warnings`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-fix cargo test -p jansu-broker --test compatibility_contract --all-features -- phase_log_manifest_contract_covers_phase_docs --nocapture`
+- `rtk actionlint .github/workflows/*.yml`
+- `rtk just fmt`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro just check`
+- `rtk env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro just clippy`
+- `rtk just security`
+- `rtk rm -f target/jankurai/audit-state.json && rtk just jankurai-gate`
+- `rtk env CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=24 CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-matrix bash -lc '...'`
+- `rtk git diff --check`
+
+### Outcomes
+
+- Jankurai workflow now installs `just` before running the existing audit lane.
+- CI security installation now identifies `cargo-audit`, `actionlint`, and `gitleaks` separately, with `cargo-audit` advisory and the lane still requiring `actionlint`, `gitleaks`, and `cargo`.
+- Workspace clippy passes with warnings denied after mechanical defaulting and duplicate-branch cleanup.
+- Phase 08 manifest contract passes after correcting the stale Slate types path.
+- Jankurai full scan is back to zero hard caps; only the two known `AUDIT-019` residual findings remain.
+
+### Residual Risks
+
+- `just jankurai-gate` still fails on the known `HLT-001` code-shape and `HLT-018` build-speed residual findings.
+- The storage/lake feature matrix was partially verified but failed during a later link because the filesystem filled; rerun on CI or with more local free space.
+
+## Session 8 - 2026-05-20: PR13 Verification and Artifact Cleanup
+
+### Files Touched
+
+- `phase-logs/08-fetch-list-offsets-leader-epoch.md.log`
+- `AUDIT.md`
+- `phase-logs/index.json`
+- `phase-logs/attempts/cross-phase/20260520-094642-codex-pr13-verification.md`
+
+### Verification Commands
+
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro cargo fmt --all --check`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro cargo check --workspace --all-features --all-targets`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-repro cargo clippy --workspace --all-features --all-targets -- -D warnings`
+- `bash tools/security-lane.sh`
+- `actionlint .github/workflows/*.yml`
+- `rm -f target/jankurai/audit-state.json && bash tools/checks/jankurai-gate.sh`
+- `env CARGO_TARGET_DIR=/tmp/jansu-verify-pr13-fix cargo test -p jansu-broker --test compatibility_contract --all-features -- phase_log_manifest_contract_covers_phase_docs --nocapture`
+
+### Outcomes
+
+- Rust compile, clippy, security, and workflow checks passed.
+- The compatibility-contract manifest test passed.
+- The strict Jankurai scan stayed at the two known residual findings.
+- Stray `:memory:/` generated files were removed from the worktree.
+
+### Residual Risks
+
+- `HLT-001` and `HLT-018` remain unresolved.
+- The RedlineDB migration request still does not have a phase-backed implementation plan in the repository docs.
+
+---
+
 ## Session 7 - 2026-05-18: Fetch Control Batch Visibility
 
 ### Changes

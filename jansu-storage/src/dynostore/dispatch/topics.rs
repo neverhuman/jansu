@@ -176,10 +176,7 @@ impl DynoStore {
 
                         let low_watermark = watermark
                             .with_mut(&self.object_store, |watermark| {
-                                let high = match watermark.high {
-                                    Some(high) => high,
-                                    None => 0,
-                                };
+                                let high = watermark.high.unwrap_or(0);
                                 let requested = partition.offset.clamp(0, high);
                                 let low = match watermark.low {
                                     Some(low) => low.max(requested),

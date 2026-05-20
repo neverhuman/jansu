@@ -80,10 +80,11 @@ fn unknown_server_error_message() -> String {
 }
 
 fn present_or_empty<T>(items: Option<Vec<T>>) -> Vec<T> {
-    match items {
-        Some(items) => items,
-        None => Vec::new(),
+    if let Some(items) = items {
+        return items;
     }
+
+    Vec::new()
 }
 
 safe_error_route!(

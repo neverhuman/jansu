@@ -152,21 +152,20 @@ impl Engine {
             };
 
             for partition in partitions {
-                let (error_code, low_watermark) = if !topic_exists {
-                    (ErrorCode::UnknownTopicOrPartition, 0)
-                } else if self
-                    .prepare_query_opt(
-                        &c,
-                        &sql_lookup("topition_select.sql")?,
-                        (
-                            self.cluster.as_str(),
-                            topic.name.as_str(),
-                            partition.partition_index,
-                        ),
-                    )
-                    .await?
-                    .is_none()
-                {
+                let partition_exists = topic_exists
+                    && self
+                        .prepare_query_opt(
+                            &c,
+                            &sql_lookup("topition_select.sql")?,
+                            (
+                                self.cluster.as_str(),
+                                topic.name.as_str(),
+                                partition.partition_index,
+                            ),
+                        )
+                        .await?
+                        .is_some();
+                let (error_code, low_watermark) = if !partition_exists {
                     (ErrorCode::UnknownTopicOrPartition, 0)
                 } else {
                     let watermark = self
@@ -180,14 +179,8 @@ impl Engine {
                             ),
                         )
                         .await?;
-                    let current_low = match watermark.get_value(0)?.as_integer().copied() {
-                        Some(current_low) => current_low,
-                        None => 0,
-                    };
-                    let high = match watermark.get_value(1)?.as_integer().copied() {
-                        Some(high) => high,
-                        None => 0,
-                    };
+                    let current_low = watermark.get_value(0)?.as_integer().copied().unwrap_or(0);
+                    let high = watermark.get_value(1)?.as_integer().copied().unwrap_or(0);
                     let low = current_low.max(partition.offset.clamp(0, high));
 
                     _ = self

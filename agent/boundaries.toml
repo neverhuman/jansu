@@ -2,7 +2,7 @@ schema_version = "1.0.0"
 
 [stack]
 id = "rust-postgres-libsql-kafka-native"
-version = "0.6.2"
+version = "0.6.3"
 
 [db]
 root_paths = [

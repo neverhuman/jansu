@@ -61,10 +61,7 @@ impl DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = match watermark.high {
-                        Some(high) => high,
-                        None => 0,
-                    };
+                    let offset = watermark.high.unwrap_or(0);
                     watermark.high = Some(offset + deflated.last_offset_delta as i64 + 1i64);
 
                     watermark.timestamps = None;
@@ -201,10 +198,7 @@ impl DynoStore {
                 .with_mut(&self.object_store, |watermark| {
                     debug!(?watermark);
 
-                    let offset = match watermark.high {
-                        Some(high) => high,
-                        None => 0,
-                    };
+                    let offset = watermark.high.unwrap_or(0);
                     watermark.high = Some(offset + deflated.last_offset_delta as i64 + 1i64);
 
                     watermark.timestamps = None;

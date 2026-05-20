@@ -33,23 +33,17 @@ impl Engine {
             .await
             .inspect_err(|err| error!(?topition, ?err))?;
 
-        let log_start = match row
+        let log_start = row
             .get_value(0)
             .map(|value| value.as_integer().copied())
             .inspect_err(|err| error!(?topition, ?err))?
-        {
-            Some(log_start) => log_start,
-            None => 0,
-        };
+            .unwrap_or(0);
 
-        let high_watermark = match row
+        let high_watermark = row
             .get_value(1)
             .map(|value| value.as_integer().copied())
             .inspect_err(|err| error!(?topition, ?err))?
-        {
-            Some(high_watermark) => high_watermark,
-            None => 0,
-        };
+            .unwrap_or(0);
 
         let last_stable = match row
             .get_value(1)
@@ -293,14 +287,8 @@ impl Engine {
 
         while let Some(row) = rows.next().await? {
             history.push(LeaderEpochRecord {
-                epoch: match row.get::<Option<i32>>(0)? {
-                    Some(epoch) => epoch,
-                    None => 0,
-                },
-                start_offset: match row.get::<Option<i64>>(1)? {
-                    Some(start_offset) => start_offset,
-                    None => 0,
-                },
+                epoch: row.get::<Option<i32>>(0)?.unwrap_or(0),
+                start_offset: row.get::<Option<i64>>(1)?.unwrap_or(0),
             });
         }
 

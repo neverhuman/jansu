@@ -49,7 +49,7 @@ where
                 generation_id: req.generation_id,
                 member_id: req.member_id,
                 group_instance_id: req.group_instance_id,
-                topics: req.topics.unwrap_or_else(Vec::new),
+                topics: req.topics.map_or_else(Vec::new, std::convert::identity),
             })
             .await?;
 

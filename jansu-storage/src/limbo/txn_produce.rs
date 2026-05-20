@@ -27,10 +27,7 @@ impl Engine {
         debug!(?low, ?high);
 
         let batch_leader_epoch = deflated.partition_leader_epoch;
-        let append_start_offset = match high {
-            Some(high) => high,
-            None => 0,
-        };
+        let append_start_offset = high.unwrap_or(0);
 
         self.maybe_record_leader_epoch_boundary(
             topition,
@@ -51,10 +48,7 @@ impl Engine {
         }
 
         let last_offset_delta = i64::from(inflated.last_offset_delta);
-        let base_offset = match high {
-            Some(high) => high,
-            None => 0,
-        };
+        let base_offset = high.unwrap_or(0);
 
         for (delta, record) in inflated.records.iter().enumerate() {
             let delta = i64::try_from(delta)?;
@@ -135,10 +129,7 @@ impl Engine {
                     .inspect_err(|err| error!(?err))?;
         }
 
-        let log_start_offset = match low {
-            Some(low) => low,
-            None => 0,
-        };
+        let log_start_offset = low.unwrap_or(0);
 
         _ = self
             .prepare_execute(

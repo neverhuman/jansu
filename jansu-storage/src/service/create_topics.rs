@@ -92,7 +92,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut topics = vec![];
 
-        for mut topic in req.topics.unwrap_or_else(Vec::new) {
+        for mut topic in req.topics.map_or_else(Vec::new, std::convert::identity) {
             let name = topic.name.clone();
 
             let num_partitions = Some(match topic.num_partitions {

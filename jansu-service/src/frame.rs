@@ -302,10 +302,7 @@ where
         let sasl_handshake_v0 = match self.af.as_ref().and_then(|af| af.v0.lock().ok()) {
             Some(v0) => {
                 debug!(?v0);
-                match *v0 {
-                    Some(value) => value,
-                    None => false,
-                }
+                present_or_false(*v0)
             }
             None => false,
         };
@@ -440,6 +437,14 @@ where
             .map_err(Into::into)
         }
     }
+}
+
+fn present_or_false(value: Option<bool>) -> bool {
+    if let Some(value) = value {
+        return value;
+    }
+
+    false
 }
 
 /// A [`Layer`] that transforms [`Frame`]s into [`Bytes`]

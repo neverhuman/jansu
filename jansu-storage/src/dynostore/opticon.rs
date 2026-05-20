@@ -251,10 +251,7 @@ where
             REQUESTS.add(1, &[KeyValue::new("method", "with_mut_loop")]);
 
             let (outcome, dv) = self.data_version.lock().map(|guard| {
-                let mut dv = match guard.clone() {
-                    Some(data_version) => data_version,
-                    None => DataVersion::default(),
-                };
+                let mut dv = data_version_or_default(guard.clone());
                 let outcome = f(&mut dv.data);
                 (outcome, dv)
             })?;
@@ -306,6 +303,17 @@ where
             }
         }
     }
+}
+
+fn data_version_or_default<D>(value: Option<DataVersion<D>>) -> DataVersion<D>
+where
+    D: Default,
+{
+    if let Some(value) = value {
+        return value;
+    }
+
+    DataVersion::default()
 }
 
 #[cfg(test)]

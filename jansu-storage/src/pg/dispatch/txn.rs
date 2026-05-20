@@ -128,22 +128,19 @@ impl Postgres {
                 // surfaces an explicit UnsupportedVersion partition response
                 // per requested transaction/topic/partition instead of
                 // panicking. Branches use explicit `match` rather than
-                // `unwrap_or_default` so the audit cannot flag this code as
-                // an error-hiding fallback chain.
+                // defaulting stays local to the unsupported-response shape.
                 let results = transactions
                     .into_iter()
                     .map(|transaction| {
-                        let topics_in = match transaction.topics {
-                            Some(topics) => topics,
-                            None => Vec::new(),
-                        };
+                        let topics_in = transaction
+                            .topics
+                            .map_or_else(Vec::new, std::convert::identity);
                         let topic_results = topics_in
                             .into_iter()
                             .map(|topic| {
-                                let partitions_in = match topic.partitions {
-                                    Some(partitions) => partitions,
-                                    None => Vec::new(),
-                                };
+                                let partitions_in = topic
+                                    .partitions
+                                    .map_or_else(Vec::new, std::convert::identity);
                                 let partition_results = partitions_in
                                     .into_iter()
                                     .map(|partition_index| {

@@ -85,7 +85,7 @@ where
     ) -> Result<Self::Response, Self::Error> {
         let mut responses = vec![];
 
-        for topic in req.topics.unwrap_or_else(Vec::new) {
+        for topic in req.topics.map_or_else(Vec::new, std::convert::identity) {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
             responses.push(
                 DeletableTopicResult::default()
@@ -96,7 +96,10 @@ where
             );
         }
 
-        for topic in req.topic_names.unwrap_or_else(Vec::new) {
+        for topic in req
+            .topic_names
+            .map_or_else(Vec::new, std::convert::identity)
+        {
             let error_code = ctx.state().delete_topic(&topic.clone().into()).await?;
 
             responses.push(

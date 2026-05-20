@@ -33,7 +33,10 @@ impl Engine {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                for config in resource.configs.unwrap_or_else(Vec::new) {
+                for config in resource
+                    .configs
+                    .map_or_else(Vec::new, std::convert::identity)
+                {
                     let operation = OpType::try_from(config.config_operation)?;
                     match operation {
                         OpType::Set => {

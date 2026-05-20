@@ -302,10 +302,10 @@ impl From<&NamedGroupDetail> for describe_groups_response::DescribedGroup {
                     })
                     .collect::<Vec<_>>();
 
-                let protocol_type = match group_detail.state.protocol_type() {
-                    Some(protocol_type) => protocol_type,
-                    None => String::new(),
-                };
+                let protocol_type = group_detail
+                    .state
+                    .protocol_type()
+                    .map_or_else(String::new, std::convert::identity);
 
                 Self::default()
                     .error_code(ErrorCode::None.into())

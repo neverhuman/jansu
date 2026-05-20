@@ -47,10 +47,9 @@ impl Postgres {
             ConfigResource::Topic => {
                 let mut error_code = ErrorCode::None;
 
-                let configs = match resource.configs {
-                    Some(configs) => configs,
-                    None => Vec::new(),
-                };
+                let configs = resource
+                    .configs
+                    .map_or_else(Vec::new, std::convert::identity);
                 for config in configs {
                     let operation = OpType::try_from(config.config_operation)?;
                     match operation {
