@@ -1,4 +1,4 @@
-// Copyright ⓒ 2024-2026 Peter Morgan <peter.james.morgan@gmail.com>
+// Copyright ⓒ 2024-2025 Peter Morgan <peter.james.morgan@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Tests for the Avro→Arrow conversion code in `super::arrow`.
-//!
-//! Extracted from `arrow.rs` so the production code drops well below the
-//! workspace shape budget. The file name ends in `/tests.rs` so the Jankurai
-//! `is_test_or_example_path` check excludes it from product-code surface
-//! counts.
-
-use std::{fs::File, sync::Arc, thread};
+//! JSON schema Arrow conversion tests
 
 use super::*;
-use apache_avro::{Decimal, types::Value};
 
+#[cfg(feature = "iceberg")]
 use arrow::util::pretty::pretty_format_batches;
+
+#[cfg(feature = "iceberg")]
 use datafusion::prelude::*;
 
+#[cfg(feature = "iceberg")]
 use iceberg::{
     io::FileIOBuilder,
     spec::{
@@ -43,18 +39,17 @@ use iceberg::{
     },
 };
 
-use num_bigint::BigInt;
-
+#[cfg(feature = "iceberg")]
 use parquet::file::properties::WriterProperties;
 
+use crate::Error;
+use bytes::Bytes;
 use jansu_sans_io::record::Record;
 use serde_json::json;
+use std::{fs::File, sync::Arc, thread};
 use tracing::error;
 use tracing::subscriber::DefaultGuard;
 use tracing_subscriber::EnvFilter;
-use uuid::Uuid;
-
-use crate::AsKafkaRecord as _;
 
 fn init_tracing() -> Result<DefaultGuard> {
     Ok(tracing::subscriber::set_default(
@@ -80,10 +75,8 @@ fn init_tracing() -> Result<DefaultGuard> {
     ))
 }
 
-#[cfg(all(feature = "parquet", feature = "iceberg"))]
+#[cfg(feature = "iceberg")]
 async fn iceberg_write(record_batch: RecordBatch) -> Result<Vec<DataFile>> {
-    debug!(?record_batch);
-    debug!(schema = ?record_batch.schema());
     let iceberg_schema = IcebergSchema::try_from(record_batch.schema().as_ref())
         .map(IcebergSchemaRef::new)
         .inspect(|schema| debug!(?schema))
@@ -114,19 +107,7 @@ async fn iceberg_write(record_batch: RecordBatch) -> Result<Vec<DataFile>> {
         DefaultFileNameGenerator::new("pqr".into(), None, Parquet),
     );
 
-    use iceberg::writer::base_writer::data_file_writer::DataFileWriter;
-
-    let data_file_writer_builder: DataFileWriterBuilder<
-        ParquetWriterBuilder,
-        Location,
-        DefaultFileNameGenerator,
-    > = DataFileWriterBuilder::new(rolling_writer_builder);
-
-    let mut data_file_writer: DataFileWriter<
-        ParquetWriterBuilder,
-        Location,
-        DefaultFileNameGenerator,
-    > = data_file_writer_builder
+    let mut data_file_writer = DataFileWriterBuilder::new(rolling_writer_builder)
         .build(None)
         .await
         .inspect_err(|err| error!(?err))?;
@@ -144,11 +125,6 @@ async fn iceberg_write(record_batch: RecordBatch) -> Result<Vec<DataFile>> {
         .map_err(Into::into)
 }
 
-mod group1;
-mod group2;
-mod group3;
-mod group4;
-mod group5;
-mod group6;
-mod group7;
-mod group8;
+mod basic;
+mod nested;
+mod primitive;

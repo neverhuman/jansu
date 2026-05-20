@@ -1,0 +1,253 @@
+// Copyright ⓒ 2024-2026 Peter Morgan <peter.james.morgan@gmail.com>
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Delta Lake protobuf schema tests (proto5)
+
+use super::*;
+use crate::proto::{MessageKind, Schema};
+
+#[tokio::test]
+async fn taxi_partition_on_vendor_id_generated_field() -> Result<()> {
+    let _guard = init_tracing()?;
+
+    let topic = "taxi";
+
+    let schema = Schema::try_from(Bytes::from_static(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../etc/schema/taxi.proto"
+    ))))?;
+
+    let value = schema.encode_from_value(
+        MessageKind::Value,
+        &json!({
+          "vendor_id": 1,
+          "trip_id": 1000371,
+          "trip_distance": 1.8,
+          "fare_amount": 15.32,
+          "store_and_fwd": "N"
+        }),
+    )?;
+
+    let partition = 32123;
+
+    let record_batch = Batch::builder()
+        .record(Record::builder().value(value.into()))
+        .base_timestamp(119_731_017_000)
+        .build()?;
+
+    let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+    let location = format!("file://{}", temp_dir.path().to_str().unwrap());
+    let database = "pqr";
+
+    let schema_registry = repo_schema_registry()?;
+
+    schema_registry.validate(topic, &record_batch).await?;
+
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
+
+    let config = DescribeConfigsResult::default()
+        .error_message(None)
+        .resource_type(ConfigResource::Topic.into())
+        .resource_name(topic.into())
+        .configs(Some(vec![
+            DescribeConfigsResourceResult::default()
+                .name(String::from("jansu.lake.generate.year"))
+                .value(Some(String::from("cast(meta.year as integer)")))
+                .read_only(true)
+                .is_default(None)
+                .config_source(None)
+                .is_sensitive(false)
+                .synonyms(None)
+                .config_type(None)
+                .documentation(None),
+            DescribeConfigsResourceResult::default()
+                .name(String::from("jansu.lake.generate.month"))
+                .value(Some(String::from("cast(meta.month as integer)")))
+                .read_only(true)
+                .is_default(None)
+                .config_source(None)
+                .is_sensitive(false)
+                .synonyms(None)
+                .config_type(None)
+                .documentation(None),
+            DescribeConfigsResourceResult::default()
+                .name(String::from("jansu.lake.generate.day"))
+                .value(Some(String::from("cast(meta.day as integer)")))
+                .read_only(true)
+                .is_default(None)
+                .config_source(None)
+                .is_sensitive(false)
+                .synonyms(None)
+                .config_type(None)
+                .documentation(None),
+            DescribeConfigsResourceResult::default()
+                .name(String::from("jansu.lake.generate.vendor_id"))
+                .value(Some(String::from("cast(value.vendor_id as integer)")))
+                .read_only(true)
+                .is_default(None)
+                .config_source(None)
+                .is_sensitive(false)
+                .synonyms(None)
+                .config_type(None)
+                .documentation(None),
+            DescribeConfigsResourceResult::default()
+                .name(String::from("jansu.lake.partition"))
+                .value(Some(String::from("year,month,day,vendor_id")))
+                .read_only(true)
+                .is_default(None)
+                .config_source(None)
+                .is_sensitive(false)
+                .synonyms(None)
+                .config_type(None)
+                .documentation(None),
+        ]));
+
+    let offset = 543212345;
+
+    lake_house
+        .store(topic, partition, offset, &record_batch, config)
+        .await
+        .inspect(|result| debug!(?result))
+        .inspect_err(|err| debug!(?err))?;
+
+    let table = {
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
+        table.load().await?;
+        table
+    };
+
+    let ctx = SessionContext::new();
+
+    _ = ctx.register_table("t", Arc::new(table))?;
+
+    let df = ctx.sql("select * from t").await?;
+    let results = df.collect().await?;
+
+    let pretty_results = pretty_format_batches(&results)?.to_string();
+
+    let expected = vec![
+        "+------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------+------+-------+-----+-----------+",
+        "| meta                                                                               | value                                                                                      | year | month | day | vendor_id |",
+        "+------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------+------+-------+-----+-----------+",
+        "| {partition: 32123, timestamp: 1973-10-17T18:36:57, year: 1973, month: 10, day: 17} | {vendor_id: 1, trip_id: 1000371, trip_distance: 1.8, fare_amount: 15.32, store_and_fwd: 0} | 1973 | 10    | 17  | 1         |",
+        "+------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------+------+-------+-----+-----------+",
+    ];
+
+    assert_eq!(pretty_results.trim().lines().collect::<Vec<_>>(), expected);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn repeated_string() -> Result<()> {
+    let _guard = init_tracing()?;
+
+    let topic = "t";
+
+    let proto = Bytes::from_static(include_bytes!("../../../../tests/repeated-string.proto"));
+    let object_store = InMemory::new();
+
+    let location = Path::from(format!("{topic}.proto"));
+    _ = object_store
+        .put(&location, PutPayload::from(proto.clone()))
+        .await?;
+    let schema_registry = Registry::new(object_store);
+
+    let schema = Schema::try_from(proto)?;
+
+    let value = schema.encode_from_value(
+        MessageKind::Value,
+        &json!({
+          "id": 12321,
+          "industry": ["abc", "def", "pqr"],
+        }),
+    )?;
+
+    let partition = 32123;
+
+    let record_batch = Batch::builder()
+        .record(Record::builder().value(value.into()))
+        .base_timestamp(119_731_017_000)
+        .build()?;
+
+    let temp_dir = tempdir().inspect(|temporary| debug!(?temporary))?;
+    let location = format!("file://{}", temp_dir.path().to_str().unwrap());
+    let database = "pqr";
+
+    schema_registry.validate(topic, &record_batch).await?;
+
+    let lake_house = Url::parse(location.as_ref())
+        .map_err(Into::into)
+        .and_then(|location| {
+            Builder::<PhantomData<Url>, PhantomData<Registry>>::default()
+                .location(location)
+                .database(Some(database.into()))
+                .schema_registry(schema_registry)
+                .build()
+        })?;
+
+    let config = DescribeConfigsResult::default()
+        .error_code(ErrorCode::None.into())
+        .error_message(None)
+        .resource_type(ConfigResource::Topic.into())
+        .resource_name(topic.into())
+        .configs(Some(vec![]));
+
+    let offset = 543212345;
+
+    lake_house
+        .store(topic, partition, offset, &record_batch, config)
+        .await
+        .inspect(|result| debug!(?result))
+        .inspect_err(|err| debug!(?err))?;
+
+    let table = {
+        let mut table =
+            DeltaTableBuilder::from_url(Url::parse(&format!("{location}/{database}.{topic}"))?)?
+                .build()?;
+        table.load().await?;
+        table
+    };
+
+    let ctx = SessionContext::new();
+
+    _ = ctx.register_table("t", Arc::new(table))?;
+
+    let df = ctx.sql("select * from t").await?;
+    let results = df.collect().await?;
+
+    let pretty_results = pretty_format_batches(&results)?.to_string();
+
+    let expected = vec![
+        "+------------------------------------------------------------------------------------+----------------------------------------+",
+        "| meta                                                                               | value                                  |",
+        "+------------------------------------------------------------------------------------+----------------------------------------+",
+        "| {partition: 32123, timestamp: 1973-10-17T18:36:57, year: 1973, month: 10, day: 17} | {id: 12321, industry: [abc, def, pqr]} |",
+        "+------------------------------------------------------------------------------------+----------------------------------------+",
+    ];
+
+    assert_eq!(pretty_results.trim().lines().collect::<Vec<_>>(), expected);
+
+    Ok(())
+}
